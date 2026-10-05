@@ -1,0 +1,85 @@
+param([Parameter(Mandatory=$true)][string]$AppDir)
+$ErrorActionPreference = 'Stop'
+$AppDir = (Resolve-Path $AppDir).Path
+$exe = Join-Path $AppDir 'SorryRKN.exe'
+$settings = Join-Path $env:LOCALAPPDATA 'SorryRKN'
+$results = @{}
+$p = Start-Process $exe -ArgumentList '--self-test' -PassThru
+if (-not $p.WaitForExit(60000)) { $p.Kill(); throw 'Native self-test timed out' }
+$report = Get-Content (Join-Path $settings 'self-test.json') -Raw | ConvertFrom-Json
+$results.native = $report
+foreach ($name in @('secret_ok','dpapi','crypto','telegram_listener','job_cleanup','windivert_open','selective_dns','dns_stopped','winws_started','winws_stopped')) {
+    if ($report.$name -ne $true) {
+        $results | ConvertTo-Json -Depth 20 | Set-Content 'validation-results.json'
+        throw "Native self-test failed: $name; $($report | ConvertTo-Json -Compress)"
+    }
+}
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class NativeUI {
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
+ [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd,uint message,IntPtr w,IntPtr l);
+ [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
+ [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd,int n);
+ [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd,IntPtr dc,uint flags);
+ [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect);
+ public struct Rect {public int left,top,right,bottom;}
+}
+'@
+$configPath = Join-Path $settings 'config.json'
+$c = Get-Content $configPath -Raw | ConvertFrom-Json
+$c.dpi = $false; $c.telegram = $true; $c.extra_sites = $false; $c.auto_data = $false
+$c | ConvertTo-Json | Set-Content -Encoding utf8 $configPath
+$p = Start-Process $exe -PassThru
+try {
+    $hwnd = [IntPtr]::Zero
+    for ($i=0;$i -lt 100;$i++) {
+        $hwnd = [NativeUI]::FindWindow('SorryRKNWindow',$null)
+        if ($hwnd -ne [IntPtr]::Zero) {break}
+        if ($p.HasExited) {throw 'GUI exited before creating its window'}
+        Start-Sleep -Milliseconds 200
+    }
+    if ($hwnd -eq [IntPtr]::Zero) {throw 'Native GUI window not found'}
+    $results.gui_window = $true
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]100,[IntPtr]::Zero) | Out-Null
+    $opened=$false
+    for ($i=0;$i -lt 100;$i++) {
+        $tcp = New-Object System.Net.Sockets.TcpClient
+        try { $tcp.Connect('127.0.0.1',1443); $opened=$true } catch {} finally {$tcp.Dispose()}
+        if ($opened) {break}; Start-Sleep -Milliseconds 200
+    }
+    if (-not $opened) {throw 'GUI did not start Telegram'}
+    $results.gui_telegram = $true
+    [NativeUI]::SendMessage($hwnd,0x10,[IntPtr]::Zero,[IntPtr]::Zero) | Out-Null
+    Start-Sleep -Milliseconds 300
+    if ($p.HasExited -or [NativeUI]::IsWindowVisible($hwnd)) {throw 'Closing the window did not minimize to tray'}
+    $results.tray_background = $true
+    [NativeUI]::ShowWindow($hwnd,5) | Out-Null
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $rect=New-Object NativeUI+Rect
+        [NativeUI]::GetWindowRect($hwnd,[ref]$rect) | Out-Null
+        $bmp=New-Object System.Drawing.Bitmap ($rect.right-$rect.left),($rect.bottom-$rect.top)
+        $graphics=[System.Drawing.Graphics]::FromImage($bmp)
+        $hdc=$graphics.GetHdc()
+        [NativeUI]::PrintWindow($hwnd,$hdc,2) | Out-Null
+        $graphics.ReleaseHdc($hdc)
+        $bmp.Save("$PWD/windows-screen.png")
+        $graphics.Dispose();$bmp.Dispose()
+    } catch { $results.screenshot_note=$_.Exception.Message }
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]100,[IntPtr]::Zero) | Out-Null
+    Start-Sleep -Seconds 2
+    $tcp=New-Object System.Net.Sockets.TcpClient
+    $stopped=$false
+    try {$tcp.Connect('127.0.0.1',1443)}catch{$stopped=$true}finally{$tcp.Dispose()}
+    if (-not $stopped) {throw 'Telegram listener remained after GUI stop'}
+    $results.gui_stop = $true
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]206,[IntPtr]::Zero) | Out-Null
+    if (-not $p.WaitForExit(20000)) {throw 'Exit did not stop the application'}
+    $results.gui_exit = $true
+} finally {
+    if (-not $p.HasExited) {$p.Kill()}
+    $results | ConvertTo-Json -Depth 20 | Set-Content 'validation-results.json'
+}
+Write-Host ($results | ConvertTo-Json -Depth 20)
