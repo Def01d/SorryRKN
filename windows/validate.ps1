@@ -20,6 +20,12 @@ using System.Runtime.InteropServices;
 public static class NativeUI {
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd,uint message,IntPtr w,IntPtr l);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd,System.Text.StringBuilder text,int max);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr hwnd,System.Text.StringBuilder text,int max);
+ [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid);
+ public delegate bool EnumProc(IntPtr hwnd,IntPtr l);
+ [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc callback,IntPtr l);
+ [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hwnd,EnumProc callback,IntPtr l);
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd,int n);
  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd,IntPtr dc,uint flags);
@@ -40,7 +46,17 @@ try {
         if ($p.HasExited) {throw 'GUI exited before creating its window'}
         Start-Sleep -Milliseconds 200
     }
-    if ($hwnd -eq [IntPtr]::Zero) {throw 'Native GUI window not found'}
+    if ($hwnd -eq [IntPtr]::Zero) {
+        $script:windowDump=New-Object System.Collections.Generic.List[string]
+        $script:targetPid=$p.Id
+        $children=[NativeUI+EnumProc]{param($h,$l);$t=New-Object System.Text.StringBuilder 1024;[NativeUI]::GetWindowText($h,$t,1024)|Out-Null;$script:windowDump.Add("child: $t");return $true}
+        $script:childCallback=$children
+        $enumerate=[NativeUI+EnumProc]{param($h,$l);[uint32]$id=0;[NativeUI]::GetWindowThreadProcessId($h,[ref]$id)|Out-Null;if ($id -eq $script:targetPid) {$t=New-Object System.Text.StringBuilder 1024;$cls=New-Object System.Text.StringBuilder 256;[NativeUI]::GetWindowText($h,$t,1024)|Out-Null;[NativeUI]::GetClassName($h,$cls,256)|Out-Null;$script:windowDump.Add("window: $cls / $t");[NativeUI]::EnumChildWindows($h,$script:childCallback,[IntPtr]::Zero)|Out-Null};return $true}
+        [NativeUI]::EnumWindows($enumerate,[IntPtr]::Zero)|Out-Null
+        $results.window_dump=$script:windowDump
+        Write-Host ($results|ConvertTo-Json -Depth 20)
+        throw 'Native GUI window not found'
+    }
     $results.gui_window = $true
     [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]100,[IntPtr]::Zero) | Out-Null
     $opened=$false
