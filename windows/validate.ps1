@@ -18,7 +18,7 @@ Add-Type @'
 using System;
 using System.Runtime.InteropServices;
 public static class NativeUI {
- [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
+ [DllImport("user32.dll",EntryPoint="FindWindowW",ExactSpelling=true,CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd,uint message,IntPtr w,IntPtr l);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd,System.Text.StringBuilder text,int max);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr hwnd,System.Text.StringBuilder text,int max);
@@ -41,7 +41,7 @@ $p = Start-Process $exe -PassThru
 try {
     $hwnd = [IntPtr]::Zero
     for ($i=0;$i -lt 100;$i++) {
-        $hwnd = [NativeUI]::FindWindow('SorryRKNWindow',$null)
+        $hwnd = [NativeUI]::FindWindow('SorryRKNWindow','SorryRKN')
         if ($hwnd -ne [IntPtr]::Zero) {break}
         if ($p.HasExited) {throw 'GUI exited before creating its window'}
         Start-Sleep -Milliseconds 200
