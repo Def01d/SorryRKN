@@ -23,3 +23,11 @@ Android 8+; arm64-v8a и x86_64. Результат обхода и скорос
 ## Открытые компоненты
 
 Независимая адаптация [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy), [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube), zapret/tpws, ByeDPI и hev-socks5-tunnel. Приложение не является официальным продуктом авторов этих проектов. Лицензии и notices включены в приложение: «О приложении» → «Лицензии».
+
+## Windows 1.0.0
+
+Windows 10/11 x64 (Intel/AMD). Оригинальный zapret/winws, автоматический подбор из 22 профилей, встроенный Telegram-прокси, профиль нейросетей и Instagram, чёрно-бело-серый интерфейс и системный трей.
+
+[Установщик](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0-Setup.exe) · [Переносной ZIP](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0.zip) · [Исходники](windows/src) · [Инструкция](windows/README.md) · [Проверки](windows/VALIDATION.md)
+
+Запуск требует прав администратора для WinDivert. Закрытие окна оставляет программу работать в трее; отключение и выход доступны через значок. Telegram подключается кнопкой в программе. Python уже включён. Параметры и списки обновляются с GitHub; Windows-обновления предлагаются при запуске через отдельный windows-update.json. Фактический обход зависит от сети.

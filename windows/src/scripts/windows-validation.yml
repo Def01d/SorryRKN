@@ -1,0 +1,27 @@
+name: Validate Windows release
+on:
+  workflow_dispatch:
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download release package and validation script
+        shell: pwsh
+        run: |
+          $base = "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}"
+          Invoke-WebRequest "$base/windows/SorryRKN-Windows-1.0.0.zip" -OutFile package.zip
+          Expand-Archive package.zip -DestinationPath app
+          Invoke-WebRequest "$base/windows/validate.ps1" -OutFile validate.ps1
+          Invoke-WebRequest "$base/windows/SorryRKN-Windows-1.0.0-Setup.exe" -OutFile Setup.exe
+          ./validate.ps1 -AppDir "$PWD/app/SorryRKN" -InstallerPath "$PWD/Setup.exe"
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-validation
+          path: |
+            validation-results.json
+            windows-screen.png
+            app/SorryRKN/README.md

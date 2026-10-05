@@ -1,0 +1,5 @@
+/dist/
+/runtime/python/
+/runtime/zapret/
+__pycache__/
+*.pyc

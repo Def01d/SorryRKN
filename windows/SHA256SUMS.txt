@@ -1,0 +1,3 @@
+dfa381816d561a09e3ebaad377a7d12991079ba4dac9300b040617b816ab825b  SorryRKN-Windows-1.0.0-Setup.exe
+63352bcffc05fd180ad9f2a179ed2770978bff24090abfe040e62503a2693986  SorryRKN-Windows-1.0.0.zip
+6b0545b3c295ad658d572e89b8d87b553ba9b904d99beb490bb30753c73db6d3  SorryRKN-Windows-1.0.0-source.zip
