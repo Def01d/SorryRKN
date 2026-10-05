@@ -20,7 +20,7 @@ type Runner interface {
 	Start(program string, args []string, dir string, input []byte, log string) (Process, error)
 }
 type Extra interface {
-	Start(context.Context, string) (func(), error)
+	Start(context.Context, string, DomainRules) (func(), error)
 	Alive() bool
 }
 type State struct {
@@ -126,7 +126,17 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		s.Detail = "Не удалось включить"
 		e.set(s)
 	}
-	if !c.DPI && !c.Telegram && !c.Extras {
+	rules, ruleError := c.Rules()
+	if ruleError != nil {
+		fail(ruleError)
+		return
+	}
+	directList, ruleError := WriteBypassList(e.data, rules)
+	if ruleError != nil {
+		fail(ruleError)
+		return
+	}
+	if !c.DPI && !c.Telegram && !c.Extras && len(rules.Geo) == 0 {
 		fail(errors.New("выберите сервис для подключения"))
 		return
 	}
@@ -155,9 +165,9 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		}
 		s.Telegram = true
 	}
-	if c.Extras {
+	if c.Extras || len(rules.Geo) > 0 {
 		var err error
-		stopExtra, err = e.extra.Start(ctx, filepath.Join(e.root, "zapret", "bin"))
+		stopExtra, err = e.extra.Start(ctx, filepath.Join(e.root, "zapret", "bin"), rules)
 		if err != nil {
 			fail(fmt.Errorf("DNS-профиль: %w", err))
 			return
@@ -193,6 +203,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			if c.Extras {
 				args = WithInstagram(args, filepath.Join(e.root, "zapret", "lists", "instagram.txt"))
 			}
+			args = WithDirect(args, directList)
 			process, err := e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), args, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
 			if err != nil {
 				fail(err)
@@ -240,6 +251,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 				if c.Extras {
 					args = WithInstagram(args, filepath.Join(e.root, "zapret", "lists", "instagram.txt"))
 				}
+				args = WithDirect(args, directList)
 				p, err := e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), args, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
 				if err == nil {
 					children = append(children, p)
@@ -263,6 +275,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 	} else {
 		if c.Extras {
 			args := WithInstagram([]string{"--wf-tcp=80,443", "--wf-udp=443"}, filepath.Join(e.root, "zapret", "lists", "instagram.txt"))
+			args = WithDirect(args, directList)
 			p, err := e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), args, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
 			if err != nil {
 				fail(err)

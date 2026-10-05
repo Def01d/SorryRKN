@@ -19,15 +19,15 @@
 
 | Платформа | Версия | Скачать | Требования |
 | --- | --- | --- | --- |
-| **Android** | **0.8.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.8.0/SorryRKN-0.8.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
-| **Windows** | **1.0.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
-| **Windows Portable** | **1.0.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
+| **Android** | **0.9.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.9.0/SorryRKN-0.9.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
+| **Windows** | **1.1.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
+| **Windows Portable** | **1.1.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 
 [Что изменилось](CHANGELOG.md) · [Контрольные суммы Android](SHA256SUMS.txt) · [Контрольные суммы Windows](windows/SHA256SUMS.txt)
 
 Готовые файлы доступны по ссылкам выше. Автоматические архивы GitHub **«Source code»** на странице релиза не являются установщиками.
 
-Обновление поверх установленной версии сохраняет настройки. Пользователи GrayBridge 0.7 могут установить Android 0.8 поверх старого приложения: пакет и подпись сохранены.
+Обновление поверх установленной версии сохраняет настройки. Пользователи GrayBridge 0.7 могут установить актуальный APK поверх старого приложения: пакет и подпись сохранены.
 
 ## Возможности
 
@@ -36,6 +36,7 @@
 - **Нейросети и Instagram.** Отдельный профиль для ChatGPT, Claude, Gemini и Instagram. Для нейросетей используется выборочный Comss DNS, для Instagram — отдельный метод DPI.
 - **Работа в фоне.** Android: плитка рядом с Wi-Fi и Bluetooth. Windows: включение и выключение через системный трей.
 - **Обновления с GitHub.** Обновление совместимых списков, параметров и Telegram-доменов; предложение новых версий приложения при запуске.
+- **Мои ресурсы.** Пользовательские домены DNS-профиля и прямые исключения с приоритетом. [Как настроить](docs/USER-RULES.md).
 - **Монохромный интерфейс.** Большая кнопка соединения, три переключателя и короткое меню.
 
 Результат зависит от оператора, маршрута и сервиса. Профиль нейросетей не предоставляет зарубежный IP всем приложениям и не снимает ограничения аккаунтов. Подробнее — в [ответах на частые вопросы](docs/FAQ.md).

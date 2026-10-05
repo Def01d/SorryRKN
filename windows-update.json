@@ -1,9 +1,9 @@
 {
   "platform": "windows-x64",
-  "versionCode": 10000,
-  "versionName": "1.0.0",
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0-Setup.exe",
-  "size": 17084039,
-  "sha256": "dfa381816d561a09e3ebaad377a7d12991079ba4dac9300b040617b816ab825b",
-  "notes": "Первая Windows-версия SorryRKN: zapret/winws, автоматический подбор, Telegram-прокси, выборочный DNS-профиль, работа в трее и обновления с GitHub."
+  "versionCode": 10100,
+  "versionName": "1.1.0",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0-Setup.exe",
+  "size": 17121933,
+  "sha256": "2f5a783b50e4c937a9e962c67d5eecb08428e4313b60326d7be2a2cf86295e5a",
+  "notes": "Мои ресурсы: ручные домены DNS-профиля и прямые исключения. Прямые правила приоритетнее DNS-профиля и DPI. Списки сохраняются при обновлениях. После сохранения выключите и включите соединение; DNS-профиль зависит от поддержки сайта провайдером Comss."
 }

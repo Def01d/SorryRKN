@@ -2,7 +2,7 @@
 
 Локальный обход DPI и Telegram-прокси, минималистичный интерфейс и управление через системный трей.
 
-[**Скачать установщик 1.0.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0-Setup.exe) · [**Переносной ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0.zip)
+[**Скачать установщик 1.1.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0-Setup.exe) · [**Переносной ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0.zip)
 
 Windows 10/11 x64, Intel/AMD. Для WinDivert нужны права администратора; Python включён в дистрибутив. ZIP нужно распаковать целиком.
 
@@ -13,8 +13,12 @@ Windows 10/11 x64, Intel/AMD. Для WinDivert нужны права админ�
 
 [Подробная инструкция](../docs/WINDOWS.md) · [Частые вопросы](../docs/FAQ.md) · [Контрольные суммы](SHA256SUMS.txt) · [Проверки](VALIDATION.md)
 
+## Мои ресурсы
+
+Меню **«Мои ресурсы»** позволяет добавить домены для DNS-профиля и прямые исключения. [Инструкция](../docs/USER-RULES.md).
+
 ## Для разработчиков
 
-[Исходники](src) · [Сборка](src/BUILD.md) · [Архив исходников 1.0.0](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0-source.zip)
+[Исходники](src) · [Сборка](src/BUILD.md) · [Архив исходников 1.1.0](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0-source.zip)
 
 Используются оригинальные zapret/winws + WinDivert и Flowseal/tg-ws-proxy. Это независимое приложение, не официальный продукт авторов компонентов. Лицензии включены в `licenses`; результат обхода зависит от сети.

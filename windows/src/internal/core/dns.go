@@ -138,23 +138,28 @@ type SmartDNS struct {
 	mu     sync.Mutex
 	cache  map[string]cachedDNS
 	client *http.Client
+	rules  DomainRules
 }
 
-func NewSmartDNS() *SmartDNS {
+func NewSmartDNS(rules ...DomainRules) *SmartDNS {
+	selected := DomainRules{Builtin: true}
+	if len(rules) > 0 {
+		selected = rules[0]
+	}
 	transport := &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 		if strings.HasPrefix(address, "dns.comss.one:") {
 			address = "195.133.25.16:443"
 		}
 		return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, network, address)
 	}}
-	return &SmartDNS{cache: make(map[string]cachedDNS), client: &http.Client{Transport: transport, Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("DNS redirect rejected") }}}
+	return &SmartDNS{rules: selected, cache: make(map[string]cachedDNS), client: &http.Client{Transport: transport, Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("DNS redirect rejected") }}}
 }
 func (s *SmartDNS) Resolve(ctx context.Context, q []byte) []byte {
 	host, typ, _, e := Question(q)
 	if e != nil {
 		return nil
 	}
-	if !IsAI(host) {
+	if !s.rules.IsGeo(host) {
 		return nil
 	}
 	if typ == 28 || typ == 64 || typ == 65 {

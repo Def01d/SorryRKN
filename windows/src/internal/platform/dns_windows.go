@@ -26,7 +26,7 @@ func (d *DNS) Alive() bool { return d.active.Load() }
 func (d *DNS) Counters() map[string]uint64 {
 	return map[string]uint64{"smart_dns_ok": d.ok.Load(), "smart_dns_failed": d.failed.Load()}
 }
-func (d *DNS) Start(ctx context.Context, bin string) (func(), error) {
+func (d *DNS) Start(ctx context.Context, bin string, rules core.DomainRules) (func(), error) {
 	dll, e := windows.LoadDLL(filepath.Join(bin, "WinDivert.dll"))
 	if e != nil {
 		return nil, e
@@ -47,16 +47,25 @@ func (d *DNS) Start(ctx context.Context, bin string) (func(), error) {
 		return nil, fmt.Errorf("WinDivert: %v", err)
 	}
 	d.active.Store(true)
+	windows.NewLazySystemDLL("dnsapi.dll").NewProc("DnsFlushResolverCache").Call()
 	d.mu.Lock()
 	d.handle = windows.Handle(handle)
 	d.mu.Unlock()
 	done := make(chan struct{})
 	var once sync.Once
-	stop := func() { once.Do(func() { closeProc.Call(handle); <-done; d.active.Store(false); dll.Release() }) }
+	stop := func() {
+		once.Do(func() {
+			closeProc.Call(handle)
+			<-done
+			d.active.Store(false)
+			dll.Release()
+			windows.NewLazySystemDLL("dnsapi.dll").NewProc("DnsFlushResolverCache").Call()
+		})
+	}
 	go func() {
 		defer close(done)
 		defer d.active.Store(false)
-		resolver := core.NewSmartDNS()
+		resolver := core.NewSmartDNS(rules)
 		slots := make(chan struct{}, 32)
 		var tasks sync.WaitGroup
 		defer tasks.Wait()
@@ -75,7 +84,7 @@ func (d *DNS) Start(ctx context.Context, bin string) (func(), error) {
 			packet = packet[:count]
 			query, _, valid := core.DNSPayload(packet)
 			host, _, _, qe := core.Question(query)
-			if !valid || qe != nil || !core.IsAI(host) {
+			if !valid || qe != nil || !rules.IsGeo(host) {
 				forward(packet, address)
 				continue
 			}

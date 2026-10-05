@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sorryrkn/internal/core"
 	"sorryrkn/internal/platform"
 	"strings"
 	"time"
@@ -61,7 +62,7 @@ func nativeTests(report map[string]any) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	dns := &platform.DNS{}
-	stop, e := dns.Start(ctx, filepath.Join(root, "zapret", "bin"))
+	stop, e := dns.Start(ctx, filepath.Join(root, "zapret", "bin"), core.DomainRules{Builtin: true})
 	if e != nil {
 		report["windivert_error"] = e.Error()
 		cancel()
@@ -86,10 +87,17 @@ func nativeTests(report map[string]any) {
 	cancel()
 	stop()
 	report["dns_stopped"] = !dns.Alive()
-	child, e = runner.Start(filepath.Join(root, "zapret", "bin", "winws.exe"), []string{"--wf-tcp=18888", "--wf-udp=18889", "--filter-tcp=18888"}, filepath.Join(root, "zapret", "bin"), nil, filepath.Join(data, "winws-test.log"))
+	list, listError := core.WriteBypassList(data, core.DomainRules{Direct: []string{"bank.example.test"}})
+	if listError != nil {
+		report["winws_error"] = listError.Error()
+		return
+	}
+	args := core.WithDirect([]string{"--wf-tcp=18888", "--wf-udp=18889", "--filter-tcp=18888", "--dpi-desync=fake"}, list)
+	child, e = runner.Start(filepath.Join(root, "zapret", "bin", "winws.exe"), args, filepath.Join(root, "zapret", "bin"), nil, filepath.Join(data, "winws-test.log"))
 	if e == nil {
 		time.Sleep(time.Second)
 		report["winws_started"] = child.Alive()
+		report["direct_profile"] = child.Alive()
 		if !child.Alive() {
 			b, _ := os.ReadFile(filepath.Join(data, "winws-test.log"))
 			report["winws_error"] = string(b)

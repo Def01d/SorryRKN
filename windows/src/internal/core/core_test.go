@@ -225,8 +225,8 @@ func (r *fakeRunner) Start(program string, args []string, dir string, input []by
 
 type fakeExtra struct{}
 
-func (fakeExtra) Start(context.Context, string) (func(), error) { return func() {}, nil }
-func (fakeExtra) Alive() bool                                   { return true }
+func (fakeExtra) Start(context.Context, string, DomainRules) (func(), error) { return func() {}, nil }
+func (fakeExtra) Alive() bool                                                { return true }
 func TestEngineFailedSelectionDoesNotClaimWorking(t *testing.T) {
 	r := &fakeRunner{}
 	root := "../../runtime"

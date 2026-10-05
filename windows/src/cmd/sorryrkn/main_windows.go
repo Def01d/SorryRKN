@@ -233,6 +233,9 @@ func main() {
 	go updateStartup()
 	var m msg
 	for call(user, "GetMessageW", uintptr(unsafe.Pointer(&m)), 0, 0, 0) != 0 {
+		if rulesWindow != 0 && call(user, "IsDialogMessageW", rulesWindow, uintptr(unsafe.Pointer(&m))) != 0 {
+			continue
+		}
 		if call(user, "IsDialogMessageW", hwnd, uintptr(unsafe.Pointer(&m))) != 0 {
 			continue
 		}
@@ -353,6 +356,8 @@ func retest(extended bool) {
 }
 func command(id int) {
 	switch id {
+	case RulesID:
+		editRules()
 	case PowerID:
 		toggle(false)
 	case DpiID, TelegramID, ExtrasID:
@@ -457,6 +462,7 @@ func menu(tray bool) {
 	call(user, "AppendMenuW", m, 0x800, 0, 0)
 	addItem(m, RetestID, "Подобрать заново", false, false)
 	addItem(m, ExtendedID, "Расширенный подбор", false, false)
+	addItem(m, RulesID, "Мои ресурсы", false, false)
 	addItem(m, UpdatesID, "Обновить приложение", false, false)
 	addItem(m, DataID, "Обновить данные GitHub", false, false)
 	addItem(m, AutoDataID, "Обновлять данные автоматически", currentConfig().AutoData, false)

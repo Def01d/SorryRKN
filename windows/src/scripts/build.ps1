@@ -21,7 +21,7 @@ try {
     Copy-Item dist/SorryRKN.exe,README.md $package
     Copy-Item runtime,licenses $package -Recurse
     Get-ChildItem "$package/runtime" -Directory -Recurse -Filter '__pycache__'|Remove-Item -Recurse -Force
-    Compress-Archive $package 'dist/SorryRKN-Windows-1.0.0.zip' -Force
+    Compress-Archive $package 'dist/SorryRKN-Windows-1.1.0.zip' -Force
     if (Get-Command makensis -ErrorAction SilentlyContinue) {
         makensis scripts/installer.nsi
         if ($LASTEXITCODE -ne 0) {throw 'NSIS build failed'}

@@ -9,18 +9,20 @@ import (
 	"path/filepath"
 )
 
-const Version = "1.0.0"
-const VersionCode = 10000
+const Version = "1.1.0"
+const VersionCode = 10100
 const UpdateURL = "https://raw.githubusercontent.com/Def01d/SorryRKN/main/windows-update.json"
 
 type Config struct {
-	DPI             bool   `json:"dpi"`
-	Telegram        bool   `json:"telegram"`
-	Extras          bool   `json:"extra_sites"`
-	Method          string `json:"method"`
-	ProtectedSecret string `json:"protected_secret"`
-	SavedProfile    string `json:"last_profile"`
-	AutoData        bool   `json:"auto_data"`
+	DPI             bool     `json:"dpi"`
+	Telegram        bool     `json:"telegram"`
+	Extras          bool     `json:"extra_sites"`
+	Method          string   `json:"method"`
+	ProtectedSecret string   `json:"protected_secret"`
+	SavedProfile    string   `json:"last_profile"`
+	AutoData        bool     `json:"auto_data"`
+	GeoDomains      []string `json:"geo_domains,omitempty"`
+	DirectDomains   []string `json:"direct_domains,omitempty"`
 }
 
 func DefaultConfig() Config { return Config{DPI: true, Telegram: true, Method: "auto", AutoData: true} }
