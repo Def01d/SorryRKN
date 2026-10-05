@@ -8,7 +8,7 @@ $p = Start-Process $exe -ArgumentList '--self-test' -PassThru
 if (-not $p.WaitForExit(60000)) { $p.Kill(); throw 'Native self-test timed out' }
 $report = Get-Content (Join-Path $settings 'self-test.json') -Raw | ConvertFrom-Json
 $results.native = $report
-foreach ($name in @('secret_ok','dpapi','crypto','telegram_listener','job_cleanup','windivert_open','selective_dns','dns_stopped','winws_started','winws_stopped')) {
+foreach ($name in @('secret_ok','dpapi','crypto','telegram_listener','job_cleanup','windivert_open','selective_dns','dns_stopped','winws_started','winws_stopped','direct_profile')) {
     if ($report.$name -ne $true) {
         $results | ConvertTo-Json -Depth 20 | Set-Content 'validation-results.json'
         throw "Native self-test failed: $name; $($report | ConvertTo-Json -Compress)"
@@ -20,6 +20,8 @@ using System.Runtime.InteropServices;
 public static class NativeUI {
  [DllImport("user32.dll",EntryPoint="FindWindowW",ExactSpelling=true,CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd,uint message,IntPtr w,IntPtr l);
+ [DllImport("user32.dll",EntryPoint="SendMessageW",ExactSpelling=true,CharSet=CharSet.Unicode)] public static extern IntPtr SendText(IntPtr hwnd,uint message,IntPtr w,string l);
+ [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr hwnd,int id);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd,System.Text.StringBuilder text,int max);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr hwnd,System.Text.StringBuilder text,int max);
  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid);
@@ -58,6 +60,24 @@ try {
         throw 'Native GUI window not found'
     }
     $results.gui_window = $true
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]209,[IntPtr]::Zero)|Out-Null
+    $editor=[NativeUI]::FindWindow('SorryRKNRules','Мои ресурсы')
+    if ($editor -eq [IntPtr]::Zero) {throw 'User resources editor not found'}
+    [NativeUI]::SendText([NativeUI]::GetDlgItem($editor,9001),0xc,[IntPtr]::Zero,"HTTPS://Geo.Example.TEST/path`r`n*.geo.example.test")|Out-Null
+    [NativeUI]::SendText([NativeUI]::GetDlgItem($editor,9002),0xc,[IntPtr]::Zero,"chatgpt.com`r`nskip.geo.example.test")|Out-Null
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $rect=New-Object NativeUI+Rect
+        [NativeUI]::GetWindowRect($editor,[ref]$rect)|Out-Null
+        $bmp=New-Object System.Drawing.Bitmap ($rect.right-$rect.left),($rect.bottom-$rect.top)
+        $graphics=[System.Drawing.Graphics]::FromImage($bmp);$hdc=$graphics.GetHdc()
+        [NativeUI]::PrintWindow($editor,$hdc,2)|Out-Null;$graphics.ReleaseHdc($hdc)
+        $bmp.Save("$PWD/windows-rules.png");$graphics.Dispose();$bmp.Dispose()
+    } catch {$results.rules_screenshot_note=$_.Exception.Message}
+    [NativeUI]::SendMessage($editor,0x111,[IntPtr]9003,[IntPtr]::Zero)|Out-Null
+    $saved=Get-Content $configPath -Raw|ConvertFrom-Json
+    if ($saved.geo_domains.Count -ne 1 -or $saved.geo_domains[0] -ne 'geo.example.test' -or $saved.direct_domains.Count -ne 2) {throw 'Editor did not normalize and persist rules'}
+    $results.user_rules_editor=$true
     [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]100,[IntPtr]::Zero) | Out-Null
     $opened=$false
     for ($i=0;$i -lt 100;$i++) {
@@ -67,6 +87,19 @@ try {
     }
     if (-not $opened) {throw 'GUI did not start Telegram'}
     $results.gui_telegram = $true
+    $udp=New-Object System.Net.Sockets.UdpClient
+    try {
+        $udp.Client.ReceiveTimeout=5000;$udp.Connect('8.8.8.8',53)
+        $q=New-Object System.Collections.Generic.List[byte]
+        $q.AddRange([byte[]]@(0x71,0x29,1,0,0,1,0,0,0,0,0,0))
+        foreach ($label in @('api','geo','example','test')) {$q.Add([byte]$label.Length);$q.AddRange([System.Text.Encoding]::ASCII.GetBytes($label))}
+        $q.AddRange([byte[]]@(0,0,28,0,1));$wire=$q.ToArray()
+        $udp.Send($wire,$wire.Length)|Out-Null
+        $remote=New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Any),0
+        $reply=$udp.Receive([ref]$remote)
+        if ($reply.Length -lt 12 -or $reply[0] -ne 0x71 -or $reply[1] -ne 0x29 -or ($reply[2] -band 128) -eq 0 -or $reply[6] -ne 0 -or $reply[7] -ne 0) {throw 'Custom-only DNS profile did not intercept its domain'}
+        $results.custom_only_dns=$true
+    } finally {$udp.Dispose()}
     [NativeUI]::SendMessage($hwnd,0x10,[IntPtr]::Zero,[IntPtr]::Zero) | Out-Null
     Start-Sleep -Milliseconds 300
     if ($p.HasExited -or [NativeUI]::IsWindowVisible($hwnd)) {throw 'Closing the window did not minimize to tray'}
@@ -124,3 +157,4 @@ if ($InstallerPath) {
 }
 Write-Host ($results | ConvertTo-Json -Depth 20)
 if (Test-Path 'windows-screen.png') {Write-Host ('SCREENSHOT_BASE64:'+ [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD/windows-screen.png")))}
+if (Test-Path 'windows-rules.png') {Write-Host ('RULES_SCREENSHOT_BASE64:'+ [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD/windows-rules.png")))}
