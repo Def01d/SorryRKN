@@ -19,7 +19,7 @@
 
 | Платформа | Версия | Скачать | Требования |
 | --- | --- | --- | --- |
-| **Android** | **0.9.3** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.9.3/SorryRKN-0.9.3.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
+| **Android** | **0.9.4** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.9.4/SorryRKN-0.9.4.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
 | **Windows** | **1.1.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
 | **Windows Portable** | **1.1.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 
@@ -80,6 +80,8 @@
 | Проверить новую версию | `··· → Обновить приложение` | `··· → Обновить приложение` |
 | Обновить данные | `··· → Обновления GitHub → Проверить сейчас` | `··· → Обновить данные GitHub` |
 | Изменить автопроверку данных | `··· → Обновления GitHub` | `··· → Обновлять данные автоматически` |
+
+Android 0.9.4 проверяет APK в фоне при каждом открытии приложения, включая возврат после кнопки «Домой». Новая версия предлагается в диалоге; скачивание и установка требуют подтверждения.
 
 Android и Windows используют отдельные источники обновлений и сохраняют свои версии.
 
