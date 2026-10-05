@@ -116,10 +116,11 @@ if ($InstallerPath) {
         $results.installed_runtime=$true
         $uninstall=Start-Process (Join-Path $installed 'Uninstall.exe') -ArgumentList '/S' -PassThru
         $uninstall.WaitForExit(60000)|Out-Null
-        for ($i=0;$i -lt 100 -and (Test-Path $installedExe);$i++) {Start-Sleep -Milliseconds 200}
+        for ($i=0;$i -lt 100 -and ((Test-Path $installedExe) -or (Test-Path 'HKLM:\Software\SorryRKN'));$i++) {Start-Sleep -Milliseconds 200}
         if ((Test-Path $installedExe) -or (Test-Path 'HKLM:\Software\SorryRKN')) {throw 'Uninstaller left the app or registry entry'}
         if (-not (Test-Path $configPath)) {throw 'Uninstaller deleted user preferences'}
         $results.uninstaller=$true
     } finally {$results | ConvertTo-Json -Depth 20 | Set-Content 'validation-results.json'}
 }
 Write-Host ($results | ConvertTo-Json -Depth 20)
+if (Test-Path 'windows-screen.png') {Write-Host ('SCREENSHOT_BASE64:'+ [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD/windows-screen.png")))}
