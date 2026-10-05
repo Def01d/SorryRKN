@@ -96,13 +96,13 @@ Get-FileHash .\SorryRKN-Windows-1.1.0-Setup.exe -Algorithm SHA256
 Linux:
 
 ```sh
-sha256sum SorryRKN-0.9.0.apk
+sha256sum SorryRKN-0.9.1.apk
 ```
 
 macOS:
 
 ```sh
-shasum -a 256 SorryRKN-0.9.0.apk
+shasum -a 256 SorryRKN-0.9.1.apk
 ```
 
 ## Что приложить к сообщению об ошибке?

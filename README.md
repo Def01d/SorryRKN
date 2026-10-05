@@ -19,7 +19,7 @@
 
 | Платформа | Версия | Скачать | Требования |
 | --- | --- | --- | --- |
-| **Android** | **0.9.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.9.0/SorryRKN-0.9.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
+| **Android** | **0.9.1** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.9.1/SorryRKN-0.9.1.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
 | **Windows** | **1.1.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
 | **Windows Portable** | **1.1.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 
