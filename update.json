@@ -1,0 +1,9 @@
+{
+  "versionCode": 8,
+  "versionName": "0.8.0",
+  "minSdk": 26,
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/v0.8.0/SorryRKN-0.8.0.apk",
+  "size": 21017821,
+  "sha256": "3d4f4951a44e4962a5ab105dc7407e133bd82698ef17c127c11abbb8e1d4bafa",
+  "notes": "SorryRKN: новое имя, иконка и переключатели. Ускорена обработка фото, видео и файлов Telegram: пакетная конвертация AES-CTR вместо побайтового JNI. Увеличен пул готовых соединений. Добавлены диагностика Telegram и проверка APK-обновлений при запуске."
+}

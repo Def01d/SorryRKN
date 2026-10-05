@@ -4,7 +4,7 @@
 
 ## Установка
 
-[Скачать последнюю версию APK](https://github.com/Def01d/SorryRKN/releases/latest/download/SorryRKN-0.8.0.apk) · [Все релизы](https://github.com/Def01d/SorryRKN/releases)
+[Скачать последнюю версию APK](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.8.0/SorryRKN-0.8.0.apk) · [Все релизы](https://github.com/Def01d/SorryRKN/releases)
 
 Установите SorryRKN 0.8 поверх GrayBridge 0.7, не удаляя приложение. Пакет `dev.graybridge` и подпись сохранены; настройки и секрет Telegram остаются прежними. Версия 0.7 не умеет проверять новые APK, поэтому первый переход выполняется вручную. Начиная с 0.8 новые версии предлагаются при запуске; установка требует подтверждения Android.
 
@@ -16,7 +16,7 @@
 - Новое имя SorryRKN, иконка, кнопка подключения и переключатели.
 - Проверка APK-обновлений при запуске и в меню «Обновить приложение». Перед установкой проверяются размер, SHA-256, пакет, версия и подпись.
 
-Источник обновлений: https://github.com/Def01d/SorryRKN/releases/latest/download/update.json
+Источник обновлений: https://raw.githubusercontent.com/Def01d/SorryRKN/main/update.json
 
 Android 8+; arm64-v8a и x86_64. Результат обхода и скорость загрузок зависят от сети. Это репозиторий релизов; ключ подписи здесь не публикуется.
 
