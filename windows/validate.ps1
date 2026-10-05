@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$AppDir)
+param([Parameter(Mandatory=$true)][string]$AppDir,[string]$InstallerPath)
 $ErrorActionPreference = 'Stop'
 $AppDir = (Resolve-Path $AppDir).Path
 $exe = Join-Path $AppDir 'SorryRKN.exe'
@@ -97,5 +97,29 @@ try {
 } finally {
     if (-not $p.HasExited) {$p.Kill()}
     $results | ConvertTo-Json -Depth 20 | Set-Content 'validation-results.json'
+}
+if ($InstallerPath) {
+    try {
+        $setup=Start-Process (Resolve-Path $InstallerPath).Path -ArgumentList '/S' -PassThru
+        if (-not $setup.WaitForExit(120000) -or $setup.ExitCode -ne 0) {throw 'Installer failed'}
+        $installed=(Get-ItemProperty 'HKLM:\Software\SorryRKN').InstallPath
+        $installedExe=Join-Path $installed 'SorryRKN.exe'
+        if ((Get-FileHash $installedExe).Hash -ne (Get-FileHash $exe).Hash) {throw 'Installed executable differs from portable build'}
+        if (-not (Test-Path (Join-Path $installed 'runtime\python\python.exe'))) {throw 'Installer omitted embedded Python'}
+        $results.installer=$true
+        $p=Start-Process $installedExe -ArgumentList '--self-test' -PassThru
+        if (-not $p.WaitForExit(60000)) {$p.Kill();throw 'Installed self-test timed out'}
+        $installedReport=Get-Content (Join-Path $settings 'self-test.json') -Raw | ConvertFrom-Json
+        foreach ($name in @('crypto','telegram_listener','job_cleanup','windivert_open','selective_dns','dns_stopped','winws_started','winws_stopped')) {
+            if ($installedReport.$name -ne $true) {throw "Installed native self-test failed: $name"}
+        }
+        $results.installed_runtime=$true
+        $uninstall=Start-Process (Join-Path $installed 'Uninstall.exe') -ArgumentList '/S' -PassThru
+        $uninstall.WaitForExit(60000)|Out-Null
+        for ($i=0;$i -lt 100 -and (Test-Path $installedExe);$i++) {Start-Sleep -Milliseconds 200}
+        if ((Test-Path $installedExe) -or (Test-Path 'HKLM:\Software\SorryRKN')) {throw 'Uninstaller left the app or registry entry'}
+        if (-not (Test-Path $configPath)) {throw 'Uninstaller deleted user preferences'}
+        $results.uninstaller=$true
+    } finally {$results | ConvertTo-Json -Depth 20 | Set-Content 'validation-results.json'}
 }
 Write-Host ($results | ConvertTo-Json -Depth 20)
