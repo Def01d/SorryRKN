@@ -1,0 +1,56 @@
+name: Сообщить об ошибке
+description: Подключение, Telegram, DPI, установка или обновление работают неправильно.
+title: "[Ошибка]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Проверьте [FAQ](https://github.com/Def01d/SorryRKN/blob/main/docs/FAQ.md) и похожие обращения. Не публикуйте секрет Telegram, ссылку tg://proxy, пароли или приватные переписки.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Платформа
+      options:
+        - Android
+        - Windows
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия SorryRKN
+      placeholder: Например, Android 0.8.0 или Windows 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Устройство и система
+      placeholder: Например, Samsung Galaxy / Android 16 или Intel x64 / Windows 11
+    validations:
+      required: true
+  - type: input
+    id: network
+    attributes:
+      label: Сеть и оператор
+      placeholder: Wi-Fi / оператор или мобильная сеть / оператор
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Что произошло и как повторить
+      description: Укажите сервис, приложение или браузер, включённые переключатели и выбранный метод. Что должно было произойти? Что произошло в действительности?
+    validations:
+      required: true
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Сравнение
+      description: Работает ли сервис без SorryRKN или на другой сети? Пробовали обновить данные и подобрать метод заново?
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Диагностика
+      description: Меню ··· → Диагностика. Скопируйте отчёт после воспроизведения проблемы; перед публикацией проверьте содержимое. Можно приложить файл или снимок ошибки.
+      render: json

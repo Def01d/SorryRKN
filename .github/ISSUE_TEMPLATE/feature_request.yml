@@ -1,0 +1,29 @@
+name: Предложить улучшение
+description: Новая возможность, улучшение интерфейса или документации.
+title: "[Предложение]: "
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Платформа
+      options:
+        - Android
+        - Windows
+        - Обе платформы
+        - Документация
+    validations:
+      required: true
+  - type: textarea
+    id: need
+    attributes:
+      label: Какую задачу нужно решить?
+      description: Опишите ситуацию, в которой нужна эта возможность.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Как должен выглядеть результат?
+      description: Пример поведения, вариант интерфейса или альтернативное решение.
+    validations:
+      required: true

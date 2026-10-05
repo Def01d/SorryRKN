@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Инструкции и ответы на частые вопросы
+    url: https://github.com/Def01d/SorryRKN/blob/main/docs/FAQ.md
+    about: Сначала проверьте инструкцию и типовые решения для Android и Windows.

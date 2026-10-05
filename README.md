@@ -1,33 +1,107 @@
-# SorryRKN
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="SorryRKN — локальный обход DPI и Telegram-прокси для Android и Windows" width="100%">
+</p>
 
-Минималистичное Android-приложение без root: локальный VPN для обхода DPI и Telegram MTProto → WebSocket/HTTP2 прокси.
+<p align="center">
+  Минималистичное приложение для обхода DPI и подключения Telegram.<br>
+  Автоподбор методов, работа в фоне и управление одной кнопкой.
+</p>
 
-## Установка
+<p align="center">
+  <a href="#скачивание">Скачать</a> ·
+  <a href="docs/ANDROID.md">Android</a> ·
+  <a href="docs/WINDOWS.md">Windows</a> ·
+  <a href="docs/FAQ.md">Помощь</a> ·
+  <a href="https://github.com/Def01d/SorryRKN/releases">Релизы</a>
+</p>
 
-[Скачать последнюю версию APK](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.8.0/SorryRKN-0.8.0.apk) · [Все релизы](https://github.com/Def01d/SorryRKN/releases)
+## Скачивание
 
-Установите SorryRKN 0.8 поверх GrayBridge 0.7, не удаляя приложение. Пакет `dev.graybridge` и подпись сохранены; настройки и секрет Telegram остаются прежними. Версия 0.7 не умеет проверять новые APK, поэтому первый переход выполняется вручную. Начиная с 0.8 новые версии предлагаются при запуске; установка требует подтверждения Android.
+| Платформа | Версия | Скачать | Требования |
+| --- | --- | --- | --- |
+| **Android** | **0.8.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.8.0/SorryRKN-0.8.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
+| **Windows** | **1.0.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
+| **Windows Portable** | **1.0.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 
-## Версия 0.8
+[Что изменилось](CHANGELOG.md) · [Контрольные суммы Android](SHA256SUMS.txt) · [Контрольные суммы Windows](windows/SHA256SUMS.txt)
 
-- Ускорена обработка фото, видео и файлов Telegram: пакетная конвертация Java byte[] вместо побайтовых JNI-вызовов при AES-CTR.
-- Пул готовых Telegram-соединений увеличен с 2 до 4.
-- Добавлены счётчики Telegram в диагностику.
-- Новое имя SorryRKN, иконка, кнопка подключения и переключатели.
-- Проверка APK-обновлений при запуске и в меню «Обновить приложение». Перед установкой проверяются размер, SHA-256, пакет, версия и подпись.
+Готовые файлы доступны по ссылкам выше. Автоматические архивы GitHub **«Source code»** на странице релиза не являются установщиками.
 
-Источник обновлений: https://raw.githubusercontent.com/Def01d/SorryRKN/main/update.json
+Обновление поверх установленной версии сохраняет настройки. Пользователи GrayBridge 0.7 могут установить Android 0.8 поверх старого приложения: пакет и подпись сохранены.
 
-Android 8+; arm64-v8a и x86_64. Результат обхода и скорость загрузок зависят от сети. Это репозиторий релизов; ключ подписи здесь не публикуется.
+## Возможности
 
-## Открытые компоненты
+- **Обход DPI.** Методы для YouTube, Discord и других сайтов; автоматический и ручной выбор. В Windows доступно 22 профиля оригинального zapret/winws.
+- **Telegram.** Встроенный локальный MTProto → WebSocket/HTTP2 прокси. Подключается кнопкой в приложении; Python уже включён.
+- **Нейросети и Instagram.** Отдельный профиль для ChatGPT, Claude, Gemini и Instagram. Для нейросетей используется выборочный Comss DNS, для Instagram — отдельный метод DPI.
+- **Работа в фоне.** Android: плитка рядом с Wi-Fi и Bluetooth. Windows: включение и выключение через системный трей.
+- **Обновления с GitHub.** Обновление совместимых списков, параметров и Telegram-доменов; предложение новых версий приложения при запуске.
+- **Монохромный интерфейс.** Большая кнопка соединения, три переключателя и короткое меню.
 
-Независимая адаптация [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy), [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube), zapret/tpws, ByeDPI и hev-socks5-tunnel. Приложение не является официальным продуктом авторов этих проектов. Лицензии и notices включены в приложение: «О приложении» → «Лицензии».
+Результат зависит от оператора, маршрута и сервиса. Профиль нейросетей не предоставляет зарубежный IP всем приложениям и не снимает ограничения аккаунтов. Подробнее — в [ответах на частые вопросы](docs/FAQ.md).
 
-## Windows 1.0.0
+## Как начать
 
-Windows 10/11 x64 (Intel/AMD). Оригинальный zapret/winws, автоматический подбор из 22 профилей, встроенный Telegram-прокси, профиль нейросетей и Instagram, чёрно-бело-серый интерфейс и системный трей.
+### Android
 
-[Установщик](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0-Setup.exe) · [Переносной ZIP](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0.zip) · [Исходники](windows/src) · [Инструкция](windows/README.md) · [Проверки](windows/VALIDATION.md)
+1. Скачайте APK, откройте его и разрешите установку из выбранного браузера или файлового менеджера.
+2. Откройте SorryRKN, включите нужные переключатели и нажмите большую кнопку. Подтвердите системный запрос VPN.
+3. Для Telegram нажмите **«Подключить Telegram»** и подтвердите добавление прокси.
 
-Запуск требует прав администратора для WinDivert. Закрытие окна оставляет программу работать в трее; отключение и выход доступны через значок. Telegram подключается кнопкой в программе. Python уже включён. Параметры и списки обновляются с GitHub; Windows-обновления предлагаются при запуске через отдельный windows-update.json. Фактический обход зависит от сети.
+[Подробная инструкция: фон, плитка в шторке и обновления →](docs/ANDROID.md)
+
+### Windows
+
+1. Установите приложение или распакуйте переносной ZIP целиком.
+2. Запустите SorryRKN, подтвердите запрос прав администратора, выберите сервисы и нажмите большую кнопку.
+3. Для Telegram нажмите **«Подключить Telegram»**. Закрытие окна оставляет приложение работать в трее; полное завершение — **«Выход»** в меню значка.
+
+[Подробная инструкция: трей, выбор метода и обновления →](docs/WINDOWS.md)
+
+## Интерфейс
+
+<table>
+  <tr><th>Android</th><th>Windows</th></tr>
+  <tr>
+    <td align="center"><img src="docs/assets/android.png" alt="Главное окно SorryRKN на Android" width="300"></td>
+    <td align="center"><img src="docs/assets/windows.png" alt="Главное окно SorryRKN на Windows с включённым Telegram" width="300"></td>
+  </tr>
+</table>
+
+Снимки настоящих приложений; переключатели на них показывают разные режимы.
+
+## Обновления
+
+**Данные обхода** и **само приложение** обновляются отдельно. Новые списки и совместимые параметры применяются без переустановки; новые алгоритмы движка требуют новой версии программы. Установка программы начинается после подтверждения пользователя.
+
+| Действие | Android | Windows |
+| --- | --- | --- |
+| Проверить новую версию | `··· → Обновить приложение` | `··· → Обновить приложение` |
+| Обновить данные | `··· → Обновления GitHub → Проверить сейчас` | `··· → Обновить данные GitHub` |
+| Изменить автопроверку данных | `··· → Обновления GitHub` | `··· → Обновлять данные автоматически` |
+
+Android и Windows используют отдельные источники обновлений и сохраняют свои версии.
+
+## Нужна помощь?
+
+Начните с [FAQ и решения частых проблем](docs/FAQ.md). Если проблема повторяется, откройте [сообщение об ошибке](https://github.com/Def01d/SorryRKN/issues/new?template=bug_report.yml) и приложите диагностику из меню приложения, указав устройство, систему, оператора и тип соединения.
+
+[Предложить улучшение](https://github.com/Def01d/SorryRKN/issues/new?template=feature_request.yml) · [Участие в проекте](CONTRIBUTING.md) · [Приватность](docs/PRIVACY.md)
+
+## Код и компоненты
+
+[Исходники Windows](windows/src) · [Сборка Windows](windows/src/BUILD.md) · [Проверки Windows](windows/VALIDATION.md) · [Проверки Android](docs/VALIDATION-ANDROID.md)
+
+В этом репозитории опубликованы APK Android, установщик и переносная сборка Windows, документация и исходники Windows. Исходники Android пока здесь не размещены.
+
+SorryRKN — независимая адаптация открытых компонентов, а не официальный продукт их авторов:
+
+| Компонент | Использование |
+| --- | --- |
+| [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) | Каталог методов и данные обхода; оригинальный winws в Windows |
+| [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy) | Telegram-прокси |
+| [zapret](https://github.com/bol-van/zapret) и [ByeDPI](https://github.com/hufrea/byedpi) | Движки обхода |
+| [WinDivert](https://github.com/basil00/WinDivert) | Обработка сетевого трафика Windows |
+| [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) | Обработка локального VPN Android |
+
+Лицензии Android доступны в **«О приложении → Лицензии»**, Windows — в папке `licenses` рядом с программой. Лицензия собственного кода Windows и notices зависимостей включены в его исходники и дистрибутив.
