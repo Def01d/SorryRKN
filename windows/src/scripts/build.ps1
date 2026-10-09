@@ -1,3 +1,4 @@
+param([switch]$RuntimeOnly)
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 Push-Location $root
@@ -12,6 +13,8 @@ try {
         New-Item -ItemType Directory -Force runtime|Out-Null
         foreach ($name in @('python','zapret')) {Copy-Item "$baseline/SorryRKN/runtime/$name" runtime -Recurse -Force}
     }
+    if ($RuntimeOnly) {return}
+    & (Join-Path $PSScriptRoot 'resources.ps1')
     $env:GOOS='windows';$env:GOARCH='amd64'
     go build -trimpath -ldflags '-H windowsgui -s -w' -o dist/SorryRKN.exe ./cmd/sorryrkn
     if ($LASTEXITCODE -ne 0) {throw 'Go build failed'}

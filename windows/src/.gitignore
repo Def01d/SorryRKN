@@ -3,3 +3,10 @@
 /runtime/zapret/
 __pycache__/
 *.pyc
+*.syso
+*.log
+*.env
+.env*
+validation-results.json
+windows-screen.png
+windows-rules.png

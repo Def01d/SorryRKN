@@ -1,0 +1,22 @@
+{
+  "tg-ws-proxy": {
+    "repository": "https://github.com/Flowseal/tg-ws-proxy",
+    "commit": "50c980e9ea7460f4a52ef795b5abc4682a15f8a3"
+  },
+  "zapret-discord-youtube": {
+    "repository": "https://github.com/Flowseal/zapret-discord-youtube",
+    "commit": "eb16c1419057e36b8a36fbe7c959483450e6ac8b"
+  },
+  "zapret": {
+    "repository": "https://github.com/bol-van/zapret",
+    "commit": "c4d0b1990129dce2b28095277173ee0d7702d304"
+  },
+  "hev-socks5-tunnel": {
+    "repository": "https://github.com/heiher/hev-socks5-tunnel",
+    "commit": "2cdc169a248ced7097a7931aea5bf81540dc7759"
+  },
+  "byedpi": {
+    "repository": "https://github.com/hufrea/byedpi",
+    "commit": "ba532298de7b28cfe854aea83d061369d13ca290"
+  }
+}

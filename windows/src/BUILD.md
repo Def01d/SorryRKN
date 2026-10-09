@@ -1,11 +1,54 @@
-# Сборка Windows
+# Сборка Windows 1.1.0
 
-Нужны Windows x64 и Go 1.24 или новее. Для установщика дополнительно нужен NSIS 3 (`makensis` в PATH). Запустите `powershell -ExecutionPolicy Bypass -File scripts/build.ps1` из этого каталога.
+Этот каталог содержит исходники Go-приложения, адаптированного Telegram-прокси, тесты, иконку и лицензии. Он соответствует Windows 1.1.0 (`VersionCode = 10100`). Сетевое поведение этой версии сохранено: Windows использует прежний DNS-профиль; изменения Android 0.10.1 сюда не переносились.
 
-Скрипт получает встроенные Python 3.12.10, зависимости и Flowseal/winws из закреплённой переносной версии 1.0.0, проверяет SHA-256, затем собирает собственный Go-интерфейс. Код Telegram-прокси находится в `runtime/app` и берётся из исходников. В `cmd/sorryrkn/rsrc_windows_amd64.syso` включены иконка, сведения о версии и манифест запроса прав администратора.
+Нужны Windows 10/11 x64, Go 1.24 или новее, PowerShell и доступ к GitHub/Go Modules. Для установщика дополнительно нужен NSIS 3 (`makensis` в `PATH`). Python отдельно устанавливать не требуется. Из этого каталога выполните:
 
-Для перегенерации ресурсов: `go install github.com/tc-hib/go-winres@v0.3.3`, затем `go-winres simply --arch amd64 --out cmd/sorryrkn/rsrc --manifest gui --admin --icon resources/icon.png --product-version 1.1.0 --file-version 1.1.0 --file-description SorryRKN --product-name SorryRKN --original-filename SorryRKN.exe`.
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build.ps1
+```
 
-Логика: `go test -race ./internal/core`. Настоящая Windows с правами администратора: `scripts/validate.ps1 -AppDir dist/package/SorryRKN -InstallerPath dist/SorryRKN-Windows-1.1.0-Setup.exe`. Проверяются нативная криптография, DPAPI, WinDivert, выборочный DNS, Telegram, завершение дочерних процессов, интерфейс, трей, установка и удаление. Проверка не доказывает обход ограничений конкретного оператора.
+Скрипт восстанавливает сторонний runtime, создаёт ресурсы из `resources/icon.png` с помощью закреплённого `go-winres v0.3.3` и собирает приложение. Сгенерированный `.syso` не включён в исходники. Секретов автора и сертификата подписи для сборки не требуется; EXE остаётся без подписи издателя.
 
-Исходный код движка: https://github.com/bol-van/zapret, WinDivert: https://github.com/basil00/WinDivert, Python: https://www.python.org/downloads/release/python-31210/, Cygwin: https://cygwin.com/. Дистрибутив включает лицензии; Python-пакеты содержат собственные notices в dist-info. Изменений в бинарных файлах этих компонентов нет.
+Результаты:
+
+- `dist/SorryRKN.exe` — интерфейс; для работы нужны соседние каталоги `runtime` и `licenses`.
+- `dist/package/SorryRKN/` — готовая папка приложения.
+- `dist/SorryRKN-Windows-1.1.0.zip` — переносная версия.
+- `dist/SorryRKN-Windows-1.1.0-Setup.exe` — установщик, если доступен NSIS.
+
+## Сторонние зависимости
+
+Для runtime используется [закреплённый архив Windows 1.0.0](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.0.0/windows/SorryRKN-Windows-1.0.0.zip), SHA-256:
+
+```text
+63352bcffc05fd180ad9f2a179ed2770978bff24090abfe040e62503a2693986
+```
+
+Скрипт проверяет хеш перед распаковкой и копирует только `runtime/python` и `runtime/zapret`. Go-интерфейс и код Telegram из архива не используются: они собираются или копируются из этих исходников. Сторонние бинарные файлы не изменяются. Python 3.12.10, его пакеты, winws/WinDivert/Cygwin, списки, fake-пакеты и каталог профилей совпадают с зависимостями опубликованной версии 1.1.0. Распакованные бинарные зависимости и выходные файлы не включены в архив исходников; для первой сборки нужен доступ к закреплённому архиву. [Компоненты и лицензии](THIRD-PARTY.md).
+
+Для подготовки runtime без сборки:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build.ps1 -RuntimeOnly
+```
+
+## Проверки
+
+Сначала подготовьте runtime: тест каталога проверяет реальные профили и файлы из `runtime/zapret`. Затем выполните:
+
+```powershell
+go test -race ./internal/core
+```
+
+Для `-race` нужен поддерживаемый Go компилятор C в `PATH`, например GCC из MinGW-w64. Без него доступен обычный `go test ./internal/core`.
+
+После сборки на Windows с правами администратора:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -AppDir dist/package/SorryRKN -InstallerPath dist/SorryRKN-Windows-1.1.0-Setup.exe
+```
+
+Если NSIS не установлен, опустите параметр `-InstallerPath`. Проверяются криптография, DPAPI, WinDivert, выборочный DNS, Telegram, завершение дочерних процессов, интерфейс и трей; при передаче установщика — также установка и удаление. Проверка создаёт тестовые настройки и отчёт в профиле текущего пользователя, поэтому для неё удобен отдельный тестовый пользователь Windows. Эти проверки не доказывают обход ограничений конкретного оператора. [Результаты опубликованной версии](VALIDATION.md).
+
+`scripts/windows-validation.yml` — пример ручного GitHub Actions workflow для проверки опубликованного Windows-пакета; он не запускается самим присутствием в каталоге исходников. Служебные скрипты публикации и локальные настройки разработчика в экспорт не входят.

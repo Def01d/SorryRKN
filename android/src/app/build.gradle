@@ -1,0 +1,38 @@
+plugins { id 'com.android.application'; id 'com.chaquo.python' }
+
+android {
+    namespace 'dev.graybridge'
+    compileSdk 35
+    ndkVersion '28.2.13676358'
+    defaultConfig {
+        applicationId 'dev.graybridge'
+        minSdk 26
+        targetSdk 35
+        versionCode 17
+        versionName '0.10.3'
+        ndk { abiFilters 'arm64-v8a', 'x86_64' }
+        testInstrumentationRunner 'dev.graybridge.DeviceChecks'
+    }
+    buildFeatures { buildConfig true }
+    buildTypes { release { minifyEnabled false } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    packaging { jniLibs { useLegacyPackaging true } }
+}
+
+chaquopy {
+    defaultConfig {
+        version '3.12'
+        pip { install 'httpx[http2,socks]==0.28.1'; install 'certifi==2026.2.25' }
+    }
+}
+
+tasks.register('buildNative', Exec) {
+    workingDir rootProject.projectDir
+    environment 'GRAYBRIDGE_SDK', android.sdkDirectory.absolutePath
+    commandLine 'bash', 'scripts/build-native.sh'
+    inputs.dir rootProject.file('native')
+    inputs.file rootProject.file('scripts/build-native.sh')
+    inputs.dir rootProject.file('third_party')
+    outputs.dir file('src/main/jniLibs')
+}
+tasks.named('preBuild').configure { dependsOn 'buildNative' }

@@ -95,9 +95,13 @@ Android и Windows используют отдельные источники о
 
 ## Код и компоненты
 
-[Исходники Windows](windows/src) · [Сборка Windows](windows/src/BUILD.md) · [Проверки Windows](windows/VALIDATION.md) · [Проверки Android](docs/VALIDATION-ANDROID.md)
+[Исходники Android](android/src) · [Сборка Android](android/src/README.md) · [Исходники Windows](windows/src) · [Сборка Windows](windows/src/BUILD.md)
 
-В этом репозитории опубликованы APK Android, установщик и переносная сборка Windows, документация и исходники Windows. Исходники Android пока здесь не размещены.
+Исходники Android **0.10.3** и Windows **1.1.0** открыты в этом репозитории. [Скачать исходники обеих платформ одним ZIP](sources/SorryRKN-Android-0.10.3-Windows-1.1.0-source.zip) · [Состав и проверка архива](sources/README.md).
+
+В Android включены Java-интерфейс и служба, Python-прокси, JNI и исходники нативных зависимостей; в Windows — Go-приложение, Telegram-прокси, ресурсы и сценарии сборки. Ключ подписи официального APK и личные конфигурации не публикуются. Для самостоятельной сборки используется собственная подпись.
+
+[Проверки Android](docs/VALIDATION-ANDROID.md) · [Проверки Windows](windows/VALIDATION.md)
 
 SorryRKN — независимая адаптация открытых компонентов, а не официальный продукт их авторов:
 
@@ -109,4 +113,4 @@ SorryRKN — независимая адаптация открытых комп
 | [WinDivert](https://github.com/basil00/WinDivert) | Обработка сетевого трафика Windows |
 | [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) | Обработка локального VPN Android |
 
-Лицензии Android доступны в **«О приложении → Лицензии»**, Windows — в папке `licenses` рядом с программой. Лицензия собственного кода Windows и notices зависимостей включены в его исходники и дистрибутив.
+Лицензии Android доступны в **«О приложении → Лицензии»**, Windows — в папке `licenses` рядом с программой. Лицензии собственного кода и сторонних компонентов включены в каталоги исходников и дистрибутивы; у компонентов могут быть разные лицензии.

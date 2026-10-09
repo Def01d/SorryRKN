@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <application android:label="GrayBridge Network Test" android:theme="@android:style/Theme.Material.NoActionBar" android:testOnly="true">
+        <activity android:name=".ProbeActivity" android:exported="true" />
+    </application>
+</manifest>
