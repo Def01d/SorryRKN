@@ -7,6 +7,7 @@ from collections import OrderedDict
 COOLDOWN = 90.0
 CONNECT_TIMEOUT = 10.0
 FIRST_ROUTE_TIMEOUT = 3.0
+MAX_ROUTE_ATTEMPTS = 4
 
 
 class GeoRouteError(OSError):
@@ -55,10 +56,11 @@ class GeoRoutes:
             if until <= now:
                 self.failed.pop(key, None)
         candidates = sorted(dict.fromkeys(addresses),
-                            key=lambda ip: self.failed.get((name, ip, port), 0) > now)[:2]
+                            key=lambda ip: self.failed.get((name, ip, port), 0) > now)[:MAX_ROUTE_ATTEMPTS]
         tls = initial[:2] == b'\x16\x03'
         replayable = client_hello_only(initial)
         last = None
+        expires = time.monotonic() + CONNECT_TIMEOUT
         for index, address in enumerate(candidates):
             writer = None
             sent = False
@@ -68,7 +70,10 @@ class GeoRoutes:
                 self.stats['geo_retries'] += 1
             try:
                 # Leave time for the spare address before ordinary clients time out.
-                deadline = FIRST_ROUTE_TIMEOUT if len(candidates)>1 and index==0 and replayable else None
+                remaining = expires - time.monotonic()
+                if remaining <= 0:
+                    break
+                deadline = min(remaining, FIRST_ROUTE_TIMEOUT) if index < len(candidates)-1 else remaining
                 async with asyncio.timeout(deadline):
                     reader, writer = await asyncio.wait_for(
                         asyncio.open_connection(address, port), CONNECT_TIMEOUT)

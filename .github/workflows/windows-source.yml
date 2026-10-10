@@ -1,0 +1,82 @@
+name: Validate Windows source
+
+on:
+  push:
+    branches:
+      - main
+      - 'codex/**'
+    paths:
+      - 'windows/src/**'
+      - '.github/workflows/windows-source.yml'
+  pull_request:
+    paths:
+      - 'windows/src/**'
+      - '.github/workflows/windows-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-source:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: windows/src
+    steps:
+      - name: Check out current source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: windows/src/go.mod
+          cache-dependency-path: windows/src/go.sum
+
+      - name: Hydrate runtime and build current package
+        run: |
+          New-Item -ItemType Directory -Force dist/ci-logs | Out-Null
+          Start-Transcript -Path dist/ci-logs/build.log
+          try {
+            & ./scripts/build.ps1
+          } finally {
+            Stop-Transcript
+          }
+
+      - name: Run Go tests
+        run: |
+          go test -v ./... 2>&1 | Tee-Object -FilePath dist/ci-logs/go-test.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Vet core and Windows platform
+        run: |
+          go vet ./internal/core ./internal/platform 2>&1 | Tee-Object -FilePath dist/ci-logs/go-vet.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run offline Telegram protocol tests with bundled Python
+        run: |
+          & ./runtime/python/python.exe -m unittest discover -s runtime/app -p 'test_*.py' -v 2>&1 | Tee-Object -FilePath dist/ci-logs/python-test.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload tested portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-source-portable
+          path: windows/src/dist/SorryRKN-Windows-1.2.0.zip
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload build and test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-source-validation
+          path: |
+            windows/src/dist/ci-logs/*.log
+            windows/src/VALIDATION.md
+          if-no-files-found: warn

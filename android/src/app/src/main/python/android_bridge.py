@@ -25,17 +25,20 @@ async def _check_telegram(secret):
     from telegram_probe import check_telegram
     while True:
         results = await asyncio.gather(*(
-            check_telegram(1443, secret, dc=dc) for dc in (2, 4)),
+            check_telegram(1443, secret, dc=dc, timeout=15) for dc in range(1, 6)),
             return_exceptions=True)
         targets = [result if isinstance(result, dict) else {
             'state': 'unavailable', 'dc': dc, 'stage': 'probe',
             'error': type(result).__name__, 'authenticated_access': False,
             'account_checked': False, 'media_access_checked': False,
-        } for dc, result in zip((2, 4), results)]
+        } for dc, result in zip(range(1, 6), results)]
         passed = sum(target.get('state') == 'reachable' for target in targets)
         _telegram_check = {
             'state': 'reachable' if passed == len(targets) else 'partial' if passed else 'unavailable',
             'targets': targets, 'authenticated_access': False,
+            'passed': passed, 'total': len(targets),
+            'latency_ms': min((t['latency_ms'] for t in targets
+                               if t.get('state') == 'reachable' and 'latency_ms' in t), default=None),
             'account_checked': False, 'media_access_checked': False,
         }
         # Retry a failed observation, never tear down user connections. The
@@ -43,10 +46,23 @@ async def _check_telegram(secret):
         await asyncio.sleep(120 if passed == len(targets) else 30)
 
 
-async def _check_chatgpt(port):
+async def _check_chatgpt(port, gateway=None):
     global _chatgpt_check
     from service_probe import check_chatgpt
-    _chatgpt_check = await check_chatgpt(port)
+    while True:
+        if gateway is not None:
+            # Route selection uses only a fresh public diagnostic request.
+            # Existing user sockets and their encrypted bytes are untouched.
+            with contextlib.suppress(Exception):
+                await gateway.check_ai_route()
+        try:
+            _chatgpt_check = await check_chatgpt(port)
+            if _chatgpt_check.get('state') == 'cancelled':
+                return
+        except Exception as error:
+            _chatgpt_check = {'state': 'transport_error', 'error': type(error).__name__,
+                              'authenticated_access': False}
+        await asyncio.sleep(120 if _chatgpt_check.get('state') == 'reachable_public' else 30)
 
 
 def apply_data(directory):
@@ -54,7 +70,8 @@ def apply_data(directory):
     from proxy.config import proxy_config
     from proxy.balancer import balancer
     pool = cf_domains(directory)
-    proxy_config.cfproxy_user_domains = pool
+    proxy_config.cfproxy_seed_domains = pool
+    proxy_config.cfproxy_user_domains = []
     balancer.update_domains_list(pool)
 
 
@@ -82,10 +99,10 @@ async def _serve(secret, telegram, dpi):
             proxy_config.host, proxy_config.port = "127.0.0.1", 1443
             proxy_config.secret = secret
             proxy_config.pool_size = 4
-            # The Android app uses only Telegram-owned endpoints. Public CF
-            # reverse proxies change the IP seen by Telegram and are opt-out
-            # upstream; they are deliberately disabled for this app.
-            proxy_config.fallback_cfproxy = False
+            # Only synthetic req_pq probes select routes. User ciphertext is
+            # sent once, after a genuine Telegram protocol reply was checked.
+            proxy_config.verified_routes = True
+            proxy_config.fallback_cfproxy = bool((_routes or {}).get('telegram_relay', True))
             proxy_config.cfproxy_h2_media = False
             proxy_config.cfproxy_worker_domains = []
             proxy_config.telegram_dpi_port = int((_routes or {}).get('telegram_dpi', 0))
@@ -107,7 +124,7 @@ async def _serve(secret, telegram, dpi):
             telegram_check_task = asyncio.create_task(_check_telegram(secret))
         if gateway and _routes and _routes.get('builtin_extras'):
             _chatgpt_check = {"state": "checking", "authenticated_access": False}
-            service_task = asyncio.create_task(_check_chatgpt(gateway.port))
+            service_task = asyncio.create_task(_check_chatgpt(gateway.port, gateway))
         _ready.set()
         stop_task = asyncio.create_task(_stop_event.wait())
         waiters = [stop_task] + ([telegram_task] if telegram_task else [])
@@ -169,6 +186,8 @@ def diagnostics():
     result=dict(_gateway.stats) if _gateway else {}
     if _gateway:
         result["dns_provider"]=_gateway.resolver.provider
+        if getattr(_gateway, 'ai_route_check', None) is not None:
+            result['ai_route_check'] = _gateway.ai_route_check
         if getattr(_gateway.resolver,'smart',None):
             result.update(_gateway.resolver.stats)
             result['smart_dns_provider']=_gateway.resolver.smart.provider
@@ -192,7 +211,8 @@ def diagnostics():
     result['telegram_media'] = media_diagnostics()
     result["engine_running"]=is_running()
     result['own_ip'] = bool(_routes and _routes.get('own_ip'))
-    result['telegram_external_relays'] = False
+    result['telegram_external_relays'] = bool(_active and _telegram_check.get('state') != 'disabled'
+                                              and (_routes or {}).get('telegram_relay', True))
     result['chatgpt_check'] = dict(_chatgpt_check)
     result['telegram_check'] = dict(_telegram_check)
     if _gateway and _routes:result['routes']={key:value for key,value in _routes.items() if key not in ('geo_domains','direct_domains')}

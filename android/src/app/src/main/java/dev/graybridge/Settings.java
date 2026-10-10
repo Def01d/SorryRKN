@@ -10,7 +10,9 @@ final class Settings {
     static boolean busy(Context c) { return !state(c).equals("off") && !state(c).equals("error"); }
     static boolean dpi(Context c) { return prefs(c).getBoolean("dpi", true); }
     static boolean telegram(Context c) { return prefs(c).getBoolean("telegram", true); }
-    static boolean extras(Context c) { return prefs(c).getBoolean("extra_sites", false); }
+    static boolean extras(Context c) { return prefs(c).getBoolean("extra_sites", true); }
+    static boolean aiRelay(Context c) { return prefs(c).getBoolean("ai_relay", true); }
+    static boolean telegramRelay(Context c) { return prefs(c).getBoolean("telegram_relay", true); }
     static boolean vpn(Context c) { return dpi(c) || extras(c) || UserRules.geo(c); }
     static synchronized String secret(Context c) {
         SharedPreferences p = prefs(c);

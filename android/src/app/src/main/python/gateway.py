@@ -1,20 +1,42 @@
 """Loopback SOCKS5: TCP through zapret, DNS over HTTPS, direct UDP.
-UDP/443 is dropped to trigger browser TCP fallback. Other UDP is unmodified.
+QUIC/443 to IP destinations is dropped to trigger TCP fallback even when the
+app retained a pre-VPN DNS cache. Direct exclusions, STUN, RTP and DTLS pass.
 """
 import asyncio
 import contextlib
+import copy
+import datetime
 import ipaddress
+import json
 import struct
 import time
 import httpx
 from connection_health import configure
-from doh import Resolver
+from doh import Resolver, PinnedTransport, verified_context
 from traffic import Routes,read_initial
-from smart_dns import SmartDNS
+from smart_dns import SmartDNS, failure_response
 from geo_route import GeoRoutes, GeoRouteError
 
 
 TLS_FIRST_REPLY_TIMEOUT=10.0
+AI_ROUTE_URL='https://chatgpt.com/api/auth/providers'
+AI_ROUTE_TIMEOUT=8.0
+AI_ROUTE_CACHE_TTL=120.0
+
+
+def quic_datagram(payload):
+    # TURN ChannelData overlaps QUIC's short-header fixed bit. Its declared
+    # datagram size (optionally padded to four bytes, RFC 8656 section 12.4)
+    # identifies voice traffic which must remain available on UDP/443.
+    if len(payload)>=4 and 0x40<=payload[0]<=0x7f:
+        length=int.from_bytes(payload[2:4],'big')
+        if len(payload)-4 in (length,(length+3)//4*4):return False
+    # QUIC's fixed bit distinguishes it from RTP(version2), DTLS and STUN.
+    # Long headers also contain a supported version or version-negotiation 0.
+    if not payload or not payload[0] & 0x40:
+        return False
+    return (not payload[0] & 0x80 or len(payload) >= 7 and
+            int.from_bytes(payload[1:5], 'big') in (0, 1, 0x6b3343cf))
 
 def encode_address(host, port):
     ip = ipaddress.ip_address(host)
@@ -92,7 +114,15 @@ class UDPAssociation(asyncio.DatagramProtocol):
         except (ValueError, UnicodeError):
             return
         self.client = addr
-        if (port == 443 and not (self.gateway.routes and self.gateway.routes.rules.direct_address(host))) or len(self.tasks) >= 64:
+        routes=self.gateway.routes
+        direct=bool(routes and routes.rules.direct_address(host))
+        protected=bool(routes and (routes.protected(host) or routes.rules.protected_address(host)))
+        try:ipaddress.ip_address(host);ip_destination=True
+        except ValueError:ip_destination=False
+        if port==443 and not direct and (not routes or (ip_destination or protected) and quic_datagram(payload)):
+            self.gateway.stats['quic_blocked']+=1
+            return
+        if len(self.tasks) >= 64:
             return
         task = asyncio.create_task(self.forward(host, port, payload))
         self.tasks.add(task)
@@ -127,6 +157,7 @@ class UDPAssociation(asyncio.DatagramProtocol):
             transport, _ = self.remotes[key]
             self.remotes[key] = transport, now
             transport.sendto(payload)
+            self.gateway.stats['udp_forwarded']+=1
         except (OSError, ValueError, httpx.HTTPError):
             pass
 
@@ -154,13 +185,21 @@ class Gateway:
         self.stats = {"tcp_ok":0,"tcp_failed":0,"dns_ok":0,"dns_failed":0,"last_error":"",
                       "direct_tcp":0,"youtube_tcp":0,"discord_tcp":0,"ipv4_tcp":0,"ipv6_tcp":0,
                       "ai_tcp":0,"instagram_tcp":0,
+                      "quic_blocked":0,"udp_forwarded":0,
                       "tx_bytes":0,"rx_bytes":0,"connect_failed":0,"relay_failed":0}
         self.stats.update(geo_attempts=0,geo_retries=0,geo_failures=0,geo_last_stage='',geo_last_endpoint='')
         self.geo = GeoRoutes(self.stats)
+        self.ai_route_check = None
+        self._ai_route_checked = 0
+        self._ai_route_lock = asyncio.Lock()
+        self._ai_route_task = None
+        self._closed = False
 
     async def start(self):
-        self.resolver = (SmartDNS(rules=self.routes.rules,own_ip=self.routes.own_ip) if self.routes and (self.routes.own_ip or self.routes.ports.get('smart_dns') or self.routes.rules.direct)
-                         else Resolver(None if self.routes else self.upstream_port))
+        self._closed = False
+        self.resolver = (SmartDNS(rules=self.routes.rules,own_ip=self.routes.own_ip,
+                                 protected=self.routes.protected) if self.routes
+                         else Resolver(self.upstream_port))
         self.server = await asyncio.start_server(self.accept, "127.0.0.1", self.port)
         self.port = self.server.sockets[0].getsockname()[1]
 
@@ -179,7 +218,7 @@ class Gateway:
             answer = await self.resolver.query(payload)
             self.stats["dns_ok" if answer else "dns_failed"] += 1
             if not answer: self.stats["last_error"] = "DNS: все HTTPS-провайдеры недоступны"
-            return answer
+            return answer or failure_response(payload)
 
     async def check_dns(self):
         name=b"\x03www\x07youtube\x03com\0"
@@ -187,6 +226,96 @@ class Gateway:
         answer=await self.dns(query)
         ok=bool(answer and answer[3]&15==0 and struct.unpack("!H",answer[6:8])[0]>0)
         return {"ok":ok, "provider":self.resolver.provider, "error":"" if ok else "DNS недоступен"}
+
+    async def check_ai_route(self):
+        """Prefer an independently verified public ChatGPT route for new sockets.
+
+        Only fixed, unauthenticated diagnostic GETs are sent. Application TLS
+        remains opaque, user requests are never replayed, and open sockets are
+        untouched. The probe uses the same direct Comss path as GeoRoutes; the
+        Android service excludes this process UID from its own VPN.
+        """
+        async with self._ai_route_lock:
+            if (self._closed or not self.routes or self.routes.own_ip or self.routes.group('chatgpt.com')!='ai'
+                    or not isinstance(self.resolver,SmartDNS) or self.resolver.smart is None):
+                return {'state':'disabled','verified':False,'authenticated_access':False}
+            cached=self.ai_route_check
+            if (cached and time.monotonic()-self._ai_route_checked<AI_ROUTE_CACHE_TTL
+                    and (not cached.get('verified') or
+                         self.resolver.preferred('chatgpt.com')==cached.get('selected_address'))):
+                return dict(copy.deepcopy(cached),cached=True)
+            self._ai_route_task=asyncio.create_task(self._check_ai_route())
+            try:
+                result=await self._ai_route_task
+                self.ai_route_check=copy.deepcopy(result)
+                self._ai_route_checked=time.monotonic()
+                return result
+            finally:
+                self._ai_route_task=None
+
+    async def _check_ai_route(self):
+        result={'state':'unconfirmed','verified':False,'authenticated_access':False,
+                'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
+                'candidates':[]}
+        tasks=[]
+        try:
+            async with asyncio.timeout(AI_ROUTE_TIMEOUT):
+                first=await self.resolver.resolve('chatgpt.com')
+                addresses=self.resolver.candidates('chatgpt.com',first)[:4]
+                if not addresses:
+                    return dict(result,state='dns_failed')
+                tasks=[asyncio.create_task(self._check_ai_candidate(address)) for address in addresses]
+                for completed in asyncio.as_completed(tasks):
+                    candidate=await completed
+                    result['candidates'].append(candidate)
+                    if candidate.get('verified') and self.resolver.prefer('chatgpt.com',candidate['address']):
+                        address=candidate['address']
+                        self.geo.failed.pop(('chatgpt.com',address,443),None)
+                        result.update(state='verified_public',verified=True,selected_address=address)
+                        return result
+                if any(item.get('state')=='challenge' for item in result['candidates']):
+                    result['state']='challenge'
+        except asyncio.TimeoutError:
+            result['state']='timeout'
+        except (OSError,ValueError,httpx.HTTPError) as error:
+            result['error']=type(error).__name__
+        finally:
+            for task in tasks:task.cancel()
+            await asyncio.gather(*tasks,return_exceptions=True)
+        return result
+
+    @staticmethod
+    async def _check_ai_candidate(address):
+        from service_probe import _classify
+        result={'address':address,'state':'transport_error','verified':False}
+        # One verified TLS pool per endpoint: no connection is reused under a
+        # different TLS identity, and environment/system proxies are ignored.
+        inner=httpx.AsyncHTTPTransport(verify=verified_context(),trust_env=False,retries=0,
+            limits=httpx.Limits(max_connections=1,max_keepalive_connections=0))
+        transport=PinnedTransport(inner,{'chatgpt.com':address})
+        try:
+            async with httpx.AsyncClient(transport=transport,trust_env=False,follow_redirects=False,timeout=4) as client:
+                async with client.stream('GET',AI_ROUTE_URL,headers={'Accept':'application/json',
+                    'Accept-Encoding':'identity','User-Agent':'SorryRKN-RouteCheck'}) as response:
+                    body=bytearray()
+                    async for chunk in response.aiter_raw():
+                        body.extend(chunk[:65537-len(body)])
+                        if len(body)>65536:break
+                    result['http_status']=response.status_code
+                    if len(body)>65536 or response.headers.get('content-encoding','identity') not in ('','identity'):
+                        return dict(result,state='invalid_response')
+                    result['state']=_classify(response.status_code,response.headers,bytes(body))
+                    if response.status_code==200 and result['state']=='reachable_public':
+                        try:
+                            providers=json.loads(body)
+                            provider=providers.get('openai',{})
+                            verified=provider.get('id')=='openai' and provider.get('type')=='oauth'
+                        except (ValueError,AttributeError,TypeError,RecursionError):
+                            verified=False
+                        result.update(verified=verified,state='verified_public' if verified else 'invalid_response')
+        except (httpx.HTTPError,OSError,ValueError,asyncio.TimeoutError) as error:
+            result['error']=type(error).__name__
+        return result
 
     async def handle(self, reader, writer):
         remote_writer = None
@@ -244,13 +373,18 @@ class Gateway:
                 writer.write(b'\x05\0\0'+encode_address('127.0.0.1',0));await writer.drain()
                 initial,name=await read_initial(reader)
                 if not initial:return
+                if not name:
+                    # Domain-form SOCKS requests may carry protocols without a
+                    # visible HTTP Host/TLS SNI. Preserve their explicit target.
+                    try:ipaddress.ip_address(host)
+                    except ValueError:name=host.lower().rstrip('.')
                 group=self.routes.group(name)
                 destination=host
                 explicit_direct=name and self.routes.rules.is_direct(name)
                 if name and (group!='direct' or ':' in host or explicit_direct):
                     resolved=await self.resolver.resolve(name)
                     if resolved:destination=resolved
-                    elif group=='ai' or explicit_direct and ':' not in host:raise OSError('Selected DNS unavailable')
+                    elif group!='direct' or explicit_direct and ':' not in host:raise OSError('Selected DNS unavailable')
                 reply = b''
                 geo_profile=group=='ai' and not self.routes.own_ip
                 if geo_profile and name:
@@ -262,12 +396,13 @@ class Gateway:
                 else:
                     selected_port=self.routes.port(group)
                     remote_reader,remote_writer=await asyncio.wait_for(asyncio.open_connection('127.0.0.1',selected_port),3)
-                    remote_writer.write(b'\x05\x01\0');await remote_writer.drain()
-                    if await remote_reader.readexactly(2)!=b'\x05\0':raise OSError('Native SOCKS greeting rejected')
-                    remote_writer.write(b'\x05\x01\0'+encode_address(destination,port));await remote_writer.drain()
-                    result=await asyncio.wait_for(remote_reader.readexactly(3),10)
-                    await read_address(remote_reader)
-                    if result[1]!=0:raise OSError('Native SOCKS connect failed')
+                    async with asyncio.timeout(10):
+                        remote_writer.write(b'\x05\x01\0');await remote_writer.drain()
+                        if await remote_reader.readexactly(2)!=b'\x05\0':raise OSError('Native SOCKS greeting rejected')
+                        remote_writer.write(b'\x05\x01\0'+encode_address(destination,port));await remote_writer.drain()
+                        result=await remote_reader.readexactly(3)
+                        await read_address(remote_reader)
+                        if result!=b'\x05\0\0':raise OSError('Native SOCKS connect failed')
                 configure(remote_writer)
                 self.stats['tcp_ok']+=1;self.stats[group+'_tcp']+=1
                 phase='relay'
@@ -344,6 +479,11 @@ class Gateway:
             await asyncio.gather(*tasks,return_exceptions=True)
 
     async def close(self):
+        self._closed=True
+        if self._ai_route_task:
+            self._ai_route_task.cancel()
+            await asyncio.gather(self._ai_route_task,return_exceptions=True)
+        self.ai_route_check=None
         if self.server:
             self.server.close()
         tasks = list(self.tasks)

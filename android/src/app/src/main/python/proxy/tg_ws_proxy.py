@@ -30,6 +30,7 @@ from .pool import ws_pool, cf_worker_pool
 from .cf_h2 import CfH2Pool
 from .network_debug import log_ws_flow
 from ._aes import Cipher, algorithms, modes
+from . import verified_routes
 
 
 log = logging.getLogger('tg-mtproto-proxy')
@@ -294,6 +295,17 @@ async def _handle_client(reader, writer, secret: bytes):
         log.debug("[%s] handshake ok: DC%d%s proto=0x%08X",
                   label, dc, ' media' if is_media else '', proto_int)
 
+        if proxy_config.verified_routes:
+            try:
+                await _verified_session(clt_reader, clt_writer, secret,
+                                        client_dec_prekey_iv, dc, is_media,
+                                        is_test_dc, proto_tag, proto_int, label)
+            except (OSError, ValueError):
+                if dc_key in stats.unavailable_dc or len(stats.unavailable_dc) < 64:
+                    stats.unavailable_dc[dc_key] = stats.unavailable_dc.get(dc_key, 0) + 1
+                raise
+            return
+
         relay_init = _generate_relay_init(proto_tag, dc_idx)
         ctx = _build_crypto_ctx(client_dec_prekey_iv, secret, relay_init)
 
@@ -338,7 +350,7 @@ async def _handle_client(reader, writer, secret: bytes):
                                    on_stall=lambda: ws_pool.discard_media(dc, is_test_dc))
 
     except asyncio.TimeoutError:
-        log.warning("[%s] timeout during handshake", label)
+        log.warning("[%s] timeout during handshake or initial upstream response", label)
     except asyncio.IncompleteReadError:
         log.debug("[%s] client disconnected", label)
     except asyncio.CancelledError:
@@ -359,6 +371,53 @@ async def _handle_client(reader, writer, secret: bytes):
             await writer.wait_closed()
         except BaseException:
             pass
+
+
+async def _verified_session(reader, writer, secret, client_key, dc, media,
+                            test, proto_tag, proto_int, label):
+    signed_dc = -dc if media else dc
+    relay_init = _generate_relay_init(proto_tag, signed_dc)
+    # Inspect framing using disposable cipher state. The actual client/relay
+    # ciphers are created exactly once for the chosen route after discovery.
+    inspect = _build_crypto_ctx(client_key, secret, relay_init)
+    packet = await asyncio.wait_for(verified_routes.first_client_packet(
+        reader, inspect.clt_dec, proto_tag), 10)
+    transport, route = await verified_routes.connect(dc, media, test)
+    ctx = _build_crypto_ctx(client_key, secret, relay_init)
+    try:
+        try:
+            await asyncio.wait_for(transport.send(relay_init), 3)
+            encrypted = ctx.tg_enc.update(ctx.clt_dec.update(packet))
+            await asyncio.wait_for(transport.send(encrypted), 3)
+            reply = await asyncio.wait_for(transport.recv(), verified_routes.FIRST_REPLY_TIMEOUT)
+            if not reply:
+                raise ConnectionError('TelegramClosedBeforeResponse')
+        except BaseException:
+            verified_routes.invalidate(dc, media, test, route)
+            # Never repeat authenticated requests/ciphertext after any write.
+            raise
+        writer.write(ctx.clt_enc.update(ctx.tg_dec.update(reply)))
+        await writer.drain()
+        stats.bytes_up += len(packet)
+        stats.bytes_down += len(reply)
+        if route.kind == 'native_tcp':
+            stats.connections_tcp_fallback += 1
+        elif route.kind in ('cf', 'worker'):
+            stats.connections_cfproxy += 1
+        else:
+            stats.connections_ws += 1
+            if route.kind == 'ws_fronting':
+                stats.connections_fronting += 1
+        splitter = None
+        if route.kind != 'native_tcp':
+            splitter = MsgSplitter(relay_init, proto_int)
+            splitter.split(encrypted)
+        await bridge_ws_reencrypt(reader, writer, transport, label, ctx,
+                                  dc=dc, is_media=media, splitter=splitter,
+                                  route=route.kind,
+                                  on_stall=lambda: verified_routes.invalidate(dc, media, test, route))
+    finally:
+        verified_routes.abort(transport)
 
 
 _server_instance = None
@@ -386,10 +445,11 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
     _server_stop_event = stop_event
 
     reset_tcp_backoff()
+    verified_routes.reset()
     ws_pool.reset()
     cf_worker_pool.reset()
     _client_tasks.clear()
-    cf_h2_pool = CfH2Pool() if proxy_config.h2_enabled else None
+    cf_h2_pool = CfH2Pool() if proxy_config.h2_enabled and not proxy_config.verified_routes else None
 
     user_cf_domains = proxy_config.cfproxy_user_domains
     if user_cf_domains:
@@ -438,7 +498,7 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
     log.info("=" * 60)
     log.info("  Telegram MTProto WS Bridge Proxy")
     log.info("  Listening on   %s:%d", proxy_config.host, proxy_config.port)
-    log.info("  Secret:        %s", proxy_config.secret)
+    log.info("  Secret:        [redacted]")
     if ftls:
         log.info("  Fake TLS:      %s", ftls)
     log.info("  Target DC IPs:")
@@ -458,9 +518,9 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
     log.info("=" * 60)
     log.info("  Connect:")
     if ftls:
-        log.info("    %s", ee_link)
+        log.info("    Fake TLS proxy link available in the application")
     else:
-        log.info("    %s", dd_link)
+        log.info("    Proxy link available in the application")
     log.info("=" * 60)
 
     async def log_stats():
@@ -488,8 +548,9 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
 
     log_stats_task = asyncio.create_task(log_stats())
 
-    await ws_pool.warmup()
-    await cf_worker_pool.warmup()
+    if not proxy_config.verified_routes:
+        await ws_pool.warmup()
+        await cf_worker_pool.warmup()
 
     async def _quiet_cancel(t):
         if not t.done():
@@ -568,6 +629,7 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
         # Stop background dials/refills before waiting for the listener's last
         # accepted transport. Late accepts hit the stopping branch above.
         await ws_pool.close()
+        await verified_routes.close()
         if cf_h2_pool is not None:
             await cf_h2_pool.close()
             cf_h2_pool = None

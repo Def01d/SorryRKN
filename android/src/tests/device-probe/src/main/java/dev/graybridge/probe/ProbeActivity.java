@@ -17,6 +17,25 @@ public class ProbeActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         TextView text=new TextView(this); text.setText("Checking VPN TCP / UDP…"); setContentView(text);
+        if(getIntent().getBooleanExtra("publicServiceChecks",false)) {
+            text.setText("Checking public services through VPN…");
+            new Thread(()-> {
+                String result,detail;
+                try {
+                    org.json.JSONObject report=PublicServiceChecks.run(this);
+                    detail=report.toString();result=report.getString("result")+": "+report.getInt("passed")+"/"+report.getInt("total")+" public checks";
+                } catch(Throwable error) {
+                    result="FAIL: "+error.getClass().getSimpleName();detail="{}";
+                }
+                String callback=getIntent().getStringExtra("callbackPackage");
+                if(callback==null)callback="dev.graybridge";
+                sendBroadcast(new Intent("dev.graybridge.probe.RESULT").setPackage(callback)
+                    .putExtra("result",result).putExtra("publicServices",detail).putExtra("probeToken",getIntent().getStringExtra("probeToken")));
+                Log.i("GrayBridgeProbe",result+" "+detail);
+                String message=result;runOnUiThread(()->text.setText(message));
+            },"public-probe-coordinator").start();
+            return;
+        }
         new Thread(()-> {
             String result;
             try {
@@ -50,7 +69,9 @@ public class ProbeActivity extends Activity {
                 result="PASS: "+(getIntent().getBooleanExtra("requireVpn",true)?"VPN active":"baseline")+", TCP 128 KiB, UDP 1000 bytes"+(ca!=null?", HTTPS "+(getIntent().getBooleanExtra("extraSites",false)?8:3)+" hosts x 1 MiB, WSS Discord Hello":"")+(getIntent().getBooleanExtra("extraSites",false)?", AI DNS AAAA/HTTPS replies":"");
             } catch(Throwable e) { result="FAIL: "+e; }
             Log.i("GrayBridgeProbe",result);
-            sendBroadcast(new Intent("dev.graybridge.probe.RESULT").setPackage("dev.graybridge").putExtra("result",result));
+            String callback=getIntent().getStringExtra("callbackPackage");
+            if(callback==null)callback="dev.graybridge";
+            sendBroadcast(new Intent("dev.graybridge.probe.RESULT").setPackage(callback).putExtra("result",result));
             String message=result; runOnUiThread(()->text.setText(message));
         },"probe").start();
     }

@@ -23,6 +23,7 @@ type Target struct {
 	OK    bool   `json:"ok"`
 	Stage string `json:"stage"`
 	Error string `json:"error,omitempty"`
+	Route string `json:"verified_route,omitempty"`
 }
 type Check struct {
 	Profile string   `json:"profile"`
@@ -39,14 +40,22 @@ func (c Check) Score() int {
 	}
 	return n
 }
-func (c Check) Complete() bool { return len(c.Targets) == 2 && c.Score() == 2 }
+func (c Check) Complete() bool { return len(c.Targets) > 0 && c.Score() == len(c.Targets) }
 func Probe(ctx context.Context, profile string) Check {
+	return probeWithDial(ctx, profile, nil)
+}
+
+func ProbeWithDNS(ctx context.Context, profile string, resolver *SmartDNS) Check {
+	return probeWithDial(ctx, profile, resolver.DialContext)
+}
+
+func probeWithDial(ctx context.Context, profile string, dial func(context.Context, string, string) (net.Conn, error)) Check {
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	tr := &http.Transport{Proxy: nil, DisableKeepAlives: true, TLSHandshakeTimeout: 3 * time.Second, ForceAttemptHTTP2: false}
+	tr := &http.Transport{Proxy: nil, DialContext: dial, DisableKeepAlives: true, TLSHandshakeTimeout: 3 * time.Second, ForceAttemptHTTP2: false}
 	defer tr.CloseIdleConnections()
-	client := &http.Client{Transport: tr, Timeout: 5 * time.Second, CheckRedirect: func(r *http.Request, via []*http.Request) error {
+	client := &http.Client{Transport: tr, Timeout: 8 * time.Second, CheckRedirect: func(r *http.Request, via []*http.Request) error {
 		if len(via) > 3 {
 			return errors.New("too many redirects")
 		}
@@ -58,7 +67,7 @@ func Probe(ctx context.Context, profile string) Check {
 	results := make(chan Target, 2)
 	go func() {
 		t := Target{Name: "YouTube", Stage: "HTTPS"}
-		e := probeHTTP(ctx, client, "https://www.youtube.com/generate_204", nil)
+		e := probe204(ctx, client, "https://www.youtube.com/generate_204")
 		t.OK = e == nil
 		if e != nil {
 			t.Error = shortError(e)
@@ -72,7 +81,7 @@ func Probe(ctx context.Context, profile string) Check {
 			e = probeHTTP(ctx, client, "https://cdn.discordapp.com/embed/avatars/0.png", []byte{137, 80, 78, 71})
 		}
 		if e == nil {
-			e = GatewayHello(ctx)
+			e = gatewayHelloWithDial(ctx, dial)
 		}
 		t.OK = e == nil
 		if e != nil {
@@ -86,6 +95,116 @@ func Probe(ctx context.Context, profile string) Check {
 	}
 	check.Seconds = time.Since(start).Seconds()
 	return check
+}
+
+func probe204(ctx context.Context, client *http.Client, url string) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "SorryRKN/"+Version)
+	response, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("expected HTTP 204, got %d", response.StatusCode)
+	}
+	return nil
+}
+
+// ProbeExtras checks application responses, not merely a successful TLS handshake.
+// It cannot verify login, paid access, calls, or playback without a user session.
+func ProbeExtras(ctx context.Context) []Target {
+	return probeExtrasWithDial(ctx, nil)
+}
+
+func ProbeExtrasWithDNS(ctx context.Context, resolver *SmartDNS) []Target {
+	if resolver == nil {
+		return []Target{{Name: "ChatGPT", Stage: "DNS", Error: "DNS resolver is not active"}, {Name: "Instagram", Stage: "DNS", Error: "DNS resolver is not active"}}
+	}
+	targets := probeExtrasWithDial(ctx, resolver.DialContext)
+	for i := range targets {
+		if targets[i].Name == "ChatGPT" {
+			targets[i].Route = resolver.preferredChatGPT()
+		}
+	}
+	return targets
+}
+
+func probeExtrasWithDial(ctx context.Context, dial func(context.Context, string, string) (net.Conn, error)) []Target {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	tr := &http.Transport{Proxy: nil, DialContext: dial, DisableKeepAlives: true, TLSHandshakeTimeout: 4 * time.Second}
+	defer tr.CloseIdleConnections()
+	client := &http.Client{Transport: tr, Timeout: 8 * time.Second, CheckRedirect: func(r *http.Request, via []*http.Request) error {
+		if len(via) > 3 || r.URL.Scheme != "https" {
+			return errors.New("unexpected redirect")
+		}
+		return nil
+	}}
+	results := make(chan Target, 2)
+	go func() {
+		t := Target{Name: "ChatGPT", Stage: "Authentication API"}
+		err := probeChatGPT(ctx, client, "https://chatgpt.com/api/auth/providers")
+		t.OK = err == nil
+		if err != nil {
+			t.Error = shortError(err)
+		}
+		results <- t
+	}()
+	go func() {
+		t := Target{Name: "Instagram", Stage: "HTTPS / page"}
+		err := probeHTTP(ctx, client, "https://www.instagram.com/", []byte("static.cdninstagram.com"))
+		t.OK = err == nil
+		if err != nil {
+			t.Error = shortError(err)
+		}
+		results <- t
+	}()
+	a, b := <-results, <-results
+	if a.Name != "ChatGPT" {
+		a, b = b, a
+	}
+	return []Target{a, b}
+}
+
+func probeChatGPT(ctx context.Context, client *http.Client, url string) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "SorryRKN/"+Version)
+	response, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 65537))
+	if err != nil {
+		return err
+	}
+	if len(body) > 65536 {
+		return errors.New("unexpected response size")
+	}
+	if strings.Contains(string(body), "unsupported_country") || strings.Contains(string(body), "unsupported_country_region_territory") {
+		return errors.New("service rejected the exit region; an external route is required")
+	}
+	if strings.EqualFold(response.Header.Get("Cf-Mitigated"), "challenge") || strings.Contains(string(body), "cf-chl-") {
+		return errors.New("browser verification required; open ChatGPT in a browser")
+	}
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP %d; application access unconfirmed", response.StatusCode)
+	}
+	var providers map[string]struct {
+		ID   string `json:"id"`
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(body, &providers) != nil || providers["openai"].ID != "openai" || providers["openai"].Type != "oauth" {
+		return errors.New("unexpected authentication response")
+	}
+	return nil
 }
 func probeHTTP(ctx context.Context, client *http.Client, url string, contains []byte) error {
 	req, e := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -111,12 +230,26 @@ func probeHTTP(ctx context.Context, client *http.Client, url string, contains []
 	return nil
 }
 func GatewayHello(ctx context.Context) error {
-	d := tls.Dialer{NetDialer: &net.Dialer{Timeout: 3 * time.Second}, Config: &tls.Config{ServerName: "gateway.discord.gg", MinVersion: tls.VersionTLS12}}
-	conn, e := d.DialContext(ctx, "tcp", "gateway.discord.gg:443")
+	return gatewayHelloWithDial(ctx, nil)
+}
+
+func gatewayHelloWithDial(ctx context.Context, dial func(context.Context, string, string) (net.Conn, error)) error {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	if dial == nil {
+		dial = (&net.Dialer{Timeout: 3 * time.Second}).DialContext
+	}
+	raw, e := dial(ctx, "tcp", "gateway.discord.gg:443")
 	if e != nil {
 		return e
 	}
+	conn := tls.Client(raw, &tls.Config{ServerName: "gateway.discord.gg", MinVersion: tls.VersionTLS12})
 	defer conn.Close()
+	stopCancel := context.AfterFunc(ctx, func() { raw.Close() })
+	defer stopCancel()
+	if e = conn.HandshakeContext(ctx); e != nil {
+		return e
+	}
 	deadline, _ := ctx.Deadline()
 	conn.SetDeadline(deadline)
 	random := make([]byte, 16)

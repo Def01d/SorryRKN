@@ -2,14 +2,10 @@
 import asyncio
 import re
 from pathlib import Path
-from extra_sites import AI_HOSTS,INSTAGRAM_HOSTS,matches
+from extra_sites import AI_HOSTS,INSTAGRAM_HOSTS,YOUTUBE_HOSTS,DISCORD_HOSTS,matches
 from user_rules import DomainRules
 
 MAX_INITIAL=65536
-YOUTUBE_HOSTS=('youtube.com','youtube-nocookie.com','googlevideo.com','ytimg.com','youtu.be','youtubekids.com',
-               'youtube.googleapis.com','youtubei.googleapis.com','youtubeembeddedplayer.googleapis.com',
-               'yt3.ggpht.com','yt4.ggpht.com','yt3.googleusercontent.com','jnn-pa.googleapis.com',
-               'wide-youtube.l.google.com','youtube-ui.l.google.com','ytimg.l.google.com','yt-video-upload.l.google.com')
 _host=re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$')
 
 def tls_name(data):
@@ -102,13 +98,16 @@ class Routes:
     def matches(host,pattern):
         return host==pattern[1:] if pattern.startswith('^') else host==pattern or host.endswith('.'+pattern)
     def group(self,host):
+        if isinstance(host,str):host=host.lower().rstrip('.')
         if not host or self.rules.is_direct(host) or any(self.matches(host,p) for p in self.excluded):return 'direct'
         if self.rules.is_geo(host) and (self.ports.get('ai') if self.own_ip else self.ports.get('smart_dns')):return 'ai'
         if self.ports.get('instagram') and matches(host,INSTAGRAM_HOSTS):return 'instagram'
-        if not any(self.matches(host,p) for p in self.hosts):return 'direct'
-        if self.ports.get('discord') and ('discord' in host or host=='dis.gd'):return 'discord'
-        if self.ports.get('youtube') and any(self.matches(host,p) for p in YOUTUBE_HOSTS):return 'youtube'
+        # Essential API/media domains must survive an incomplete downloaded list.
+        # Match owned suffixes rather than the substring "discord" in arbitrary hosts.
+        if self.ports.get('discord') and matches(host,DISCORD_HOSTS):return 'discord'
+        if self.ports.get('youtube') and matches(host,YOUTUBE_HOSTS):return 'youtube'
         # Shared CDN/ECH cover names also serve unrelated websites. Applying a
         # YouTube strategy to every Cloudflare/CloudFront connection is unsafe.
         return 'direct'
+    def protected(self,host):return self.group(host) != 'direct'
     def port(self,group):return self.ports.get(group,self.ports.get('youtube'))

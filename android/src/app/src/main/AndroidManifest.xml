@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <application android:name=".BridgeApp" android:label="SorryRKN" android:theme="@style/AppTheme"
+    <application android:name=".BridgeApp" android:label="${appLabel}" android:theme="@style/AppTheme"
         android:icon="@mipmap/ic_launcher" android:allowBackup="false"
         android:extractNativeLibs="true" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">

@@ -59,7 +59,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         header.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
-        TextView eyebrow = label("ЛОКАЛЬНОЕ СОЕДИНЕНИЕ", 10, GRAY);
+        TextView eyebrow = label("НАСТРОЙКА СОЕДИНЕНИЯ", 10, GRAY);
         eyebrow.setLetterSpacing(.14f);
         brand.addView(eyebrow);
         TextView name = label("SorryRKN", 30, WHITE);
@@ -109,7 +109,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         LinearLayout telegramText=row(card,"Telegram", "MTProto / WebSocket",telegramSwitch);
         telegramSubtitle=(TextView)telegramText.getChildAt(1);
         telegramText.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Проверка Telegram")
-            .setMessage("Приложение отправляет короткий запрос через собственный локальный прокси и ждёт ответ Telegram. Проверяются два основных дата-центра — DC2 и DC4. Открытого порта или соединения WebSocket для успеха недостаточно.\n\nПроверка не входит в аккаунт и не проверяет загрузку медиа. Она работает в фоне и не перезапускает ваши подключения.\n\nВ диагностике отдельно показаны этапы исходящих подключений, причины отказов и паузы перед повтором. Счётчики Telegram относятся к текущему включению. Сообщения и секрет прокси в отчёт не попадают.")
+            .setMessage("Приложение отправляет короткий запрос через собственный локальный прокси и ждёт ответ Telegram. Проверяются все пять дата-центров: DC1–DC5. В карточке показаны число ответивших дата-центров и наименьшая задержка. Открытого порта или соединения WebSocket для успеха недостаточно.\n\nПроверка не входит в аккаунт и не проверяет загрузку медиа. Она работает в фоне и не перезапускает ваши подключения.\n\n"+telegramRouteText()+"\n\nВ диагностике отдельно показаны этапы исходящих подключений, причины отказов и паузы перед повтором. Счётчики Telegram относятся к текущему включению. Сообщения и секрет прокси в отчёт не попадают.")
             .setPositiveButton("Понятно",null).show());
         View extrasDivider=new View(this);extrasDivider.setBackgroundColor(BORDER);
         card.addView(extrasDivider,new LinearLayout.LayoutParams(-1,dp(1)));
@@ -117,7 +117,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         LinearLayout extraText=row(card,"Нейросети и Instagram","ChatGPT · Claude · Gemini · Instagram",extrasSwitch);
         extraSubtitle=(TextView)extraText.getChildAt(1);
         extraText.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Нейросети и Instagram")
-            .setMessage("Прямое подключение с обходом DPI. Сайты видят IP вашего подключения; внешние VPN и DNS-реле не используются.\n\n"+chatgptStatus()+"\nПроверка страницы не проверяет вход в аккаунт и отправку сообщений. Если сервис сам запрещает доступ из страны вашего IP, обход DPI этот отказ не снимает.")
+            .setMessage(aiRouteText()+"\n\nInstagram использует локальный обход DPI. Режимы можно изменить в меню «Маршруты».\n\n"+chatgptStatus()+"\nПроверка страницы не проверяет вход в аккаунт и отправку сообщений.")
             .setPositiveButton("Закрыть",null).setNeutralButton("Страны ChatGPT",(d,w)->{
                 try {startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://help.openai.com/en/articles/7947663-chatgpt-supported-countries")));}
                 catch(ActivityNotFoundException e) {toast("Не установлен браузер");}
@@ -187,10 +187,10 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         extrasSwitch.setChecked(dev.graybridge.Settings.extras(this));
         dpiSwitch.setEnabled(!busy); telegramSwitch.setEnabled(!busy); extrasSwitch.setEnabled(!busy); binding=false;
         String chosen = dev.graybridge.Settings.prefs(this).getString("active_strategy", "");
-        profile.setText(state.equals("partial") ? "Рабочий DPI не найден" : "YouTube · Discord · " + (Strategies.auto(this) ? "Авто" : "Вручную")
-            + (state.equals("on") && !chosen.isEmpty() ? " / " + chosen : ""));
+        profile.setText("YouTube · Discord · " + (Strategies.auto(this) ? "Авто" : "Вручную")
+            + ((state.equals("on") || state.equals("partial")) && !chosen.isEmpty() ? " / " + chosen : ""));
         status.setText(switch(state) { case "on" -> "Включено"; case "partial" -> liveVpn?"Частичный доступ":"Только Telegram"; case "starting" -> "Подключение…"; case "stopping" -> "Выключение…"; case "error" -> "Не удалось включить"; default -> "Выключено"; });
-        hint.setText(switch(state) { case "on" -> "Работает в фоне · ваш IP"; case "partial" -> liveVpn?"Дополнительные сайты включены · основной метод не найден":"Прокси включён · VPN не запущен"; case "starting" -> dev.graybridge.Settings.prefs(this).getString("probe_status", "Запускаем локальное соединение"); case "stopping" -> "Закрываем соединения"; case "error" -> "Нажмите, чтобы попробовать снова"; default -> "Нажмите, чтобы подключиться"; });
+        hint.setText(switch(state) { case "on" -> "Работает в фоне · маршруты настроены"; case "partial" -> liveVpn?"Часть проверок не пройдена · подробности ниже":"Прокси включён · VPN не запущен"; case "starting" -> dev.graybridge.Settings.prefs(this).getString("probe_status", "Запускаем локальное соединение"); case "stopping" -> "Закрываем соединения"; case "error" -> "Нажмите, чтобы попробовать снова"; default -> "Нажмите, чтобы подключиться"; });
         if(extraSubtitle!=null)extraSubtitle.setText((state.equals("on") || state.equals("partial")) && dev.graybridge.Settings.extras(this) ? chatgptStatus() : "ChatGPT · Claude · Gemini · Instagram");
         if(telegramSubtitle!=null)telegramSubtitle.setText((state.equals("on") || state.equals("partial")) && dev.graybridge.Settings.telegram(this) ? telegramStatus() : "MTProto / WebSocket");
         String detail = dev.graybridge.Settings.prefs(this).getString("error","");
@@ -210,14 +210,36 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
             JSONObject traffic=new JSONObject(dev.graybridge.Settings.prefs(this).getString("traffic_report","{}"));
             JSONObject check=traffic.optJSONObject("telegram_check");
             String state=check==null?"unchecked":check.optString("state","unchecked");
+            String replies=telegramReplies(check);
             return switch(state) {
                 case "checking" -> "Проверяем ответ Telegram…";
-                case "reachable" -> "Ответ Telegram получен";
-                case "partial" -> "Ответил один из двух серверов";
-                case "unavailable" -> "Нет ответа на проверку";
+                case "reachable" -> replies.isEmpty()?"Ответ Telegram получен":replies;
+                case "partial" -> replies.isEmpty()?"Ответили не все дата-центры":replies;
+                case "unavailable" -> replies.isEmpty()?"Нет ответа на проверку":replies;
                 default -> "Ответ Telegram ещё не проверен";
             };
         } catch(JSONException e) {return "Ответ Telegram ещё не проверен";}
+    }
+
+    private static String telegramReplies(JSONObject check) {
+        if(check==null)return "";
+        JSONArray targets=check.optJSONArray("targets");
+        int measured=0;
+        double latency=Double.NaN;
+        if(targets!=null)for(int i=0;i<targets.length();i++) {
+            JSONObject target=targets.optJSONObject(i);
+            if(target!=null && target.optString("state").equals("reachable")) {
+                measured++;
+                double value=target.optDouble("latency_ms",Double.NaN);
+                if(Double.isFinite(value) && value>=0 && (!Double.isFinite(latency)||value<latency))latency=value;
+            }
+        }
+        int total=check.optInt("total",targets==null?0:targets.length());
+        if(total<=0)return "";
+        int passed=Math.max(0,Math.min(total,check.optInt("passed",measured)));
+        if(!Double.isFinite(latency))latency=check.optDouble("latency_ms",Double.NaN);
+        String timing=passed>0 && Double.isFinite(latency) && latency>=0?" · "+Math.round(latency)+" мс":"";
+        return "Ответ Telegram: "+passed+"/"+total+" DC"+timing;
     }
 
     private String chatgptStatus() {
@@ -231,7 +253,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
                 case "regional_refusal" -> "ChatGPT: сервис отклонил регион IP";
                 case "challenge" -> "ChatGPT: требуется проверка в браузере";
                 case "denied" -> "ChatGPT: сервер отказал в доступе";
-                case "login_unchecked" -> "ChatGPT: требуется вход в аккаунт";
+                case "login_unchecked" -> "ChatGPT: ответил · вход не проверен";
                 case "transport_error" -> "ChatGPT: соединение не установлено";
                 case "http_error" -> "ChatGPT: ошибка ответа сервера";
                 default -> "ChatGPT: доступ ещё не проверен";
@@ -300,9 +322,12 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         boolean canRetry=(dev.graybridge.Settings.state(this).equals("on") || dev.graybridge.Settings.state(this).equals("partial")) && dev.graybridge.Settings.dpi(this);
         popup.getMenu().add("Подобрать заново").setEnabled(canRetry);
         popup.getMenu().add("Расширенный подбор").setEnabled(canRetry);
+        String state=dev.graybridge.Settings.state(this);
+        popup.getMenu().add("Маршруты").setEnabled(!state.equals("starting") && !state.equals("stopping"));
         popup.getMenu().add("Мои ресурсы"); popup.getMenu().add("Обновить приложение"); popup.getMenu().add("Диагностика"); popup.getMenu().add("Обновления GitHub"); popup.getMenu().add("Работа в фоне"); popup.getMenu().add("О приложении");
         popup.setOnMenuItemClickListener(item -> {
             switch (item.getTitle().toString()) {
+                case "Маршруты" -> routeSettings();
                 case "Мои ресурсы" -> userRules();
                 case "Обновить приложение" -> AppUpdates.show(this);
                 case "Работа в фоне" -> battery();
@@ -321,15 +346,53 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
             return true;
         }); popup.show();
     }
+
+    private String aiRouteText() {
+        return dev.graybridge.Settings.aiRelay(this)
+            ? "Нейросети используют внешнее реле с зарубежным IP для обхода ограничений по региону. Доступ зависит от работы реле и правил сервиса; HTTPS проверяется самим приложением или браузером."
+            : "Нейросети подключаются со своим IP через локальный обход DPI. Если сервис запрещает доступ из страны вашего IP, этот режим не снимает такой отказ.";
+    }
+    private String telegramRouteText() {
+        return dev.graybridge.Settings.telegramRelay(this)
+            ? "Внешнее реле Telegram разрешено как запасной маршрут, если прямое подключение не отвечает. Этот выбор не зависит от режима нейросетей."
+            : "Telegram использует только прямые подключения к серверам Telegram. Внешние реле отключены; при блокировке их IP прямой маршрут может не отвечать.";
+    }
+    private void routeSettings() {
+        LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(24),dp(8),dp(24),dp(12));
+        body.addView(label("Выберите маршруты. При сохранении изменений активное подключение будет перезапущено.",13,GRAY));
+        Switch aiRelay=new Switch(this);
+        row(body,"Зарубежное реле для нейросетей","ChatGPT · Claude · Gemini и «Мои ресурсы». Выключено: свой IP и локальный обход DPI.",aiRelay);
+        aiRelay.setChecked(dev.graybridge.Settings.aiRelay(this));
+        Switch telegramRelay=new Switch(this);
+        row(body,"Запасное реле Telegram","Внешний маршрут, если прямое соединение не отвечает. Выключено: только серверы Telegram.",telegramRelay);
+        telegramRelay.setChecked(dev.graybridge.Settings.telegramRelay(this));
+        body.addView(label("Instagram, YouTube и Discord используют локальный обход DPI. Прямые исключения из «Моих ресурсов» имеют приоритет для сайтов.",12,GRAY));
+        ScrollView scroll=new ScrollView(this);scroll.addView(body);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Маршруты").setView(scroll)
+            .setPositiveButton("Сохранить",null).setNegativeButton("Отмена",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            String state=dev.graybridge.Settings.state(this);
+            if(state.equals("starting") || state.equals("stopping")) {toast("Дождитесь завершения подключения");return;}
+            boolean changed=aiRelay.isChecked()!=dev.graybridge.Settings.aiRelay(this) || telegramRelay.isChecked()!=dev.graybridge.Settings.telegramRelay(this);
+            if(changed)dev.graybridge.Settings.prefs(this).edit()
+                .putBoolean("ai_relay",aiRelay.isChecked()).putBoolean("telegram_relay",telegramRelay.isChecked()).apply();
+            dialog.dismiss();
+            if(changed && (state.equals("on") || state.equals("partial"))) {
+                BridgeService.retest(this);toast("Сохранено. Перезапускаем подключение");
+            } else toast(changed?"Маршруты сохранены":"Маршруты не изменились");
+            refresh();
+        }));
+        dialog.show();
+    }
     AlertDialog userRules() {
         LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(24),dp(8),dp(24),dp(12));
         TextView note=label("Домены или ссылки, по одному в строке. Правило включает поддомены. Прямые исключения имеют приоритет. Изменения применятся при следующем включении.",13,GRAY);
         body.addView(note);
-        body.addView(label("Обход DPI · ваш IP",15,WHITE));
-        android.widget.EditText geo=domainInput(UserRules.text(this,"geo_domains"));geo.setId(UserRules.GEO_FIELD_ID);geo.setContentDescription("Обход DPI · ваш IP");body.addView(geo);
+        body.addView(label("Маршрут нейросетей",15,WHITE));
+        android.widget.EditText geo=domainInput(UserRules.text(this,"geo_domains"));geo.setId(UserRules.GEO_FIELD_ID);geo.setContentDescription("Маршрут нейросетей");body.addView(geo);
         body.addView(label("Напрямую · без обработки DPI",15,WHITE));
         android.widget.EditText direct=domainInput(UserRules.text(this,"direct_domains"));direct.setId(UserRules.DIRECT_FIELD_ID);direct.setContentDescription("Напрямую");body.addView(direct);
-        body.addView(label("Списки сохранены. Все подключения идут со своим IP; ограничения страны на стороне сервиса остаются в силе.",12,GRAY));
+        body.addView(label(aiRouteText()+" Режим меняется в меню «Маршруты».",12,GRAY));
         ScrollView scroll=new ScrollView(this);scroll.addView(body);
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Мои ресурсы").setView(scroll).setPositiveButton("Сохранить",null).setNegativeButton("Отмена",null).create();
         dialog.setOnShowListener(d->{
@@ -358,7 +421,8 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
                 .put("custom_geo_count",UserRules.domains(this,"geo_domains").length()).put("custom_direct_count",UserRules.domains(this,"direct_domains").length())
                 .put("android",Build.VERSION.RELEASE).put("sdk",Build.VERSION.SDK_INT)
                 .put("state",dev.graybridge.Settings.state(this)).put("strategy",prefs.getString("active_strategy",""))
-                .put("extra_sites",dev.graybridge.Settings.extras(this)).put("own_ip",true)
+                .put("extra_sites",dev.graybridge.Settings.extras(this)).put("own_ip",!dev.graybridge.Settings.aiRelay(this))
+                .put("ai_relay",dev.graybridge.Settings.aiRelay(this)).put("telegram_relay",dev.graybridge.Settings.telegramRelay(this))
                 .put("checks",new JSONArray(prefs.getString("probe_report","[]")))
                 .put("traffic",new JSONObject(prefs.getString("traffic_report","{}")))
                 .put("network",new JSONObject(prefs.getString("network_report","{}")))
@@ -425,7 +489,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
     }
     private void about() {
         new AlertDialog.Builder(this).setTitle("SorryRKN " + BuildConfig.VERSION_NAME)
-            .setMessage("Локальный обход DPI и Telegram-прокси. Android показывает значок VPN для перехвата трафика на устройстве. Внешний VPN-сервер не используется: соединения идут со своим IP. Telegram подключается к серверам Telegram, публичные промежуточные прокси отключены.\n\nБыстрый подбор проверяет основные методы и сохранённый вариант; полный каталог доступен через «Расширенный подбор». Проверяются DNS по HTTPS, ответ YouTube и Discord API, WebSocket Hello для чатов, PNG с CDN. Видеопотоки, авторизация и голос этим тестом не проверяются. Успешная проверка YouTube сохраняет VPN, даже если Discord не прошёл все проверки. Если оба сервиса недоступны, остаётся только Telegram-прокси. Результаты и счётчики VPN доступны в «Диагностике».\n\nByeDPI также пробует другие методы для отдельных соединений при таймауте, сбросе или ошибке TLS. Обход DPI зависит от оператора. UDP передаётся без изменения; обход блокировки голоса Discord не гарантируется. Одновременно Android поддерживает один VPN.\n\nПрокси Telegram: 127.0.0.1:1443. Секрет хранится на устройстве.\n\nЭто независимое приложение, не официальный продукт Flowseal или ByeDPIAndroid.")
+            .setMessage("Локальный обход DPI и Telegram-прокси. Android показывает значок VPN для обработки трафика на устройстве. YouTube, Discord и Instagram используют локальный обход DPI.\n\n"+aiRouteText()+"\n\n"+telegramRouteText()+" Режимы меняются в меню «Маршруты».\n\nАвтоматический подбор начинает с сохранённого варианта и основных методов, затем при необходимости расширяет поиск. На подбор отведено до 75 секунд; «Расширенный подбор» сразу использует полный порядок стратегий. Проверяются DNS по HTTPS, ответ YouTube и Discord API, WebSocket Hello для чатов, PNG с CDN. Видеопотоки, авторизация и голос этим тестом не проверяются. Частичный результат сохраняет доступные маршруты, а состояние отдельных проверок видно в карточках и «Диагностике».\n\nTelegram проверяется запросом к каждому из пяти дата-центров без входа в аккаунт. Задержка относится к ответу на этот запрос; загрузка медиа не проверяется. Локальный прокси: 127.0.0.1:1443. Секрет хранится на устройстве.\n\nByeDPI пробует другие методы для отдельных соединений при таймауте, сбросе или ошибке TLS. Результат зависит от оператора. Веб-подключения через VPN переключаются с QUIC на TCP; обход блокировки голоса Discord не гарантируется. Одновременно Android поддерживает один VPN.\n\nЭто независимое приложение, не официальный продукт Flowseal или ByeDPIAndroid.")
             .setPositiveButton("Закрыть",null).setNeutralButton("Лицензии",(d,w) -> licenses()).show();
     }
     private void licenses() {

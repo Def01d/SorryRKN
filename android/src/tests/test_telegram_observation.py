@@ -31,18 +31,20 @@ class ObservationClock:
 
 @pytest.mark.asyncio
 async def test_unavailable_partial_reachable_and_recovery_do_not_interrupt_user_socket(monkeypatch):
-    rounds = [(False, False), (True, False), (True, True), (False, False)]
-    calls = {2: 0, 4: 0}
+    rounds = [(False,) * 5, (True, False, True, False, False), (True,) * 5, (False,) * 5]
+    calls = {dc: 0 for dc in range(1, 6)}
     clock = ObservationClock()
     monkeypatch.setattr(bridge, 'asyncio', clock)
     monkeypatch.setattr(bridge, '_telegram_check', {'state': 'checking'})
     monkeypatch.setattr(bridge, '_stop_event', asyncio.Event())
-    async def observe(port, secret, dc=2, is_media=False):
+    async def observe(port, secret, dc=2, is_media=False, timeout=None):
         assert port == 1443 and secret == SECRET and is_media is False
-        ok = rounds[calls[dc]][0 if dc == 2 else 1]
+        assert timeout == 15
+        ok = rounds[calls[dc]][dc - 1]
         calls[dc] += 1
         return {'state': 'reachable' if ok else 'unavailable', 'dc': dc,
                 'authenticated_access': False, 'account_checked': False,
+                'latency_ms': 100 + dc if ok else None,
                 'media_access_checked': False, 'error': '' if ok else 'TimeoutError'}
     monkeypatch.setattr(telegram_probe, 'check_telegram', observe)
     async def no_reset(*args, **kwargs):
@@ -63,10 +65,13 @@ async def test_unavailable_partial_reachable_and_recovery_do_not_interrupt_user_
     reader, writer = await asyncio.open_connection('127.0.0.1', server.sockets[0].getsockname()[1])
     task = asyncio.create_task(bridge._check_telegram(SECRET))
     try:
-        for expected, interval in [('unavailable', 30), ('partial', 30), ('reachable', 120), ('unavailable', 30)]:
+        for expected, interval, passed in [('unavailable', 30, 0), ('partial', 30, 2), ('reachable', 120, 5), ('unavailable', 30, 0)]:
             delay, result = await asyncio.wait_for(clock.rounds.get(), .5)
             assert result['state'] == expected and delay == interval
-            assert len(result['targets']) == 2
+            assert len(result['targets']) == result['total'] == 5
+            assert result['passed'] == passed
+            assert result['latency_ms'] == (101 if passed else None)
+            assert [target['dc'] for target in result['targets']] == list(range(1, 6))
             assert all(result[field] is False for field in (
                 'authenticated_access', 'account_checked', 'media_access_checked'))
             assert SECRET not in json.dumps(result)
@@ -76,7 +81,7 @@ async def test_unavailable_partial_reachable_and_recovery_do_not_interrupt_user_
             assert await asyncio.wait_for(reader.readexactly(19), .5) == b'active user traffic'
             if expected != 'unavailable' or calls[2] == 1:
                 await clock.advance.put(None)
-        assert calls == {2: 4, 4: 4}
+        assert calls == {dc: 4 for dc in range(1, 6)}
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
@@ -92,8 +97,9 @@ async def test_unexpected_probe_exception_is_unavailable_without_secret_or_stale
     clock = ObservationClock()
     monkeypatch.setattr(bridge, 'asyncio', clock)
     monkeypatch.setattr(bridge, '_telegram_check', {'state': 'reachable'})
-    async def faulty(port, secret, dc=2, is_media=False):
-        if dc == 2:
+    async def faulty(port, secret, dc=2, is_media=False, timeout=None):
+        assert timeout == 15
+        if dc == 1:
             raise RuntimeError('private secret=' + secret)
         return {'state': 'unavailable', 'dc': dc, 'error': 'TimeoutError'}
     monkeypatch.setattr(telegram_probe, 'check_telegram', faulty)
@@ -101,6 +107,7 @@ async def test_unexpected_probe_exception_is_unavailable_without_secret_or_stale
     try:
         delay, result = await asyncio.wait_for(clock.rounds.get(), .5)
         assert result['state'] == 'unavailable' and delay == 30
+        assert result['passed'] == 0 and result['total'] == 5 and result['latency_ms'] is None
         assert result['targets'][0]['error'] == 'RuntimeError'
         assert SECRET not in json.dumps(result) and 'private secret' not in json.dumps(result)
         assert not task.done()
@@ -135,10 +142,11 @@ async def test_startup_is_ready_while_observations_wait_and_shutdown_cancels_the
         tg_ws_proxy._server_instance = Server()
         try:await stop.wait()
         finally:order.append('proxy stopped')
-    async def hanging(port, secret, dc=2, is_media=False):
+    async def hanging(port, secret, dc=2, is_media=False, timeout=None):
         assert port == 1443 and secret == SECRET
+        assert timeout == 15
         entered.add(dc)
-        if entered == {2, 4}:probes_started.set()
+        if entered == set(range(1, 6)):probes_started.set()
         try:await never.wait()
         finally:
             cancelled.add(dc)
@@ -159,7 +167,8 @@ async def test_startup_is_ready_while_observations_wait_and_shutdown_cancels_the
     monkeypatch.setattr(tg_ws_proxy, 'cf_h2_pool', None)
     monkeypatch.setattr(config, '_refresh_stop', threading.Event())
     for field in ('host', 'port', 'secret', 'pool_size', 'fallback_cfproxy',
-                  'cfproxy_h2_media', 'cfproxy_worker_domains', 'telegram_dpi_port'):
+                  'cfproxy_h2_media', 'cfproxy_worker_domains', 'telegram_dpi_port',
+                  'verified_routes', 'cfproxy_seed_domains', 'cfproxy_user_domains'):
         monkeypatch.setattr(config.proxy_config, field, getattr(config.proxy_config, field))
     monkeypatch.setattr(telegram_probe, 'check_telegram', hanging)
     service = asyncio.create_task(bridge._serve(SECRET, True, True))
@@ -173,7 +182,7 @@ async def test_startup_is_ready_while_observations_wait_and_shutdown_cancels_the
         assert SECRET not in json.dumps(report)
         bridge._stop_event.set()
         await asyncio.wait_for(service, .5)
-        assert cancelled == {2, 4} and len(runs) == 1
+        assert cancelled == set(range(1, 6)) and len(runs) == 1
         assert order.index('probe cancelled') < order.index('gateway closed')
         assert order.index('proxy stopped') < order.index('gateway closed')
         assert not bridge._active and bridge._gateway is None
@@ -181,3 +190,22 @@ async def test_startup_is_ready_while_observations_wait_and_shutdown_cancels_the
     finally:
         service.cancel()
         await asyncio.gather(service, return_exceptions=True)
+
+
+def test_app_snapshot_is_seed_and_does_not_suppress_cf_refresh(monkeypatch):
+    import bridge_data
+    from proxy import config
+    from proxy.balancer import balancer
+    seeds = ['old1.example.com', 'old2.example.com', 'old3.example.com']
+    fresh = ['new1.example.com', 'new2.example.com', 'new3.example.com']
+    updated = []
+    monkeypatch.setattr(bridge_data, 'cf_domains', lambda directory: seeds)
+    monkeypatch.setattr(balancer, 'update_domains_list', lambda domains: updated.append(list(domains)))
+    monkeypatch.setattr(config, '_fetch_cfproxy_domain_list', lambda: fresh)
+    monkeypatch.setattr(config.proxy_config, 'cfproxy_seed_domains', [])
+    monkeypatch.setattr(config.proxy_config, 'cfproxy_user_domains', ['legacy-snapshot.example.com'])
+    bridge.apply_data('controlled-fixture')
+    assert config.proxy_config.cfproxy_seed_domains == seeds
+    assert config.proxy_config.cfproxy_user_domains == []
+    config.refresh_cfproxy_domains()
+    assert updated == [seeds, fresh]

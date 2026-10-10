@@ -3,6 +3,7 @@
 app/src/main/jniLibs/
 local.properties
 .venv/
+.venv-win/
 **/__pycache__/
 .pytest_cache/
 *.pyc

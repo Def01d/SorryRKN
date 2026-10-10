@@ -22,7 +22,9 @@ if __name__ == '__main__' and (__package__ is None or __package__ == ''):
 from .utils import *
 from .stats import stats
 from .config import proxy_config, parse_dc_ip_list, start_cfproxy_domain_refresh, coerce_domain_list
-from .bridge import MsgSplitter, CryptoCtx, do_fallback, bridge_ws_reencrypt, reset_tcp_backoff
+from .bridge import MsgSplitter, CryptoCtx, bridge_ws_reencrypt, reset_tcp_backoff
+from .mtproto_probe import read_packet
+from . import upstream
 from .raw_websocket import set_sock_opts
 from .fake_tls import proxy_to_masking_domain, verify_client_hello, build_server_hello, FakeTlsStream, TLS_RECORD_HANDSHAKE
 from .balancer import balancer
@@ -251,6 +253,7 @@ async def _handle_client(reader, writer, secret: bytes):
 
     set_sock_opts(writer.transport, proxy_config.buffer_size)
 
+    transport = None
     try:
         init = await _read_client_init(
             reader, writer, secret, label, proxy_config.fake_tls_domain)
@@ -289,45 +292,48 @@ async def _handle_client(reader, writer, secret: bytes):
         log.debug("[%s] handshake ok: DC%d%s proto=0x%08X",
                   label, dc, ' media' if is_media else '', proto_int)
 
-        relay_init = _generate_relay_init(proto_tag, dc_idx)
-        ctx = _build_crypto_ctx(client_dec_prekey_iv, secret, relay_init)
-
-        media_tag = " media" if is_media else ""
-        ws = await ws_pool.get(dc, is_media, is_test_dc=is_test_dc)
-        if ws is None:
-            log.info("[%s] DC%d%s WS pool unavailable -> fallback",
-                     label, dc, media_tag)
-            splitter_fb = None
-            try:
-                splitter_fb = MsgSplitter(relay_init, proto_int)
-            except Exception:
-                pass
-            ok = await do_fallback(
-                clt_reader, clt_writer, relay_init, label,
-                dc, is_test_dc, is_media, media_tag,
-                ctx, splitter=splitter_fb, h2_pool=cf_h2_pool, proto_tag=proto_tag)
-            if ok:
-                log.info("[%s] DC%d%s fallback closed", label, dc, media_tag)
-            else:
-                log.warning("[%s] DC%d%s no fallback available", label, dc, media_tag)
+        if dc not in (DC_TEST_IPS if is_test_dc else DC_DEFAULT_IPS):
+            raise ValueError('unsupported_datacenter')
+        if getattr(proxy_config, 'test_mode', False):
             return
 
-        log.info("[%s] DC%d%s -> WS pool hit", label, dc, media_tag)
-        stats.connections_ws += 1
+        relay_init = _generate_relay_init(proto_tag, dc_idx)
+        # Read one packet without consuming the cipher used for forwarding.
+        # No user packet is replayed while selecting/probing upstream routes.
+        read_ctx = _build_crypto_ctx(client_dec_prekey_iv, secret, relay_init)
+        first_packet = await asyncio.wait_for(read_packet(
+            clt_reader.readexactly, read_ctx.clt_dec, proto_tag, encrypted=True), 10)
+        transport, route_kind = await upstream.connect(dc, is_media, is_test_dc)
+        ctx = _build_crypto_ctx(client_dec_prekey_iv, secret, relay_init)
+        try:
+            await asyncio.wait_for(transport.send(relay_init), 4)
+            first_payload = ctx.tg_enc.update(ctx.clt_dec.update(first_packet))
+            await asyncio.wait_for(transport.send(first_payload), 4)
+            # HTTP 101/TCP connect is insufficient: blocked WS endpoints often
+            # accept the upgrade and silently swallow all subsequent traffic.
+            first_reply = await asyncio.wait_for(transport.recv(), 8)
+            if not first_reply:
+                raise ConnectionError('upstream_closed_before_response')
+        except BaseException:
+            upstream.invalidate(dc, is_media, is_test_dc)
+            raise
+        stats.bytes_up += len(first_packet)
+        stats.bytes_down += len(first_reply)
+        clt_writer.write(ctx.clt_enc.update(ctx.tg_dec.update(first_reply)))
+        await clt_writer.drain()
+        if route_kind == 'tcp':
+            stats.connections_tcp_fallback += 1
+        elif route_kind == 'ws':
+            stats.connections_ws += 1
+        else:
+            stats.connections_cfproxy += 1
 
         splitter = None
-        try:
+        if route_kind != 'tcp':
             splitter = MsgSplitter(relay_init, proto_int)
-            log.debug("[%s] MsgSplitter activated for proto 0x%08X",
-                      label, proto_int)
-        except Exception:
-            pass
-
-        await ws.send(relay_init)
-
-        await bridge_ws_reencrypt(clt_reader, clt_writer, ws, label, ctx,
-                                   dc=dc, is_media=is_media,
-                                   splitter=splitter)
+            splitter.split(first_payload)  # advance framing cipher past packet 1
+        await bridge_ws_reencrypt(clt_reader, clt_writer, transport, label, ctx,
+                                  dc=dc, is_media=is_media, splitter=splitter)
 
     except asyncio.TimeoutError:
         log.warning("[%s] timeout during handshake", label)
@@ -345,6 +351,7 @@ async def _handle_client(reader, writer, secret: bytes):
     except Exception as exc:
         log.error("[%s] unexpected: %s", label, exc, exc_info=True)
     finally:
+        await upstream.close_transport(transport)
         stats.connections_active -= 1
         try:
             writer.close()
@@ -363,16 +370,20 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
     _server_stop_event = stop_event
 
     reset_tcp_backoff()
+    upstream.reset()
     ws_pool.reset()
     cf_worker_pool.reset()
     _client_tasks.clear()
-    cf_h2_pool = CfH2Pool() if proxy_config.h2_enabled else None
+    # The verified byte transport also handles media; /api H2 deployments can
+    # return 404 while still advertising a healthy HTTP endpoint.
+    cf_h2_pool = None
 
     user_cf_domains = proxy_config.cfproxy_user_domains
-    if user_cf_domains:
-        balancer.update_domains_list(user_cf_domains)
-    else:
-        start_cfproxy_domain_refresh()
+    if proxy_config.fallback_cfproxy and not getattr(proxy_config, 'test_mode', False):
+        if user_cf_domains:
+            balancer.update_domains_list(user_cf_domains)
+        else:
+            start_cfproxy_domain_refresh()
 
     secret_bytes = bytes.fromhex(proxy_config.secret)
     stopping = False
@@ -409,7 +420,7 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
     log.info("=" * 60)
     log.info("  Telegram MTProto WS Bridge Proxy")
     log.info("  Listening on   %s:%d", proxy_config.host, proxy_config.port)
-    log.info("  Secret:        %s", proxy_config.secret)
+    log.info("  Secret:        [redacted]")
     if ftls:
         log.info("  Fake TLS:      %s", ftls)
     log.info("  Target DC IPs:")
@@ -429,9 +440,9 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
     log.info("=" * 60)
     log.info("  Connect:")
     if ftls:
-        log.info("    %s", ee_link)
+        log.info("    Fake TLS proxy link available in the application")
     else:
-        log.info("    %s", dd_link)
+        log.info("    Proxy link available in the application")
     log.info("=" * 60)
 
     async def log_stats():
@@ -459,8 +470,7 @@ async def _run(stop_event: Optional[asyncio.Event] = None):
 
     log_stats_task = asyncio.create_task(log_stats())
 
-    await ws_pool.warmup()
-    await cf_worker_pool.warmup()
+    # Connections are opened on demand and validated with MTProto before use.
 
     async def _quiet_cancel(t):
         if not t.done():

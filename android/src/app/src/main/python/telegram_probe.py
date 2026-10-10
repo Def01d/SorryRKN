@@ -39,9 +39,10 @@ def _native_init(secret, dc):
             break
     raw[56:62] = PROTO_TAG_SECURE + struct.pack('<h', dc)
     keys = bytes(raw[8:56])
-    up = _cipher(hashlib.sha256(keys[:32] + secret).digest(), keys[32:])
+    key = lambda raw: hashlib.sha256(raw + secret).digest() if secret is not None else raw
+    up = _cipher(key(keys[:32]), keys[32:])
     reverse = keys[::-1]
-    down = _cipher(hashlib.sha256(reverse[:32] + secret).digest(), reverse[32:])
+    down = _cipher(key(reverse[:32]), reverse[32:])
     wire = bytearray(raw)
     wire[56:] = up.update(bytes(raw))[56:]
     return bytes(wire), up, down
@@ -65,7 +66,10 @@ def _validate_reply(packet, nonce):
     auth_key, message_id, size = struct.unpack_from('<QQI', packet)
     if auth_key != 0 or not message_id & 1 or size % 4 or size < 44:
         raise ProbeProtocolError('InvalidEnvelope')
-    if size > len(packet) - 20 or not 0 <= len(packet) - 20 - size <= 15:
+    # Telegram also adds random padding at the unauthenticated message layer.
+    # Real resPQ frames may exceed the transport-only 15-byte padding bound;
+    # MAX_PACKET bounds the complete frame while the TL body remains strict.
+    if size > len(packet) - 20 or len(packet) > MAX_PACKET:
         raise ProbeProtocolError('InvalidLength')
     body = packet[20:20 + size]
     if struct.unpack_from('<I', body)[0] != RES_PQ:
@@ -87,7 +91,7 @@ def _validate_reply(packet, nonce):
         raise ProbeProtocolError('InvalidFingerprints')
 
 
-async def check_telegram(port, secret, dc=2, is_media=False):
+async def check_telegram(port, secret, dc=2, is_media=False, timeout=None):
     """Check one DC over a fresh local native-proxy connection within five seconds.
 
     `secret` is the stored raw 16-byte secret or its 32-character hexadecimal
@@ -111,7 +115,10 @@ async def check_telegram(port, secret, dc=2, is_media=False):
             secret = bytes.fromhex(secret) if len(secret) == 32 else b''
         if not isinstance(secret, bytes) or len(secret) != 16:
             raise ValueError('InvalidConfiguration')
-        async with asyncio.timeout(TOTAL_TIMEOUT):
+        budget = TOTAL_TIMEOUT if timeout is None else float(timeout)
+        if not 0 < budget <= 20:
+            raise ValueError('InvalidConfiguration')
+        async with asyncio.timeout(budget):
             reader, writer = await asyncio.open_connection('127.0.0.1', port)
             result['stage'] = 'MTProto'
             init, up, down = _native_init(secret, -dc if is_media else dc)
@@ -142,4 +149,5 @@ async def check_telegram(port, secret, dc=2, is_media=False):
                 writer.close()
                 writer.transport.abort()
     result['elapsed_ms'] = round((time.monotonic() - started) * 1000)
+    result['latency_ms'] = result['elapsed_ms'] if result['state'] == 'reachable' else None
     return result

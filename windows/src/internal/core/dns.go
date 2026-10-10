@@ -5,15 +5,31 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/dns/dnsmessage"
 )
 
-var AIHosts = []string{"chatgpt.com", "openai.com", "oaistatic.com", "oaiusercontent.com", "claude.ai", "anthropic.com", "claudeusercontent.com", "gemini.google.com", "bard.google.com", "aistudio.google.com", "generativelanguage.googleapis.com", "gemini-pa.googleapis.com", "proactivebackend-pa.googleapis.com", "alkalimakersuite-pa.googleapis.com", "alkalimakersuite-pa.clients6.google.com"}
+var AIHosts = []string{
+	"chatgpt.com", "openai.com", "oaistatic.com", "oaiusercontent.com", "oaistatsig.com", "openaimerge.com",
+	"cdn.workos.com", "forwarder.workos.com", "images.workoscdn.com", "setup.workos.com", "workos.imgix.net",
+	"claude.ai", "anthropic.com", "claudeusercontent.com", "gemini.google.com", "bard.google.com", "aistudio.google.com",
+	"generativelanguage.googleapis.com", "gemini-pa.googleapis.com", "proactivebackend-pa.googleapis.com", "alkalimakersuite-pa.googleapis.com", "alkalimakersuite-pa.clients6.google.com",
+}
+
+// These domains need ordinary public answers, not the regional AI relay.
+var ProtectedDNSHosts = []string{
+	"youtube.com", "youtu.be", "googlevideo.com", "ytimg.com", "ggpht.com", "youtubei.googleapis.com", "youtube.googleapis.com",
+	"discord.com", "discord.gg", "discordapp.com", "discordapp.net", "discord.media", "discordcdn.com", "discordstatus.com",
+	"instagram.com", "cdninstagram.com", "fbcdn.net",
+	"telegram.org", "telegram.me", "t.me", "telegra.ph", "telesco.pe",
+}
 
 func IsAI(host string) bool {
 	host = strings.ToLower(strings.TrimSuffix(host, "."))
@@ -103,7 +119,7 @@ func DNSPayload(packet []byte) ([]byte, int, bool) {
 }
 func ReplyPacket(original, dns []byte) []byte {
 	_, offset, ok := DNSPayload(original)
-	if !ok || len(dns) > 4096 {
+	if !ok || len(dns) < 12 || len(dns) > 4096 {
 		return nil
 	}
 	out := make([]byte, offset+8+len(dns))
@@ -132,13 +148,26 @@ func ReplyPacket(original, dns []byte) []byte {
 
 type cachedDNS struct {
 	response []byte
+	stored   time.Time
 	expires  time.Time
 }
 type SmartDNS struct {
-	mu     sync.Mutex
-	cache  map[string]cachedDNS
+	mu              sync.Mutex
+	cache           map[string]cachedDNS
+	client          *http.Client
+	fallbacks       []*http.Client
+	preferred       int
+	public          []dnsUpstream
+	publicPreferred int
+	rules           DomainRules
+	chatGPTRoute    chatGPTRoute
+	chatGPTFlight   chan struct{}
+	chatGPTProbe    func(context.Context, string) error
+}
+
+type dnsUpstream struct {
+	url    string
 	client *http.Client
-	rules  DomainRules
 }
 
 func NewSmartDNS(rules ...DomainRules) *SmartDNS {
@@ -146,64 +175,281 @@ func NewSmartDNS(rules ...DomainRules) *SmartDNS {
 	if len(rules) > 0 {
 		selected = rules[0]
 	}
-	transport := &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-		if strings.HasPrefix(address, "dns.comss.one:") {
-			address = "195.133.25.16:443"
-		}
-		return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, network, address)
-	}}
-	return &SmartDNS{rules: selected, cache: make(map[string]cachedDNS), client: &http.Client{Transport: transport, Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("DNS redirect rejected") }}}
+	// Keep normal hostname resolution so provider address changes are picked up.
+	// Published bootstrap addresses recover when the local DNS or one route fails.
+	// Each route keeps the original HTTPS hostname and certificate verification.
+	// Source: https://www.comss.ru/page.php?id=7315
+	s := &SmartDNS{rules: selected, cache: make(map[string]cachedDNS), client: newDNSClient("dns.comss.one", "")}
+	for _, address := range []string{"212.109.195.93", "83.220.169.155", "195.133.25.16"} {
+		s.fallbacks = append(s.fallbacks, newDNSClient("dns.comss.one", address))
+	}
+	// Wire-format DoH with bootstrap IPs does not depend on the ISP's resolver.
+	for _, endpoint := range [][2]string{{"cloudflare-dns.com", "1.1.1.1"}, {"dns.google", "8.8.8.8"}, {"cloudflare-dns.com", "1.0.0.1"}, {"dns.google", "8.8.4.4"}} {
+		s.public = append(s.public, dnsUpstream{url: "https://" + endpoint[0] + "/dns-query", client: newDNSClient(endpoint[0], endpoint[1])})
+	}
+	return s
 }
+
+func newDNSClient(host, bootstrap string) *http.Client {
+	transport := &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, TLSHandshakeTimeout: 2 * time.Second, IdleConnTimeout: 30 * time.Second, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+		if bootstrap != "" && address == host+":443" {
+			address = net.JoinHostPort(bootstrap, "443")
+		}
+		return (&net.Dialer{Timeout: 2 * time.Second}).DialContext(ctx, network, address)
+	}}
+	return &http.Client{Transport: transport, Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("DNS redirect rejected") }}
+}
+
+func (s *SmartDNS) Close() {
+	s.client.CloseIdleConnections()
+	for _, client := range s.fallbacks {
+		client.CloseIdleConnections()
+	}
+	for _, endpoint := range s.public {
+		endpoint.client.CloseIdleConnections()
+	}
+}
+
+// DialContext permits read-only diagnostics through the same DNS routes without
+// loading WinDivert or changing the machine's DNS. The caller's TLS transport
+// still uses the original hostname for SNI and certificate verification.
+func (s *SmartDNS) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	dialer := net.Dialer{Timeout: 3 * time.Second}
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || !s.rules.ShouldResolveDNS(host) {
+		return dialer.DialContext(ctx, network, address)
+	}
+	name, err := dnsmessage.NewName(strings.TrimSuffix(host, ".") + ".")
+	if err != nil {
+		return nil, err
+	}
+	qt := dnsmessage.TypeA
+	if strings.HasSuffix(network, "6") {
+		qt = dnsmessage.TypeAAAA
+	}
+	message := dnsmessage.Message{Header: dnsmessage.Header{RecursionDesired: true}, Questions: []dnsmessage.Question{{Name: name, Type: qt, Class: dnsmessage.ClassINET}}}
+	q, err := message.Pack()
+	if err != nil {
+		return nil, err
+	}
+	response := s.Resolve(ctx, q)
+	if err = message.Unpack(response); err != nil {
+		return nil, &net.DNSError{Name: host, Err: "invalid secure DNS response"}
+	}
+	if message.RCode != dnsmessage.RCodeSuccess {
+		return nil, &net.DNSError{Name: host, Err: fmt.Sprintf("secure DNS response code %d", message.RCode), IsNotFound: message.RCode == dnsmessage.RCodeNameError}
+	}
+	var lastErr error
+	for _, answer := range message.Answers {
+		var ip net.IP
+		switch record := answer.Body.(type) {
+		case *dnsmessage.AResource:
+			if qt == dnsmessage.TypeA {
+				ip = net.IP(record.A[:])
+			}
+		case *dnsmessage.AAAAResource:
+			if qt == dnsmessage.TypeAAAA {
+				ip = net.IP(record.AAAA[:])
+			}
+		}
+		if ip == nil {
+			continue
+		}
+		conn, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		if dialErr == nil {
+			return conn, nil
+		}
+		lastErr = dialErr
+		if ctx.Err() != nil {
+			break
+		}
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, &net.DNSError{Name: host, Err: "secure DNS returned no address", IsNotFound: true}
+}
+
 func (s *SmartDNS) Resolve(ctx context.Context, q []byte) []byte {
 	host, typ, _, e := Question(q)
-	if e != nil {
+	if e != nil || q[2]&0xf8 != 0 || len(q) > 4096 {
 		return nil
 	}
-	if !s.rules.IsGeo(host) {
+	if !s.rules.ShouldResolveDNS(host) {
 		return nil
 	}
-	if typ == 28 || typ == 64 || typ == 65 {
+	geo := s.rules.IsGeo(host)
+	// The regional relay is IPv4-only. HTTPS/SVCB hints can enable ECH or QUIC
+	// and bypass the visible TLS hostname used by the selected DPI profile.
+	if geo && typ == 28 || typ == 64 || typ == 65 {
 		return DNSReply(q, 0)
 	}
-	key := host + ":" + string(rune(typ))
+	// Include flags, question case and EDNS options, not just the domain and type.
+	// In particular, a DNSSEC or client-subnet query must not reuse another answer.
+	key := string(q[2:])
 	s.mu.Lock()
 	cached, ok := s.cache[key]
 	s.mu.Unlock()
 	if ok && time.Now().Before(cached.expires) {
-		out := append([]byte(nil), cached.response...)
-		copy(out[:2], q[:2])
-		return out
+		if out := cachedDNSReply(cached, q); out != nil {
+			return s.preferChatGPT(ctx, host, typ, out)
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
-	req, e := http.NewRequestWithContext(ctx, "POST", "https://dns.comss.one/dns-query", bytes.NewReader(q))
-	if e != nil {
+	b := s.query(ctx, q, !geo)
+	if b == nil {
 		return DNSReply(q, 2)
+	}
+	if ttl := dnsCacheTTL(b); ttl > 0 {
+		now := time.Now()
+		s.mu.Lock()
+		if len(s.cache) >= 512 {
+			s.cache = make(map[string]cachedDNS)
+		}
+		s.cache[key] = cachedDNS{response: append([]byte(nil), b...), stored: now, expires: now.Add(ttl)}
+		s.mu.Unlock()
+	}
+	return s.preferChatGPT(ctx, host, typ, b)
+}
+
+func (s *SmartDNS) query(ctx context.Context, q []byte, public bool) []byte {
+	q = append([]byte(nil), q...)
+	endpoints := []dnsUpstream{{url: "https://dns.comss.one/dns-query", client: s.client}}
+	for _, client := range s.fallbacks {
+		endpoints = append(endpoints, dnsUpstream{url: endpoints[0].url, client: client})
+	}
+	s.mu.Lock()
+	preferred := s.preferred
+	if public {
+		endpoints = s.public
+		preferred = s.publicPreferred
+	}
+	s.mu.Unlock()
+	if len(endpoints) == 0 {
+		return nil
+	}
+	preferred %= len(endpoints)
+	type result struct {
+		packet []byte
+		route  int
+	}
+	results := make(chan result, len(endpoints))
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	for i := range endpoints {
+		route := (preferred + i) % len(endpoints)
+		go func(delay time.Duration, route int) {
+			if delay > 0 {
+				timer := time.NewTimer(delay)
+				defer timer.Stop()
+				select {
+				case <-timer.C:
+				case <-ctx.Done():
+					return
+				}
+			}
+			results <- result{packet: queryDNS(ctx, endpoints[route], q), route: route}
+		}(time.Duration(i)*200*time.Millisecond, route)
+	}
+	for range endpoints {
+		select {
+		case <-ctx.Done():
+			return nil
+		case r := <-results:
+			if r.packet != nil {
+				s.mu.Lock()
+				if public {
+					s.publicPreferred = r.route
+				} else {
+					s.preferred = r.route
+				}
+				s.mu.Unlock()
+				return r.packet
+			}
+		}
+	}
+	return nil
+}
+
+func queryDNS(ctx context.Context, endpoint dnsUpstream, q []byte) []byte {
+	req, e := http.NewRequestWithContext(ctx, "POST", endpoint.url, bytes.NewReader(q))
+	if e != nil {
+		return nil
 	}
 	req.Header.Set("Content-Type", "application/dns-message")
 	req.Header.Set("Accept", "application/dns-message")
-	r, e := s.client.Do(req)
+	r, e := endpoint.client.Do(req)
 	if e != nil {
-		return DNSReply(q, 2)
+		return nil
 	}
 	defer r.Body.Close()
 	if r.StatusCode != 200 {
-		return DNSReply(q, 2)
+		return nil
 	}
 	b, e := io.ReadAll(io.LimitReader(r.Body, 4097))
-	if e != nil || len(b) > 4096 || len(b) < 12 || b[2]&128 == 0 {
-		return DNSReply(q, 2)
+	if e != nil || len(b) > 4096 || len(b) < 12 || b[2]&128 == 0 || b[2]&2 != 0 || b[2]&0x78 != q[2]&0x78 {
+		return nil
 	}
+	host, typ, _, _ := Question(q)
 	name, qt, _, e := Question(b)
 	if e != nil || name != host || qt != typ {
-		return DNSReply(q, 2)
+		return nil
+	}
+	var message dnsmessage.Message
+	if message.Unpack(b) != nil || message.RCode != dnsmessage.RCodeSuccess && message.RCode != dnsmessage.RCodeNameError {
+		return nil
 	}
 	copy(b[:2], q[:2])
-	s.mu.Lock()
-	if len(s.cache) > 512 {
-		s.cache = make(map[string]cachedDNS)
-	}
-	s.cache[key] = cachedDNS{response: append([]byte(nil), b...), expires: time.Now().Add(30 * time.Second)}
-	s.mu.Unlock()
 	return b
+}
+
+func dnsCacheTTL(packet []byte) time.Duration {
+	var message dnsmessage.Message
+	if message.Unpack(packet) != nil || message.Truncated || message.RCode != dnsmessage.RCodeSuccess && message.RCode != dnsmessage.RCodeNameError {
+		return 0
+	}
+	ttl := uint32(30)
+	if len(message.Answers) == 0 || message.RCode == dnsmessage.RCodeNameError {
+		// RFC 2308: negative answers need an SOA to define their lifetime.
+		found := false
+		for _, rr := range message.Authorities {
+			if soa, ok := rr.Body.(*dnsmessage.SOAResource); ok {
+				ttl = min(ttl, rr.Header.TTL, soa.MinTTL)
+				found = true
+			}
+		}
+		if !found {
+			return 0
+		}
+	}
+	for _, section := range [][]dnsmessage.Resource{message.Answers, message.Authorities, message.Additionals} {
+		for _, rr := range section {
+			if rr.Header.Type != dnsmessage.TypeOPT {
+				ttl = min(ttl, rr.Header.TTL)
+			}
+		}
+	}
+	return time.Duration(ttl) * time.Second
+}
+
+func cachedDNSReply(cached cachedDNS, query []byte) []byte {
+	var message dnsmessage.Message
+	if message.Unpack(cached.response) != nil {
+		return nil
+	}
+	message.ID = binary.BigEndian.Uint16(query[:2])
+	age := uint32(max(0, time.Since(cached.stored)/time.Second))
+	for _, section := range [][]dnsmessage.Resource{message.Answers, message.Authorities, message.Additionals} {
+		for i := range section {
+			if section[i].Header.Type != dnsmessage.TypeOPT {
+				section[i].Header.TTL -= min(age, section[i].Header.TTL)
+			}
+		}
+	}
+	packet, err := message.Pack()
+	if err != nil || len(packet) > 4096 {
+		return nil
+	}
+	return packet
 }

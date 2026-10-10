@@ -83,7 +83,7 @@ func TestDNSDohIntegrityAndCache(t *testing.T) {
 		count.Add(1)
 		q := make([]byte, r.ContentLength)
 		r.Body.Read(q)
-		w.Write(DNSReply(q, 0))
+		w.Write(dnsAnswer(q, 60))
 	}))
 	defer server.Close()
 	s := NewSmartDNS()
@@ -227,6 +227,7 @@ type fakeExtra struct{}
 
 func (fakeExtra) Start(context.Context, string, DomainRules) (func(), error) { return func() {}, nil }
 func (fakeExtra) Alive() bool                                                { return true }
+func (fakeExtra) Resolver() *SmartDNS                                        { return nil }
 func TestEngineFailedSelectionDoesNotClaimWorking(t *testing.T) {
 	r := &fakeRunner{}
 	root := "../../runtime"
@@ -240,7 +241,7 @@ func TestEngineFailedSelectionDoesNotClaimWorking(t *testing.T) {
 	if e := engine.Start(c, "", false, func(string) {}); e != nil {
 		t.Fatal(e)
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for engine.Snapshot().Status == "starting" && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}

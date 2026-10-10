@@ -61,12 +61,19 @@ def _regional_refusal(body):
 def _classify(status, headers, body):
     if _regional_refusal(body):
         return "regional_refusal"
+    lowered = body.lower()
+    visible = _visible_text(body).lower()
+    challenge = (headers.get("cf-mitigated", "").strip().lower() == "challenge"
+                 or (b"cf-chl-" in lowered or b"/cdn-cgi/challenge-platform/" in lowered)
+                 and any(text in visible for text in
+                         ("just a moment", "checking your browser", "verify you are human")))
+    # Interstitial challenges can be served with HTTP 200 or 503 too. A
+    # successful HTTP status alone must not turn them into a reachable page.
+    # Ignore challenge strings inside a normal page's JavaScript configuration.
+    if challenge:
+        return "challenge"
     if status == 403:
-        lowered = body.lower()
-        challenge = (headers.get("cf-mitigated", "").lower() == "challenge"
-                     or (b"cf-chl-" in lowered or b"/cdn-cgi/challenge-platform/" in lowered)
-                     and (b"cloudflare" in lowered or b"just a moment" in lowered))
-        return "challenge" if challenge else "denied"
+        return "denied"
     if 300 <= status < 400:
         # No redirects are followed: their destination is not evidence that a
         # login or an authenticated ChatGPT session succeeds.

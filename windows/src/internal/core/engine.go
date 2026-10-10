@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -22,37 +23,52 @@ type Runner interface {
 type Extra interface {
 	Start(context.Context, string, DomainRules) (func(), error)
 	Alive() bool
+	Resolver() *SmartDNS
 }
 type State struct {
-	Status   string  `json:"state"`
-	Detail   string  `json:"detail"`
-	Profile  string  `json:"profile,omitempty"`
-	Checks   []Check `json:"checks,omitempty"`
-	Error    string  `json:"error,omitempty"`
-	Telegram bool    `json:"telegram"`
-	DPI      bool    `json:"dpi"`
-	Extras   bool    `json:"extra_sites"`
+	Status         string         `json:"state"`
+	Detail         string         `json:"detail"`
+	Profile        string         `json:"profile,omitempty"`
+	Checks         []Check        `json:"checks,omitempty"`
+	Error          string         `json:"error,omitempty"`
+	Telegram       bool           `json:"telegram"`
+	DPI            bool           `json:"dpi"`
+	Extras         bool           `json:"extra_sites"`
+	DNS            bool           `json:"dns"`
+	TelegramHealth TelegramHealth `json:"telegram_health"`
+	Services       []Target       `json:"services,omitempty"`
 }
 type Engine struct {
-	mu         sync.Mutex
-	state      State
-	cancel     context.CancelFunc
-	done       chan struct{}
-	runner     Runner
-	extra      Extra
-	notify     func()
-	root, data string
-	probe      func(context.Context, string) Check
+	mu            sync.Mutex
+	state         State
+	cancel        context.CancelFunc
+	done          chan struct{}
+	runner        Runner
+	extra         Extra
+	notify        func()
+	root, data    string
+	probe         func(context.Context, string) Check
+	probeServices func(context.Context, *SmartDNS) []Target
 }
 
 func NewEngine(root, data string, r Runner, x Extra, notify func()) *Engine {
-	return &Engine{root: root, data: data, runner: r, extra: x, notify: notify, state: State{Status: "off"}, probe: Probe}
+	return &Engine{root: root, data: data, runner: r, extra: x, notify: notify, state: State{Status: "off"}, probe: Probe, probeServices: ProbeExtrasWithDNS}
 }
 func (e *Engine) Snapshot() State {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	s := e.state
 	s.Checks = append([]Check(nil), s.Checks...)
+	for i := range s.Checks {
+		s.Checks[i].Targets = append([]Target(nil), s.Checks[i].Targets...)
+	}
+	s.Services = append([]Target(nil), s.Services...)
+	if s.TelegramHealth.Datacenters != nil {
+		s.TelegramHealth.Datacenters = make(map[string]TelegramDCHealth, len(e.state.TelegramHealth.Datacenters))
+		for dc, health := range e.state.TelegramHealth.Datacenters {
+			s.TelegramHealth.Datacenters[dc] = health
+		}
+	}
 	return s
 }
 func (e *Engine) set(s State) {
@@ -108,6 +124,7 @@ func (e *Engine) Stop() {
 func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool, saved func(string)) {
 	var children []Process
 	var stopExtra func()
+	var healthPath string
 	s := State{Status: "starting"}
 	defer func() {
 		if stopExtra != nil {
@@ -115,6 +132,9 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		}
 		for _, p := range children {
 			p.Stop()
+		}
+		if healthPath != "" {
+			os.Remove(healthPath)
 		}
 		if ctx.Err() != nil {
 			e.set(State{Status: "off"})
@@ -141,6 +161,12 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		return
 	}
 	if c.Telegram {
+		healthID, err := NewSecret()
+		if err != nil {
+			fail(err)
+			return
+		}
+		healthPath = filepath.Join(e.data, "telegram-health-"+healthID+".json")
 		domains := []string{}
 		b, _ := os.ReadFile(filepath.Join(e.data, "tg-domains.json"))
 		json.Unmarshal(b, &domains)
@@ -151,7 +177,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 				json.Unmarshal(bundled["cf"], &domains)
 			}
 		}
-		input, _ := json.Marshal(map[string]any{"secret": secret, "domains": domains})
+		input, _ := json.Marshal(map[string]any{"secret": secret, "domains": domains, "health_path": healthPath})
 		input = append(input, '\n')
 		p, err := e.runner.Start(filepath.Join(e.root, "python", "python.exe"), []string{"-u", filepath.Join(e.root, "app", "tg_runner.py")}, e.root, input, filepath.Join(e.data, "telegram.log"))
 		if err != nil {
@@ -164,15 +190,17 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			return
 		}
 		s.Telegram = true
+		s.TelegramHealth = TelegramHealth{State: "checking"}
 	}
-	if c.Extras || len(rules.Geo) > 0 {
+	if rules.Secure || c.Extras || len(rules.Geo) > 0 {
 		var err error
 		stopExtra, err = e.extra.Start(ctx, filepath.Join(e.root, "zapret", "bin"), rules)
 		if err != nil {
 			fail(fmt.Errorf("DNS-профиль: %w", err))
 			return
 		}
-		s.Extras = true
+		s.Extras = c.Extras || len(rules.Geo) > 0
+		s.DNS = true
 	}
 	if c.DPI {
 		dir := ActiveData(e.data, filepath.Join(e.root, "zapret"))
@@ -189,7 +217,17 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		var best *Profile
 		bestScore := -1
 		selected := false
-		for i, p := range choices {
+		for i := 0; ; i++ {
+			if i >= len(choices) && c.Method == "auto" && !extended {
+				// Escalate even when the last fast candidate had missing assets
+				// or exited before probing. Preserve the same candidate ordering.
+				choices = Candidates(catalog, c, true)
+				extended = true
+			}
+			if i >= len(choices) {
+				break
+			}
+			p := choices[i]
 			if ctx.Err() != nil {
 				return
 			}
@@ -266,7 +304,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		if !selected {
 			s.Status = "partial"
 			s.Profile = ""
-			s.Detail = "Рабочий DPI не найден · работает Telegram / DNS"
+			s.Detail = "Рабочий DPI не найден · см. диагностику"
 			if !s.Telegram && !s.Extras {
 				fail(errors.New("рабочий метод не найден; откройте расширенный подбор"))
 				return
@@ -289,15 +327,46 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 	if ctx.Err() != nil {
 		return
 	}
+	baseStatus, baseDetail := s.Status, s.Detail
+	if c.Extras {
+		s.Detail = "Проверяем ChatGPT и Instagram"
+		e.set(s)
+		s.Services = e.probeServices(ctx, e.extra.Resolver())
+	}
+	if s.Telegram {
+		s.TelegramHealth = ReadTelegramHealth(healthPath, time.Now())
+	}
+	applyServiceHealth(&s, baseStatus, baseDetail)
 	e.set(s)
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
+	// Probe in a worker so shutdown and process liveness never wait on HTTP.
+	serviceResults := make(chan []Target, 1)
+	serviceTimer := time.NewTicker(60 * time.Second)
+	defer serviceTimer.Stop()
+	serviceChecking := false
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-serviceTimer.C:
+			if c.Extras && !serviceChecking {
+				serviceChecking = true
+				go func() {
+					result := e.probeServices(ctx, e.extra.Resolver())
+					select {
+					case serviceResults <- result:
+					case <-ctx.Done():
+					}
+				}()
+			}
+		case result := <-serviceResults:
+			serviceChecking = false
+			s.Services = result
+			applyServiceHealth(&s, baseStatus, baseDetail)
+			e.set(s)
 		case <-ticker.C:
-			if s.Extras && !e.extra.Alive() {
+			if s.DNS && !e.extra.Alive() {
 				fail(errors.New("DNS-профиль остановился; подключитесь снова"))
 				return
 			}
@@ -306,6 +375,11 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 					fail(errors.New("сетевой процесс остановился; подключитесь снова"))
 					return
 				}
+			}
+			if s.Telegram {
+				s.TelegramHealth = ReadTelegramHealth(healthPath, time.Now())
+				applyServiceHealth(&s, baseStatus, baseDetail)
+				e.set(s)
 			}
 		}
 	}
@@ -331,6 +405,19 @@ func waitPort(ctx context.Context, p Process, address string, timeout time.Durat
 	return errors.New("порт не открылся")
 }
 func WithInstagram(args []string, list string) []string {
-	result := []string{args[0], args[1], "--filter-tcp=80,443", "--hostlist=" + list, "--dpi-desync=fake,multidisorder", "--dpi-desync-split-pos=1,midsld", "--dpi-desync-fooling=badseq", "--new"}
-	return append(result, args[2:]...)
+	var global, profiles []string
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--wf-") {
+			global = append(global, arg)
+		} else {
+			profiles = append(profiles, arg)
+		}
+	}
+	result := append(global, "--filter-udp=443", "--hostlist="+list, "--dpi-desync=fake", "--dpi-desync-repeats=6", "--new",
+		"--filter-tcp=80,443", "--hostlist="+list, "--dpi-desync=fake,multidisorder", "--dpi-desync-split-pos=1,midsld", "--dpi-desync-fooling=badseq")
+	if len(profiles) > 0 {
+		result = append(result, "--new")
+		result = append(result, profiles...)
+	}
+	return result
 }

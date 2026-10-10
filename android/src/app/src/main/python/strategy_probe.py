@@ -60,11 +60,23 @@ async def probe_async(port, control, transport=None, verify=True, timeout=3, boo
         hosts={httpx.URL(target[1]).host for target in TARGETS}
         if full_discord:hosts.update((GATEWAY_HOST,httpx.URL(CDN_TARGET[1]).host))
         tasks={host:asyncio.create_task(resolver.resolve(host)) for host in hosts}
+        dns_timed_out=False
         try:
-            while not all(task.done() for task in tasks.values()):
-                if not control.keepRunning(): raise asyncio.CancelledError()
-                await asyncio.sleep(.05)
-            addresses={host:task.result() for host,task in tasks.items() if task.result()}
+            try:
+                # DNS bootstrap is a separate bounded phase. A stalled
+                # provider must not consume the entire Java selection loop.
+                async with asyncio.timeout(timeout+0.3):
+                    while not all(task.done() for task in tasks.values()):
+                        if not control.keepRunning(): raise asyncio.CancelledError()
+                        await asyncio.sleep(.05)
+            except asyncio.TimeoutError:
+                dns_timed_out=True
+            addresses={}
+            for host,task in tasks.items():
+                if not task.done() or task.cancelled():continue
+                try:address=task.result()
+                except (httpx.HTTPError,OSError,ValueError):continue
+                if address:addresses[host]=address
             provider=resolver.provider
         finally:
             for task in tasks.values(): task.cancel()
@@ -74,6 +86,7 @@ async def probe_async(port, control, transport=None, verify=True, timeout=3, boo
         transport=PinnedTransport(inner,addresses)
         result=await probe_async(port,control,transport,verify,timeout,bootstrap=False,full_discord=full_discord,addresses=addresses,gateway_check=gateway_check)
         result["dns"]={"ok":bool(addresses),"provider":provider,"resolved":len(addresses),"total":len(hosts)}
+        if dns_timed_out:result["dns"]["timed_out"]=True
         return result
     begin = time.monotonic()
     async with httpx.AsyncClient(proxy=f"socks5://127.0.0.1:{int(port)}" if transport is None else None,
@@ -93,7 +106,7 @@ async def probe_async(port, control, transport=None, verify=True, timeout=3, boo
             async def gateway():
                 if addresses is not None and GATEWAY_HOST not in addresses:
                     return {"name":"Gateway","ok":False,"stage":"DNS","error":"Нет DNS-ответа"}
-                return await (gateway_check or check_gateway)(port,(addresses or {}).get(GATEWAY_HOST,'127.0.0.1'),verify,timeout)
+                return await (gateway_check or check_gateway)(port,(addresses or {}).get(GATEWAY_HOST,GATEWAY_HOST),verify,timeout)
             async def record(name,request):
                 result=await request;result['name']=name;discord_parts[name]=result
             await asyncio.gather(record('API',http_check(target)),record('Gateway',gateway()),record('CDN',http_check(CDN_TARGET)))

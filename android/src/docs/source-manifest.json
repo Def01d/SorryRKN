@@ -1,12 +1,17 @@
 {
-  "version": "0.10.3",
+  "version": "0.11.0",
   "scope": "Android source export; excludes generated build outputs and private local configuration",
   "manifest_self_excluded": true,
   "files": [
     {
       "path": ".gitignore",
-      "size": 195,
-      "sha256": "1489e5a1c9cd4e35f047514fdd0e78490e0b5e686cf27c748b7cbc3e9154a90f"
+      "size": 206,
+      "sha256": "49382b8171c621f14e1bb0a22588b1cf9b7a29a59840733f8df43a1d5e7a90b4"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "size": 3226,
+      "sha256": "adfac446d051f94047f6a45a804fdbb0643da43443e1382721fafaee23b2c001"
     },
     {
       "path": "LICENSE",
@@ -15,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "size": 7068,
-      "sha256": "001f38b0c2dd5a72d236dce7d5f5f4a58522e5f4f777f5a17016ec959dca3761"
+      "size": 12975,
+      "sha256": "b36e4bae88bad98418d13b6050b869fd0ed197576491f4a5709a0d355aace1c3"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -24,9 +29,14 @@
       "sha256": "b21cdf3aacdd0fc9ed32536bf2edb9a3fcabc0713965a1f8930bb8cf081f12e0"
     },
     {
+      "path": "VALIDATION.md",
+      "size": 8498,
+      "sha256": "6d0d4d6b3276214795aa1972bd031649b4a38a17cd407c6cfe8ff99235507263"
+    },
+    {
       "path": "app/build.gradle",
-      "size": 1276,
-      "sha256": "1a80685e7ac1f2379aae9b911b6fc35b93bf050dddc214eb274d99805738f131"
+      "size": 1459,
+      "sha256": "3b17c35136c4b247ea4cc9878e10393d68638723cf2e04bc3d1ea2253a5296bb"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -64,14 +74,19 @@
       "sha256": "7233ec0f5f921e9961f808eab35dfb46ce88ad21df5bfeedaa04c8ad805884c8"
     },
     {
+      "path": "app/src/androidTest/assets/telegram_verified_check.py",
+      "size": 4415,
+      "sha256": "b794c3febc2909f846f0ac562481e269d85e94322125cb9311e465bd2266e75c"
+    },
+    {
       "path": "app/src/androidTest/assets/telegram_wire_check.py",
       "size": 19389,
       "sha256": "89e48de71f36d1d2016f1b7301f521464368ee1c99df1050c9e9d7f59133a813"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 46973,
-      "sha256": "691bf56805328d6e561f372b6a4da42e66e945df81807554a458f6efa20d817d"
+      "size": 57720,
+      "sha256": "5f4285843f554407911b893a3fa1c43081e9d74783eb357d616eb8cd51cd7dfa"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java",
@@ -80,8 +95,8 @@
     },
     {
       "path": "app/src/main/AndroidManifest.xml",
-      "size": 2672,
-      "sha256": "6469435075182baa3d14da6cf49a553a459e66984a3a0d4a053a739d254b318f"
+      "size": 2675,
+      "sha256": "a7e94413bbda20123d2c93d27e32ca08b821c88cb7f64ad334acc92933e39a47"
     },
     {
       "path": "app/src/main/assets/bundled-data.json",
@@ -225,8 +240,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeService.java",
-      "size": 34098,
-      "sha256": "e2a403494f0c33ea8d08272ec08e5b7e4ede19abbc8f048f3f167be39cfe2aa2"
+      "size": 36475,
+      "sha256": "d11714f6b0c1aaca912eeb192b7a5312e1ea3a6af8d2dd0098cf606d48dce2bd"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeTile.java",
@@ -245,8 +260,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/MainActivity.java",
-      "size": 39457,
-      "sha256": "e730564caa2e8e271f3a8fae22c25e96ec0ab707f1e00fc52feae090542f2017"
+      "size": 45811,
+      "sha256": "f09a334ebff9028f1c6d5e1f3200eec8f1c60340dca41fae5205f6ec161d9628"
     },
     {
       "path": "app/src/main/java/dev/graybridge/NativeTunnel.java",
@@ -255,8 +270,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/Settings.java",
-      "size": 1433,
-      "sha256": "813130f7fcd77f1676f11ab639b9ebe54e86deb14d7cc4ea4522c4a70541bb7e"
+      "size": 1620,
+      "sha256": "901bd2a78ce53e83c3bcbdc5bee3f358bc2c0e906d85f225bf54a1b5029431da"
     },
     {
       "path": "app/src/main/java/dev/graybridge/Strategies.java",
@@ -280,13 +295,13 @@
     },
     {
       "path": "app/src/main/python/android_bridge.py",
-      "size": 10581,
-      "sha256": "97a17aac52d6b47b1c03dbdcd5e7bd1432734fa8f30f121bdfb3ea6c461d599d"
+      "size": 11870,
+      "sha256": "6d4fb7e3b0bf7b04ab1cd6aabb656085b009f711d9013a914ac0a974cbc12a3a"
     },
     {
       "path": "app/src/main/python/bridge_data.py",
-      "size": 14487,
-      "sha256": "4b9b1f6936917a8f5d83b8681acd31f0a0252dc9d7b89df1855369d56c6b2172"
+      "size": 14784,
+      "sha256": "01080ccd221446bf0611922ac5de5e776462ab7ac162db181f6a6bd21d9b7e32"
     },
     {
       "path": "app/src/main/python/connection_health.py",
@@ -300,23 +315,23 @@
     },
     {
       "path": "app/src/main/python/doh.py",
-      "size": 10662,
-      "sha256": "743123b411b8cbe46a67c21c9e13b971965a7817e5342e36a1e4b1a1d733f575"
+      "size": 12551,
+      "sha256": "8da24845524b567e22eadbfdbe6b9375c0d351383a42b2dc2f2d7d06e6b48e0c"
     },
     {
       "path": "app/src/main/python/extra_sites.py",
-      "size": 1135,
-      "sha256": "1d540fbbe9575c2b2df817ae491b706abb5f236188833f0d977d139b924e52d6"
+      "size": 1745,
+      "sha256": "699fa26dd34b0f6d367f5c8d876b29e4d50c10a32a1080905963b71caf1e6e48"
     },
     {
       "path": "app/src/main/python/gateway.py",
-      "size": 16356,
-      "sha256": "ec777d87990bf3e30cd6c1ebfb127e6d00691d7bd83231690fdb76eea3b1d6f5"
+      "size": 24040,
+      "sha256": "bac444383ebffbcf72a9fc8a785f3dd2e7260c8ede05bf63426db820e5f4bb0c"
     },
     {
       "path": "app/src/main/python/geo_route.py",
-      "size": 4728,
-      "sha256": "bda5c10a3334fcaa7c6c38b530d20f2e999bfff8e8a9a782b98589f2eaad7337"
+      "size": 4938,
+      "sha256": "4b4237ecf325d858564034b7e0f6d972ee8747ab8f4b5c5ce8569943a204bfb7"
     },
     {
       "path": "app/src/main/python/proxy/__init__.py",
@@ -345,8 +360,8 @@
     },
     {
       "path": "app/src/main/python/proxy/config.py",
-      "size": 6750,
-      "sha256": "3b2934112a54ffb030cad225dfdc98c5aaa43dc2a55666882dbbf99a7bdb11e7"
+      "size": 7017,
+      "sha256": "d10caba9583d17724f2b92c041394f4c8a801c0a8e81427c592cc3bcb5a95c9d"
     },
     {
       "path": "app/src/main/python/proxy/fake_tls.py",
@@ -385,8 +400,8 @@
     },
     {
       "path": "app/src/main/python/proxy/route_diagnostics.py",
-      "size": 8015,
-      "sha256": "f5c07fe5fe2f32579845921216074797dbcf090e5e71eb7da3b72aa5f65dfacf"
+      "size": 8032,
+      "sha256": "9a9f08898ce0ef83dd1d0439d54c81c1c25dc147ffb63f1f8a8eee579248f5ad"
     },
     {
       "path": "app/src/main/python/proxy/stats.py",
@@ -400,8 +415,8 @@
     },
     {
       "path": "app/src/main/python/proxy/tg_ws_proxy.py",
-      "size": 27367,
-      "sha256": "5c2d64324e2a5e21794bd247672036772049075b453390e34aa0cf776510f7b0"
+      "size": 30500,
+      "sha256": "94f4bb15f91a22336a8fddd8de1cab9ca6ad2e322ca484ce4ad8ebf7b5cb5120"
     },
     {
       "path": "app/src/main/python/proxy/utils.py",
@@ -409,34 +424,44 @@
       "sha256": "0d2bc192da984132b545874aecd422808fceb1347889fd5971360f06d54d748f"
     },
     {
+      "path": "app/src/main/python/proxy/verified_routes.py",
+      "size": 10644,
+      "sha256": "fd7c6d81c4d8ae5c5ce2d012e103a5a9b47ee717a53811652b7d21ecb8996879"
+    },
+    {
       "path": "app/src/main/python/service_probe.py",
-      "size": 6675,
-      "sha256": "88a079a85d4225a0851fcdc3806063610ef1c75aeca8ca6983207d938e693c15"
+      "size": 7020,
+      "sha256": "4c6bb433c7cf3156fbfef07a93cd6b07056be27d1b56ba25327bea1f83036b04"
     },
     {
       "path": "app/src/main/python/smart_dns.py",
-      "size": 3434,
-      "sha256": "a9e31dc57948b98024394bf9979be41b5f35f1909cd4cdaa0860f900b5de24f8"
+      "size": 5282,
+      "sha256": "9c05d3f462ee7cd920edb701db810d75d4c19df73034f5385ee92cbeb7e51508"
     },
     {
       "path": "app/src/main/python/strategy_probe.py",
-      "size": 8515,
-      "sha256": "ad97754e7a42ce0b36730c5cf9699929c6d3cccdef9034837d02b95b8034b91a"
+      "size": 9126,
+      "sha256": "0a73cb93b55342024223ab73eebb2b6026f7e37e20d29b6d82a53ca79516e6a8"
     },
     {
       "path": "app/src/main/python/telegram_probe.py",
-      "size": 6356,
-      "sha256": "2f325faf6c16735d7a72729cb744a5415c88aa6fe553e5b3ab875ef2c290dfe5"
+      "size": 6862,
+      "sha256": "a039e386cd3bc706ab9f202ecfc683ed2da75fb984c573c9da078c0e7e2de4d7"
     },
     {
       "path": "app/src/main/python/traffic.py",
-      "size": 6172,
-      "sha256": "61449fa1c8d0fa0557fd24dce19dabc977e51eeeb54e528bc661528d5d69bf5a"
+      "size": 5948,
+      "sha256": "265170bd6607ddcff9796b99ad371ade7c1c72f2e12dcb93e0ae8414e1c77d91"
     },
     {
       "path": "app/src/main/python/user_rules.py",
-      "size": 4135,
-      "sha256": "9d92a93ccef224d193991348953f0c272288c47dfa2ed94a30995d8e7e307a2a"
+      "size": 4171,
+      "sha256": "861ef38b41b3a6caeb9399f78f371e92acd8cd4fffafb03c66e3888eafd7a37c"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/sorryrkn_logo.png",
+      "size": 453859,
+      "sha256": "84566d8e62e4e040c333b3da6ce2179bb0db2e99de6d3325fcf78a6c5136ace8"
     },
     {
       "path": "app/src/main/res/drawable/ic_bridge.xml",
@@ -449,19 +474,14 @@
       "sha256": "49aea3453a48bde5f09ff2eb70ffe7f7f413c9caaf5ac8e5e217e26e140cbd90"
     },
     {
-      "path": "app/src/main/res/drawable-nodpi/sorryrkn_logo.png",
-      "size": 453859,
-      "sha256": "84566d8e62e4e040c333b3da6ce2179bb0db2e99de6d3325fcf78a6c5136ace8"
+      "path": "app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml",
+      "size": 284,
+      "sha256": "94dff4148b31ac57ad7cc6d11476eee183138371650cd652daeb70075fb92b38"
     },
     {
       "path": "app/src/main/res/mipmap-anydpi/ic_launcher.xml",
       "size": 213,
       "sha256": "3ba35ca77fdd2d4c74c3936e16be24afaa4d13213f534fe5080b16325f8ab385"
-    },
-    {
-      "path": "app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml",
-      "size": 284,
-      "sha256": "94dff4148b31ac57ad7cc6d11476eee183138371650cd652daeb70075fb92b38"
     },
     {
       "path": "app/src/main/res/values/styles.xml",
@@ -485,13 +505,18 @@
     },
     {
       "path": "docs/source-files.txt",
-      "size": 46436,
-      "sha256": "197d534b75b742535792998efbe390d563ca06a7186228f053718cd71cdf5948"
+      "size": 46813,
+      "sha256": "6e276030b3151a98cbba0e62474671c020b162fbb714d2d20a6a840a1a3cfb67"
     },
     {
       "path": "docs/upstream-lock.json",
       "size": 722,
       "sha256": "c97693c94b684cea11f75a4d4e15ff5fa81e89efb86f5a39b5fe4f85ccd1838d"
+    },
+    {
+      "path": "gradle.properties",
+      "size": 107,
+      "sha256": "10f39abfd08872d02895784fe98bd86653e465cbda1827168224c98535a97899"
     },
     {
       "path": "gradle/wrapper/gradle-wrapper.jar",
@@ -502,11 +527,6 @@
       "path": "gradle/wrapper/gradle-wrapper.properties",
       "size": 251,
       "sha256": "cdab1ffb439219b1db125e3c99a86cf2424f8762b9b3faa404ed061e3635ecde"
-    },
-    {
-      "path": "gradle.properties",
-      "size": 107,
-      "sha256": "10f39abfd08872d02895784fe98bd86653e465cbda1827168224c98535a97899"
     },
     {
       "path": "gradlew",
@@ -580,8 +600,13 @@
     },
     {
       "path": "tests/device-probe/src/main/java/dev/graybridge/probe/ProbeActivity.java",
-      "size": 9940,
-      "sha256": "d9a48f9aa046f1d71beea8282fe50974e859104e1cf52d015fdb21b3a6a9415a"
+      "size": 11269,
+      "sha256": "9bb5a8ed653f116034cec27b1da14ac19f7953e7ffc95ac5a1d0414abeb4205c"
+    },
+    {
+      "path": "tests/device-probe/src/main/java/dev/graybridge/probe/PublicServiceChecks.java",
+      "size": 21144,
+      "sha256": "6bec869c6afc7df5e9c4588c45036329127ffca4cab7c9d5a7fe90f58c63d10f"
     },
     {
       "path": "tests/echo_server.py",
@@ -594,6 +619,11 @@
       "sha256": "314260515e0025cc6c91ccec9c883a9ee2285623f75b30d4605d1d41f91519a7"
     },
     {
+      "path": "tests/live_network_check.py",
+      "size": 10216,
+      "sha256": "df736057837ee428d04dd867c24a1f50dc6cf587ba629951ef9708e329816960"
+    },
+    {
       "path": "tests/telegram_dpi_server.py",
       "size": 5868,
       "sha256": "e22e572842d625edcb6323dcc1b9a2ffddb51fb2159d4bf6fa455431cbfdb7d0"
@@ -604,19 +634,29 @@
       "sha256": "f6cde8013c1c562242f59234bca1d16cc9a9ddaad1dc3d6718b129ffd08e0f19"
     },
     {
+      "path": "tests/test_ai_route_selection.py",
+      "size": 7492,
+      "sha256": "f867d189010ecfadf3e539cfa8b1443a0ccc56cc1eece8ffda28a170696637d6"
+    },
+    {
       "path": "tests/test_discord.py",
-      "size": 8757,
-      "sha256": "d1def5f9f248b61c53d8cb3fcb110f1ed3d843d4fd86e54a34613c2f8ad47a4d"
+      "size": 9620,
+      "sha256": "38f75e1ee7b9387aa3f85d2f88e6d648767a147ca8e349ffc2f5277d5e393760"
+    },
+    {
+      "path": "tests/test_dns_routing_regressions.py",
+      "size": 8664,
+      "sha256": "1f64d6b149bedd1fc9793938c32cdb26f052e5cd629aeb76269b4a6a9c90caf1"
     },
     {
       "path": "tests/test_doh.py",
-      "size": 8295,
-      "sha256": "e29952262a381d64e01cec0d878b0499d2524c026bb139edd560e1b9b8fc04c5"
+      "size": 10282,
+      "sha256": "3b6cd70df948c7b02e7d14436d529d27b1767c798f28d56cdfa4cf4ebc226193"
     },
     {
       "path": "tests/test_extra_sites.py",
-      "size": 8568,
-      "sha256": "9c42d88de87f6e3ef7b3aca316f3dc9be42cf84c47f6daf4eebfe10f55db3a28"
+      "size": 8652,
+      "sha256": "3ceb1e3f6f71d0ddc1288804b5754bdfd75e3285dca71beda7c70acf9ec743df"
     },
     {
       "path": "tests/test_gateway.py",
@@ -644,9 +684,14 @@
       "sha256": "3f1a7aac9933dfc153242235844ec6570235a071cbfbc56cd7f859d049ab90b0"
     },
     {
+      "path": "tests/test_service_observation.py",
+      "size": 2072,
+      "sha256": "8989f5417b2189610c4e3e2df5490f787ea6e1e1e4d264873716e2cae3f59774"
+    },
+    {
       "path": "tests/test_service_probe.py",
-      "size": 10456,
-      "sha256": "3a80e9581fcf9052ca2b6da1514883e34e59a025b49528e38b1adfb7615d4e85"
+      "size": 10839,
+      "sha256": "1434883d04aed5100764d28fb7a24199f1c69b2f30a1c0acce58000c71b99674"
     },
     {
       "path": "tests/test_telegram_end_to_end.py",
@@ -670,8 +715,8 @@
     },
     {
       "path": "tests/test_telegram_observation.py",
-      "size": 8227,
-      "sha256": "41fa929ca9c87bad3c4f30c402eeb4393d647d0f1a0b22e293dfa45af0379ecc"
+      "size": 9892,
+      "sha256": "f94959f8b09ba3cba4e81f176e061c0324e9c951463ae9b374f7482a8eda2c3d"
     },
     {
       "path": "tests/test_telegram_probe.py",
@@ -690,13 +735,18 @@
     },
     {
       "path": "tests/test_telegram_shutdown.py",
-      "size": 7134,
-      "sha256": "3ad89dfe2a9a7c363c24408f736aab5187f9d20a8736fd28e8056b19c95085a5"
+      "size": 7524,
+      "sha256": "077b8e4444651d39632ee1906865588e8ef94b55a58d9d5838bb9f0917d3fe7d"
     },
     {
       "path": "tests/test_telegram_startup_routes.py",
       "size": 4831,
       "sha256": "d7bd447b449f92c70afe4eec1d6f16f45f12021ebfe829435204284b586a8f3b"
+    },
+    {
+      "path": "tests/test_telegram_verified_routes.py",
+      "size": 13413,
+      "sha256": "103857e1a043709d50edd2b399cc11f013a32addb4a93c7ca41421a6d30a4582"
     },
     {
       "path": "tests/test_traffic.py",
@@ -705,13 +755,13 @@
     },
     {
       "path": "tests/test_updates_and_selection.py",
-      "size": 13999,
-      "sha256": "7179505c9f4756a7956439e846ea88db3fe208b738b5568826005b6ffeb0bb8c"
+      "size": 14781,
+      "sha256": "dfd7f6ce147109f825b8dca70f473668b7793f6fb093d6fc7ec3ef0b2d1b0813"
     },
     {
       "path": "tests/test_user_rules.py",
-      "size": 5175,
-      "sha256": "6f199ae930c6d6c4a6262de0933aa17117b245ad40e14e2b874b4e9afdd424c8"
+      "size": 5429,
+      "sha256": "55a24d05104f6f85c65e6ee7db70980c5da11d408b2ec444bbb5aef661a948bf"
     },
     {
       "path": "tests/upstream/__init__.py",

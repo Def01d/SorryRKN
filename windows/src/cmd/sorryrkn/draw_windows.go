@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"unsafe"
 )
@@ -112,7 +113,21 @@ func paint(window uintptr) {
 	line(dc, 44, 447, 416, 447, BORDER)
 	line(dc, 44, 507, 416, 507, BORDER)
 	text(dc, "Telegram", 44, 458, 296, 24, 15, WHITE, 600, false)
-	text(dc, "MTProto / WebSocket", 44, 482, 296, 18, 11, GRAY, 400, false)
+	telegramDetail := "MTProto / TCP / WebSocket"
+	if engine != nil && engine.Snapshot().Telegram {
+		health := engine.Snapshot().TelegramHealth
+		switch health.State {
+		case "ready":
+			telegramDetail = fmt.Sprintf("Ответ Telegram · %.0f мс", health.LatencyMS)
+		case "degraded":
+			telegramDetail = "Часть дата-центров недоступна"
+		case "unavailable":
+			telegramDetail = "Нет ответа · ищем маршрут"
+		default:
+			telegramDetail = "Проверяем ответ Telegram…"
+		}
+	}
+	text(dc, telegramDetail, 44, 482, 296, 18, 11, GRAY, 400, false)
 	text(dc, "Нейросети и Instagram", 44, 518, 310, 24, 15, WHITE, 600, false)
 	text(dc, "ChatGPT · Claude · Gemini · Instagram", 44, 542, 304, 18, 10, GRAY, 400, false)
 	text(dc, "Закрытие окна — свернуть в трей", 28, 649, 404, 22, 11, GRAY, 400, true)

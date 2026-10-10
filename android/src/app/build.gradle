@@ -8,13 +8,16 @@ android {
         applicationId 'dev.graybridge'
         minSdk 26
         targetSdk 35
-        versionCode 17
-        versionName '0.10.3'
+        versionCode 18
+        versionName '0.11.0'
         ndk { abiFilters 'arm64-v8a', 'x86_64' }
         testInstrumentationRunner 'dev.graybridge.DeviceChecks'
     }
     buildFeatures { buildConfig true }
-    buildTypes { release { minifyEnabled false } }
+    buildTypes {
+        debug { applicationIdSuffix '.dev'; versionNameSuffix '-test'; manifestPlaceholders = [appLabel: 'SorryRKN Test'] }
+        release { minifyEnabled false; manifestPlaceholders = [appLabel: 'SorryRKN'] }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     packaging { jniLibs { useLegacyPackaging true } }
 }

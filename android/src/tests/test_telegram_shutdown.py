@@ -1,5 +1,6 @@
 """Accepted native sockets must close even when their handler never starts."""
 import asyncio
+import copy
 import json
 import threading
 
@@ -45,6 +46,11 @@ class Pool:
 def listener(monkeypatch):
     accepted = []
     pool = Pool()
+    # _serve configures the shared ProxyConfig beyond listener fields. Preserve
+    # every field so a worker lifecycle test cannot switch later legacy fixtures
+    # into the app's verified-route mode or leak seed/DPI configuration.
+    for key, value in vars(proxy_config).items():
+        monkeypatch.setattr(proxy_config, key, copy.deepcopy(value))
     for key, value in {'host': '127.0.0.1', 'port': 0, 'secret': '11' * 16,
                        'fallback_cfproxy': False, 'cfproxy_h2_media': False,
                        'cfproxy_user_domains': [], 'cfproxy_worker_domains': []}.items():
@@ -106,7 +112,7 @@ async def test_android_worker_restarts_after_prestart_handler_cancellation(liste
     try:
         for _ in range(3):
             await asyncio.to_thread(bridge.start, '22' * 16, True, False, None,
-                                    json.dumps({'own_ip': True}))
+                                    json.dumps({'own_ip': True, 'telegram_relay': False}))
             assert bridge.is_running()
             port = proxy._server_instance.sockets[0].getsockname()[1]
             reader, writer = await asyncio.open_connection('127.0.0.1', port)

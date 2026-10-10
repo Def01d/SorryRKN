@@ -201,6 +201,10 @@ def extras_args(profile_id,directory,adaptive=True,geo_domains=(),direct_domains
 
 def materialize(directory):
     data = load(directory)
+    from extra_sites import YOUTUBE_HOSTS, DISCORD_HOSTS
+    # Essential service roots survive stale remote lists. Exclusions still
+    # take precedence in both native engines and gateway routing.
+    data = dict(data, hosts=list(dict.fromkeys([*data['hosts'], *YOUTUBE_HOSTS, *DISCORD_HOSTS])))
     root = Path(directory)
     for name, field in (("hosts.txt", "hosts"), ("exclude.txt", "exclude")):
         temp = root / (name + ".tmp")

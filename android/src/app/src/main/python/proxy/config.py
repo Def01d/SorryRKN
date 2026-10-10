@@ -68,8 +68,11 @@ class ProxyConfig:
     buffer_size: int = 256 * 1024
     # Device-local DPI engine. Telegram still connects to its own endpoints.
     telegram_dpi_port: int = 0
+    # Android enables protocol-verified route selection; legacy CLI remains compatible.
+    verified_routes: bool = False
     pool_size: int = 4
     fallback_cfproxy: bool = True
+    cfproxy_seed_domains: List[str] = field(default_factory=list)
     cfproxy_user_domains: List[str] = field(default_factory=list)
     cfproxy_worker_domains: List[str] = field(default_factory=list)
     cfproxy_h2_media: bool = True
@@ -196,7 +199,8 @@ def start_cfproxy_domain_refresh() -> None:
     _refresh_stop = threading.Event()
     stop = _refresh_stop
 
-    balancer.update_domains_list(CFPROXY_DEFAULT_DOMAINS)
+    seeds = _normalize_domain_pool(proxy_config.cfproxy_seed_domains)
+    balancer.update_domains_list(seeds or CFPROXY_DEFAULT_DOMAINS)
 
     def _loop():
         refresh_cfproxy_domains()

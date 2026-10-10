@@ -165,3 +165,48 @@ async def test_cancel_selection_during_dns_cleans_up(monkeypatch):
     await asyncio.sleep(.06); control.running=False
     with pytest.raises(asyncio.CancelledError): await asyncio.wait_for(task,.5)
     assert len(exits)==2 and closed==[True]
+
+
+@pytest.mark.asyncio
+async def test_stalled_dns_has_deadline_and_preserves_resolved_service(monkeypatch):
+    cancelled=[];closed=[]
+    class DNS:
+        provider='Cloudflare'
+        def __init__(self,port):pass
+        async def resolve(self,host):
+            if host=='www.youtube.com':return '8.8.4.4'
+            try:await asyncio.Future()
+            finally:cancelled.append(host)
+        async def close(self):closed.append(True)
+    class Control:
+        def keepRunning(self):return True
+    def handle(request):
+        assert request.headers['host']=='www.youtube.com'
+        return httpx.Response(204)
+    monkeypatch.setattr(strategy_probe,'Resolver',DNS)
+    monkeypatch.setattr(httpx,'AsyncHTTPTransport',lambda **kwargs:httpx.MockTransport(handle))
+    result=await asyncio.wait_for(strategy_probe.probe_async(1082,Control(),timeout=.05),.8)
+    assert result['passed']==1 and result['targets'][0]['ok']
+    assert result['targets'][1]['stage']=='DNS'
+    assert result['dns']=={'ok':True,'provider':'Cloudflare','resolved':1,'total':2,'timed_out':True}
+    assert cancelled==['discord.com'] and closed==[True]
+
+
+@pytest.mark.asyncio
+async def test_one_dns_lookup_error_does_not_discard_working_service(monkeypatch):
+    closed=[]
+    class DNS:
+        provider='Google'
+        def __init__(self,port):pass
+        async def resolve(self,host):
+            if host=='discord.com':raise OSError('provider failed')
+            return '8.8.4.4'
+        async def close(self):closed.append(True)
+    class Control:
+        def keepRunning(self):return True
+    monkeypatch.setattr(strategy_probe,'Resolver',DNS)
+    monkeypatch.setattr(httpx,'AsyncHTTPTransport',lambda **kwargs:httpx.MockTransport(lambda request:httpx.Response(204)))
+    result=await strategy_probe.probe_async(1082,Control())
+    assert result['passed']==1 and result['targets'][0]['ok']
+    assert result['targets'][1]['stage']=='DNS'
+    assert result['dns']['resolved']==1 and closed==[True]

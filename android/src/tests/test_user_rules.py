@@ -81,6 +81,9 @@ async def test_excluded_udp443_is_forwarded_without_global_quic_drop(tmp_path):
     association.datagram_received(b'\0\0\0'+encode_address('127.0.0.1',443)+b'QUIC',( '127.0.0.1',6000))
     await asyncio.gather(*association.tasks)
     assert forwarded==[('127.0.0.1',443,b'QUIC')]
+    protected_query=query('www.youtube.com')
+    protected_reply=bytearray(answer(protected_query));protected_reply[-4:]=ipaddress.ip_address('127.0.0.2').packed
+    rules.remember('www.youtube.com',protected_query,bytes(protected_reply),protected=True)
     association.datagram_received(b'\0\0\0'+encode_address('127.0.0.2',443)+b'QUIC',('127.0.0.1',6000))
     assert len(forwarded)==1
     await association.close()

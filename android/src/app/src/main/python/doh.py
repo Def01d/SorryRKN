@@ -30,9 +30,13 @@ class PinnedTransport(httpx.AsyncBaseTransport):
 
     async def handle_async_request(self, request):
         host = request.url.host
-        if host in self.addresses and request.url.scheme == "https":
-            extensions = dict(request.extensions, sni_hostname=host)
-            request = httpx.Request(request.method, request.url.copy_with(host=self.addresses[host]),
+        # The same authenticated hostname may have several independent bootstrap
+        # addresses. A host->IP dictionary alone silently collapses those routes.
+        extensions = dict(request.extensions)
+        address = extensions.pop('bootstrap_ip', None) or self.addresses.get(host)
+        if address and request.url.scheme == "https":
+            extensions['sni_hostname'] = host
+            request = httpx.Request(request.method, request.url.copy_with(host=address),
                                     headers=request.headers, stream=request.stream, extensions=extensions)
         return await self.inner.handle_async_request(request)
 
@@ -40,45 +44,103 @@ class PinnedTransport(httpx.AsyncBaseTransport):
         await self.inner.aclose()
 
 
+def dns_name(data, start):
+    """Read a bounded DNS name and reject invalid pointers, loops and labels."""
+    labels, seen = [], set()
+    offset, end, length = start, None, 1
+    for _ in range(128):
+        if offset in seen or offset >= len(data):
+            raise ValueError('Invalid DNS name')
+        seen.add(offset)
+        size = data[offset]
+        offset += 1
+        if not size:
+            return b'.'.join(labels).lower(), end if end is not None else offset
+        if size & 0xc0 == 0xc0:
+            if offset >= len(data):
+                raise ValueError('Short DNS pointer')
+            if end is None:
+                end = offset + 1
+            offset = ((size & 63) << 8) | data[offset]
+            continue
+        if size > 63 or offset + size > len(data):
+            raise ValueError('Invalid DNS label')
+        labels.append(bytes(data[offset:offset + size]))
+        offset += size
+        length += size + 1
+        if length > 255:
+            raise ValueError('Long DNS name')
+    raise ValueError('Too many DNS pointers')
+
+
+def dns_message(data):
+    if not data or not 12 <= len(data) <= 65507:
+        raise ValueError('Invalid DNS message size')
+    identifier, flags, qd, an, ns, ar = struct.unpack('!6H', data[:12])
+    if qd != 1 or an + ns + ar > 1024:
+        raise ValueError('Unsupported DNS counts')
+    name, offset = dns_name(data, 12)
+    kind, cls = struct.unpack('!HH', data[offset:offset + 4])
+    offset += 4
+    records = []
+    for index in range(an + ns + ar):
+        owner, offset = dns_name(data, offset)
+        rrtype, rrclass, ttl, size = struct.unpack('!HHIH', data[offset:offset + 10])
+        ttl_offset = offset + 4
+        offset += 10
+        end = offset + size
+        if end > len(data):
+            raise ValueError('Short DNS record')
+        if rrclass == 1 and (rrtype == 1 and size != 4 or rrtype == 28 and size != 16):
+            raise ValueError('Invalid DNS address')
+        if rrtype in (2, 5, 12, 39):
+            _, name_end = dns_name(data, offset)
+            if name_end != end:
+                raise ValueError('Invalid DNS record name')
+        records.append((index < an, owner, rrtype, rrclass, ttl_offset, ttl, offset, size))
+        offset = end
+    if offset != len(data):
+        raise ValueError('Trailing DNS data')
+    return identifier, flags, (name, kind, cls), records
+
+
 def valid_answer(payload, answer):
-    if not 12 <= len(answer) <= 65507 or len(payload) < 12:
+    try:
+        query_id, query_flags, question, _ = dns_message(payload)
+        reply_id, flags, reply_question, _ = dns_message(answer)
+        return (not query_flags & 0x8000 and reply_id == query_id and bool(flags & 0x8000)
+                and flags & 0x7800 == query_flags & 0x7800 and question == reply_question
+                and not flags & 0x0200 and flags & 15 in (0, 3))
+    except (ValueError, struct.error, IndexError, TypeError):
         return False
-    query_id, query_flags, query_qd = struct.unpack("!HHH", payload[:6])
-    reply_id, flags, qd = struct.unpack("!HHH", answer[:6])
-    return (reply_id == query_id and bool(flags & 0x8000) and qd == query_qd
-            and not flags & 0x0200 and flags & 15 in (0,3))
+
+
+def answer_names(answer, wanted, records):
+    """Restrict address records to the question's answer-section CNAME chain."""
+    aliases = {owner: dns_name(answer, offset)[0]
+               for is_answer, owner, kind, cls, _, _, offset, _ in records
+               if is_answer and kind == 5 and cls == 1}
+    names = {wanted}
+    for _ in range(len(aliases)):
+        following = aliases.get(wanted)
+        if following is None or following in names: break
+        names.add(following)
+        wanted = following
+    return names
 
 
 def ipv4_answers(query, answer):
     """Read bounded DNS records, including compressed names; reject malformed replies."""
     if not valid_answer(query, answer): return []
-    def name(data, start):
-        labels=[]; offset=start; end=None; seen=set()
-        while True:
-            if offset in seen or offset>=len(data): raise ValueError('Invalid DNS name')
-            seen.add(offset); size=data[offset]; offset+=1
-            if size==0: return b'.'.join(labels).lower(), end or offset
-            if size&0xc0==0xc0:
-                if offset>=len(data): raise ValueError('Short DNS pointer')
-                if end is None: end=offset+1
-                offset=((size&63)<<8)|data[offset]; continue
-            if size>63 or offset+size>len(data): raise ValueError('Short DNS label')
-            labels.append(bytes(data[offset:offset+size])); offset+=size
-            if sum(map(len,labels))+len(labels)>255: raise ValueError('Long DNS name')
     try:
-        _,flags,qd,an,ns,ar=struct.unpack('!6H',answer[:12])
-        if qd!=1 or flags&15: return []
-        wanted,qend=name(query,12); actual,end=name(answer,12)
-        if wanted!=actual or query[qend:qend+4]!=answer[end:end+4]: return []
-        offset=end+4; addresses=[]
-        for index in range(an+ns+ar):
-            _,offset=name(answer,offset)
-            kind,cls,ttl,size=struct.unpack('!HHIH',answer[offset:offset+10]); offset+=10
-            if offset+size>len(answer): return []
-            if index<an and kind==1 and cls==1 and size==4:
-                ip=ipaddress.IPv4Address(bytes(answer[offset:offset+4]))
+        _, flags, (wanted, _, _), records = dns_message(answer)
+        if flags & 15: return []
+        names = answer_names(answer, wanted, records)
+        addresses = []
+        for is_answer, owner, kind, cls, _, _, offset, size in records:
+            if is_answer and owner in names and kind == 1 and cls == 1 and size == 4:
+                ip = ipaddress.IPv4Address(bytes(answer[offset:offset+4]))
                 if ip.is_global: addresses.append(str(ip))
-            offset+=size
         return addresses
     except (ValueError,struct.error,IndexError): return []
 
@@ -87,29 +149,10 @@ def cache_records(query, answer):
     """Return TTL offsets only for complete positive DNS answers."""
     if not valid_answer(query, answer) or len(answer) > 8192:
         return []
-    def skip_name(data, pos):
-        for _ in range(128):
-            size = data[pos]; pos += 1
-            if not size: return pos
-            if size & 0xc0 == 0xc0:
-                if pos >= len(data): raise ValueError('Short pointer')
-                return pos + 1
-            if size > 63 or pos + size > len(data): raise ValueError('Invalid label')
-            pos += size
-        raise ValueError('Long name')
     try:
-        _, flags, qd, an, ns, ar = struct.unpack('!6H', answer[:12])
-        if qd != 1 or not an or flags & 15 or an + ns + ar > 1024: return []
-        qend = skip_name(query, 12) + 4
-        end = skip_name(answer, 12) + 4
-        if query[12:qend] != answer[12:end]: return []
-        records = []
-        for _ in range(an + ns + ar):
-            end = skip_name(answer, end)
-            kind, cls, ttl, size = struct.unpack('!HHIH', answer[end:end+10])
-            if kind != 41: records.append((end + 4, ttl))  # OPT is not a TTL.
-            end += 10 + size
-            if end > len(answer): return []
+        _, flags, _, parsed = dns_message(answer)
+        if not any(record[0] for record in parsed) or flags & 15: return []
+        records = [(offset, ttl) for _, _, kind, _, offset, ttl, _, _ in parsed if kind != 41]
         return records if records and all(ttl > 0 for _, ttl in records) else []
     except (IndexError, struct.error, ValueError): return []
 
@@ -128,10 +171,11 @@ class Resolver:
         self.last_addresses = OrderedDict()
 
     async def _query(self, provider, payload):
-        name, host, _ = provider
+        name, host, address = provider
         try:
             async with self.client.stream("POST", f"https://{host}/dns-query",content=payload,
-                headers={"Content-Type":"application/dns-message","Accept":"application/dns-message"}) as response:
+                headers={"Content-Type":"application/dns-message","Accept":"application/dns-message"},
+                extensions={'bootstrap_ip': address}) as response:
                 response.raise_for_status()
                 answer = bytearray()
                 async for chunk in response.aiter_bytes():
@@ -145,16 +189,23 @@ class Resolver:
     async def _lookup(self, payload):
         # No hostname resolution is needed to reach these providers. A blocked
         # Google resolver must not disable every Android application's DNS.
-        if self.preferred:
+        if self.preferred and len(self.providers) == 1:
             try:
                 result=await asyncio.wait_for(self._query(self.preferred,payload),1.5)
             except asyncio.TimeoutError: result=None
-            if result: return result[1]
-        failed = self.preferred
+            if result:
+                self.provider = result[0][0]
+                return result[1]
         # Retry the only configured provider too: a transient stale socket
         # must not disable the Comss profile until a manual restart.
-        candidates = [p for p in self.providers if p != failed] or list(self.providers)
-        tasks=[asyncio.create_task(self._query(p,payload)) for p in candidates]
+        candidates = sorted(self.providers, key=lambda provider: provider != self.preferred)
+        async def attempt(provider):
+            if self.preferred and provider != self.preferred:
+                # Keep the working route first, but do not let a newly blocked
+                # provider consume most of an application's DNS timeout.
+                await asyncio.sleep(.2)
+            return await self._query(provider, payload)
+        tasks=[asyncio.create_task(attempt(p)) for p in candidates]
         try:
             async with asyncio.timeout(3):
                 for completed in asyncio.as_completed(tasks):

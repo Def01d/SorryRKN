@@ -72,7 +72,7 @@ async def test_comss_bootstrap_ip_retains_tls_name_and_dns_wire_format():
     requests=[]
     async def handle(request):
         requests.append(request)
-        assert request.url.host=='195.133.25.16' and request.url.path=='/dns-query'
+        assert request.url.host in {entry[2] for entry in COMSS} and request.url.path=='/dns-query'
         assert request.headers['host']=='dns.comss.one'
         assert request.extensions['sni_hostname']=='dns.comss.one'
         assert request.headers['content-type']=='application/dns-message'
@@ -80,7 +80,8 @@ async def test_comss_bootstrap_ip_retains_tls_name_and_dns_wire_format():
     resolver=Resolver(None,httpx.MockTransport(handle),providers=COMSS)
     try:
         assert await resolver.resolve('chatgpt.com')=='93.184.216.34'
-        assert resolver.provider=='Comss' and len(requests)==1
+        assert resolver.provider=='Comss'
+        assert {request.url.host for request in requests}=={entry[2] for entry in COMSS}
     finally:await resolver.close()
 
 def setup_routes(directory):

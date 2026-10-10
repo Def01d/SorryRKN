@@ -16,7 +16,7 @@ MAX_ACTIVE = 64
 MAX_COOLDOWNS = 64
 _ROUTES = {'dns', 'ws_direct', 'ws_local_socks', 'ws_fronting', 'native_tcp'}
 _STAGES = {'dns', 'tcp', 'local_socket', 'local_socks', 'tls', 'http_upgrade',
-           'native_tcp', 'native_init'}
+           'native_tcp', 'native_init', 'mtproto_probe'}
 _COUNTERS = {'native_tcp_backoff_skipped', 'native_tcp_wait_shared',
              'ws_race_selected', 'ws_race_lost', 'ws_refill_backoff_skipped', 'ws_refill_wait_shared'}
 _FIELDS = {'errno': (-2147483648, 2147483647), 'verify_code': (0, 2147483647),

@@ -66,10 +66,23 @@ def test_pinned_update_atomic_failure_and_offline_fallback(store):
     snapshot = data.load(store)
     assert snapshot["profiles"][0]["args"] == ["--split-pos=2,host+1"]
     assert snapshot["cf"] != ["virkgj.com", "vmmzovy.com", "mkuosckvso.com"]
+    previous = (store / "github-data.json").read_bytes()
     prepared = json.loads(data.materialize(store))
     assert prepared["commits"] == snapshot["commits"]
-    assert (store / "hosts.txt").read_text().splitlines() == snapshot["hosts"]
-    previous = (store / "github-data.json").read_bytes()
+    hosts = (store / "hosts.txt").read_text().splitlines()
+    # An incomplete remote list must retain its entries while essential service
+    # endpoints remain usable by both native engines. Materialization must not
+    # rewrite the pinned upstream snapshot or its exclusion policy.
+    essential = {"youtube.com", "googlevideo.com", "ytimg.com", "discord.com",
+                 "discord.gg", "discordapp.com", "discord.media"}
+    assert set(snapshot["hosts"]) <= set(hosts)
+    assert essential <= set(hosts)
+    assert len(hosts) == len(set(hosts))
+    assert (store / "exclude.txt").read_text().splitlines() == snapshot["exclude"]
+    bye_hosts = set((store / "bye-hosts.txt").read_text().splitlines())
+    assert essential <= bye_hosts
+    assert not set(snapshot["exclude"]) & bye_hosts
+    assert (store / "github-data.json").read_bytes() == previous
     # Force a new upstream revision whose CF payload is broken.
     transport, _ = github_transport(bad_cf=True)
     snapshot["commits"] = {repo: "b" * 40 for repo in data.REPOS}

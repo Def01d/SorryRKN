@@ -78,6 +78,7 @@ type DomainRules struct {
 	Geo     []string
 	Direct  []string
 	Builtin bool
+	Secure  bool
 }
 
 func MatchDomains(host string, domains []string) bool {
@@ -93,6 +94,9 @@ func (r DomainRules) IsDirect(host string) bool { return MatchDomains(host, r.Di
 func (r DomainRules) IsGeo(host string) bool {
 	return !r.IsDirect(host) && (MatchDomains(host, r.Geo) || r.Builtin && IsAI(host))
 }
+func (r DomainRules) ShouldResolveDNS(host string) bool {
+	return !r.IsDirect(host) && (r.IsGeo(host) || r.Secure && MatchDomains(host, ProtectedDNSHosts))
+}
 func (c Config) Rules() (DomainRules, error) {
 	geo, e := ParseDomains(strings.Join(c.GeoDomains, "\n"))
 	if e != nil {
@@ -102,7 +106,7 @@ func (c Config) Rules() (DomainRules, error) {
 	if e != nil {
 		return DomainRules{}, e
 	}
-	return DomainRules{Geo: geo, Direct: direct, Builtin: c.Extras}, nil
+	return DomainRules{Geo: geo, Direct: direct, Builtin: c.Extras, Secure: c.DPI || c.Telegram || c.Extras}, nil
 }
 func WriteBypassList(data string, r DomainRules) (string, error) {
 	hosts := append(append([]string{}, r.Direct...), r.Geo...)

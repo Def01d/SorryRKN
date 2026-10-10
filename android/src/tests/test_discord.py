@@ -102,6 +102,22 @@ async def test_missing_gateway_dns_preserves_verified_youtube(monkeypatch):
     assert result['passed']==1 and result['targets'][0]['ok']
     assert result['targets'][1]['parts'][1]['stage']=='DNS'
 
+
+@pytest.mark.asyncio
+async def test_probe_without_bootstrap_resolves_gateway_via_socks():
+    destinations=[]
+    async def gateway(port,address,verify,timeout):
+        destinations.append((port,address))
+        return {'name':'Gateway','ok':True,'stage':'WebSocket Hello','error':''}
+    def http(request):
+        if request.url.host=='www.youtube.com':return httpx.Response(204)
+        if request.url.host=='cdn.discordapp.com':
+            return httpx.Response(200,content=b'\x89PNG\r\n\x1a\n',headers={'content-type':'image/png'})
+        return httpx.Response(200,json={'url':'wss://gateway.discord.gg'})
+    result=await probe.probe_async(1082,Control(),httpx.MockTransport(http),
+                                  bootstrap=False,full_discord=True,gateway_check=gateway)
+    assert result['complete'] and destinations==[(1082,'gateway.discord.gg')]
+
 @pytest.mark.asyncio
 async def test_real_verified_wss_hello_through_both_native_engines(tmp_path):
     key=rsa.generate_private_key(public_exponent=65537,key_size=2048)

@@ -18,13 +18,22 @@ try {
     $env:GOOS='windows';$env:GOARCH='amd64'
     go build -trimpath -ldflags '-H windowsgui -s -w' -o dist/SorryRKN.exe ./cmd/sorryrkn
     if ($LASTEXITCODE -ne 0) {throw 'Go build failed'}
+    go build -trimpath -ldflags '-s -w' -o dist/check-network.exe ./cmd/check-network
+    if ($LASTEXITCODE -ne 0) {throw 'Diagnostics build failed'}
     $package=Join-Path $root 'dist/package/SorryRKN'
-    if (Test-Path $package) {Remove-Item $package -Recurse -Force}
+    $expectedPackage=[IO.Path]::GetFullPath((Join-Path $root 'dist/package/SorryRKN'))
+    if ([IO.Path]::GetFullPath($package) -ne $expectedPackage) {throw 'Unexpected package path'}
+    if (Test-Path -LiteralPath $package) {Remove-Item -LiteralPath $package -Recurse -Force}
     New-Item -ItemType Directory -Force $package|Out-Null
-    Copy-Item dist/SorryRKN.exe,README.md $package
+    Copy-Item dist/SorryRKN.exe,dist/check-network.exe,README.md,VALIDATION.md $package
     Copy-Item runtime,licenses $package -Recurse
-    Get-ChildItem "$package/runtime" -Directory -Recurse -Filter '__pycache__'|Remove-Item -Recurse -Force
-    Compress-Archive $package 'dist/SorryRKN-Windows-1.1.0.zip' -Force
+    $packageRoot=[IO.Path]::GetFullPath($package).TrimEnd('\')+'\'
+    Get-ChildItem "$package/runtime" -Directory -Recurse -Filter '__pycache__' | ForEach-Object {
+        $cachePath=[IO.Path]::GetFullPath($_.FullName)
+        if (-not $cachePath.StartsWith($packageRoot,[StringComparison]::OrdinalIgnoreCase)) {throw 'Unexpected cache path'}
+        Remove-Item -LiteralPath $cachePath -Recurse -Force
+    }
+    Compress-Archive $package 'dist/SorryRKN-Windows-1.2.0.zip' -Force
     if (Get-Command makensis -ErrorAction SilentlyContinue) {
         makensis scripts/installer.nsi
         if ($LASTEXITCODE -ne 0) {throw 'NSIS build failed'}

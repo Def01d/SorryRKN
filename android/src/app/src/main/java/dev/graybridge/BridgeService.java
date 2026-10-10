@@ -40,6 +40,7 @@ public class BridgeService extends VpnService {
     private boolean vpnActive;
     private boolean extended;
     private boolean forceSelection;
+    private boolean dpiVerified;
     private StrategyMemory.Choice cachedChoice;
     private String choiceNetworkKey;
     private long connectedAt;
@@ -52,7 +53,7 @@ public class BridgeService extends VpnService {
         if (desired && started && !networkIdentity().equals(networkHandle))
             worker.execute(() -> {
                 Settings.prefs(this).edit().putInt("network_reconnect_count",Settings.prefs(this).getInt("network_reconnect_count",0)+1).apply();
-                extended=false; retest();
+                extended=false; forceSelection=true; retest();
             });
     };
     private final ConnectivityManager.NetworkCallback networks = new ConnectivityManager.NetworkCallback() {
@@ -89,8 +90,23 @@ public class BridgeService extends VpnService {
                         throw new IOException("Сетевой модуль остановился");
                     if (engine != null && !engine.callAttr("is_running").toBoolean())
                         throw new IOException("Локальный прокси остановился");
-                    if(engine!=null) Settings.prefs(BridgeService.this).edit()
-                        .putString("traffic_report",engine.callAttr("diagnostics").toString()).apply();
+                    if(engine!=null) {
+                        String report=engine.callAttr("diagnostics").toString();
+                        Settings.prefs(BridgeService.this).edit().putString("traffic_report",report).apply();
+                        JSONObject diagnostics=new JSONObject(report);
+                        JSONObject telegram=diagnostics.optJSONObject("telegram_check");
+                        JSONObject chatgpt=diagnostics.optJSONObject("chatgpt_check");
+                        String tg=telegram==null?"disabled":telegram.optString("state");
+                        String ai=chatgpt==null?"disabled":chatgpt.optString("state");
+                        boolean degraded=(Settings.dpi(BridgeService.this) && !dpiVerified) ||
+                            tg.equals("unavailable") || tg.equals("partial") ||
+                            ai.equals("transport_error") || ai.equals("regional_refusal") || ai.equals("denied") || ai.equals("http_error");
+                        String observed=degraded?"partial":"on";
+                        if(!Settings.state(BridgeService.this).equals(observed)) {
+                            publish(observed,"");
+                            foreground(degraded?"Часть проверок не пройдена · откройте приложение":"Подключение включено");
+                        }
+                    }
                     main.postDelayed(this, 3000);
                 } catch (Exception e) { recover(e); }
             });
@@ -146,6 +162,7 @@ public class BridgeService extends VpnService {
                 throw new IOException("Нужно разрешить локальное VPN-подключение");
             DataUpdates.module(this);
             dpiActive = false;
+            dpiVerified = !Settings.dpi(this);
             vpnActive = false;
             youtubeProfile=null;discordProfile=null;cachedChoice=null;
             Network physical=underlying();
@@ -184,7 +201,8 @@ public class BridgeService extends VpnService {
                 if(Settings.extras(this) || UserRules.geo(this)) {
                     String detail=Settings.prefs(this).getString("probe_result","");
                     Settings.prefs(this).edit().putString("probe_result",(detail.isEmpty()?"":detail+"\n")+
-                        "Дополнительные сайты: прямой маршрут с обходом DPI · свой IP").apply();
+                        (Settings.aiRelay(this)?"Нейросети: зарубежный маршрут · Instagram: обход DPI":
+                            "Дополнительные сайты: обход DPI · свой IP")).apply();
                 }
             }
             if (!desired) { closeResources(); return; }
@@ -192,11 +210,11 @@ public class BridgeService extends VpnService {
             if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
             engine = Python.getInstance().getModule("android_bridge");
             JSONObject routes=new JSONObject();
-            if(Settings.telegram(this))routes.put("telegram_dpi",1084);
+            if(Settings.telegram(this))routes.put("telegram_dpi",1084).put("telegram_relay",Settings.telegramRelay(this));
             if(dpiActive)routes.put("youtube",1080).put("discord",discordProcess==null?1080:1083);
             if(Settings.extras(this))routes.put("smart_dns",true).put("instagram",1084).put("ai",1084);
             if(UserRules.geo(this))routes.put("smart_dns",true).put("ai",1084);
-            routes.put("own_ip",true).put("builtin_extras",Settings.extras(this)).put("geo_domains",UserRules.domains(this,"geo_domains"))
+            routes.put("own_ip",!Settings.aiRelay(this)).put("builtin_extras",Settings.extras(this)).put("geo_domains",UserRules.domains(this,"geo_domains"))
                 .put("direct_domains",UserRules.domains(this,"direct_domains"));
             engine.callAttr("start", Settings.secret(this), Settings.telegram(this), vpnActive, getFilesDir().getPath(),routes.toString());
             if (!desired) { closeResources(); return; }
@@ -223,9 +241,9 @@ public class BridgeService extends VpnService {
             }
             if (!desired) { closeResources(); return; }
             started = true;recovering=false;connectedAt=SystemClock.elapsedRealtime();
-            String state=Settings.dpi(this) && !dpiActive ? "partial" : "on";
+            String state=Settings.dpi(this) && !dpiVerified ? "partial" : "on";
             publish(state, "");
-            foreground(state.equals("partial") ? (vpnActive?"Дополнительные сайты включены · основной метод не найден":"Прокси Telegram включён · DPI не найден") : "Подключение включено");
+            foreground(state.equals("partial") ? "Часть проверок не пройдена · откройте приложение" : "Подключение включено");
             if (!Settings.dpi(this)) networkHandle = networkIdentity();
             if (!watchingNetwork) {
                 connectivity.registerNetworkCallback(new NetworkRequest.Builder()
@@ -281,6 +299,10 @@ public class BridgeService extends VpnService {
         String mode = Settings.prefs(this).getString("strategy", "auto");
         if (!mode.equals("auto")) {
             for (Strategies.Profile p : profiles) if (p.id.equals(mode)) {
+                // Manual selection is explicitly labelled unverified below.
+                // "on" denotes a running connection; protocol diagnostics
+                // separately show the actual service observations.
+                dpiVerified=true;
                 Settings.prefs(this).edit().putString("active_strategy", p.name)
                     .putString("probe_result", "Ручная стратегия · доступ не проверен").apply();
                 return p;
@@ -291,12 +313,15 @@ public class BridgeService extends VpnService {
             Settings.prefs(this).edit().putString("probe_result","Нет доступной сети · проверка DPI отложена").apply();
             return null;
         }
-        String key = "last_strategy_" + networkType();choiceNetworkKey=key;
+        // Scope cached selections to this physical network, not all Wi-Fi or
+        // mobile providers. A changed network also forces active selection.
+        String key = "last_strategy_" + networkType()+"_"+Integer.toHexString(networkIdentity().hashCode());choiceNetworkKey=key;
         String last = Settings.prefs(this).getString(key, "");
         boolean force=forceSelection || extended;forceSelection=false;
         if(!force) {
             cachedChoice=StrategyMemory.load(this,key,profiles);
             if(cachedChoice!=null) {
+                dpiVerified=true;
                 youtubeProfile=cachedChoice.youtube;discordProfile=cachedChoice.discord;
                 String selected=youtubeProfile.id.equals(discordProfile.id)?youtubeProfile.name:
                     "YouTube: "+youtubeProfile.name+" · Discord: "+discordProfile.name;
@@ -309,19 +334,19 @@ public class BridgeService extends VpnService {
         if(!extended) {
             List<String> quick=Arrays.asList("bye-disorder","tls","bye-oob","split","bye-tls","bye-fake-8");
             String discordLast=Settings.prefs(this).getString(key+"_discord","");
-            profiles.removeIf(p->!quick.contains(p.id) && !p.id.equals(last) && !p.id.equals(discordLast));
-            profiles.sort(Comparator.comparingInt(p->quick.contains(p.id)?quick.indexOf(p.id):0));
+            profiles.sort(Comparator.comparingInt(p->p.id.equals(last)||p.id.equals(discordLast)?-1:
+                quick.contains(p.id)?quick.indexOf(p.id):quick.size()));
         }
         profiles.sort((a,b) -> Boolean.compare(!a.id.equals(last), !b.id.equals(last)));
         int bestScore = -1, attempt = 0,discordScore=-1;
         Strategies.Profile discordFallback=null;
-        long deadline=SystemClock.elapsedRealtime()+(extended?75000:25000);
+        long deadline=SystemClock.elapsedRealtime()+75000;
         JSONArray reports=new JSONArray();
         PyObject probe = Python.getInstance().getModule("strategy_probe");
         for (Strategies.Profile p : profiles) {
             if (!desired) return null;
             if(SystemClock.elapsedRealtime()>deadline) break;
-            String progress = "Проверка " + (++attempt) + "/" + profiles.size() + " · " + p.name;
+            String progress = (++attempt>6?"Расширенная проверка ":"Проверка ") + attempt + "/" + profiles.size() + " · " + p.name;
             Settings.prefs(this).edit().putString("probe_status", progress).apply();
             foreground(progress);
             try {
@@ -355,6 +380,7 @@ public class BridgeService extends VpnService {
                         .putString("last_revision",revision).putString("active_strategy",selected)
                         .putString("probe_result","Тестовые адреса: 2/2 · отдельный метод для каждого сервиса").apply();
                     StrategyMemory.save(this,key,youtubeProfile,discordProfile,6);
+                    dpiVerified=true;
                     return youtubeProfile;
                 }
             } catch (IOException e) {
@@ -414,14 +440,23 @@ public class BridgeService extends VpnService {
             JSONArray reports=new JSONArray().put(youtube.put("strategy",saved.youtube.name).put("background",true));
             if(discord!=youtube)reports.put(discord.put("strategy",saved.discord.name).put("background",true));
             Settings.prefs(this).edit().putString("probe_report",reports.toString())
-                .putString("probe_result",youtubeOK&&quality>=Math.min(4,saved.discordQuality)?
-                    "Сохранённый метод проверен в фоне":"Фоновая проверка: есть ошибки · переподбор доступен в меню").apply();
-            if(youtubeOK && quality>=Math.min(4,saved.discordQuality)) {
+                .putString("probe_result",youtubeOK&&quality==6?
+                    "Сохранённый метод проверен в фоне":"Фоновая проверка: есть ошибки · выполняем переподбор").apply();
+            dpiVerified=youtubeOK && quality==6;
+            if(dpiVerified) {
                 StrategyMemory.save(this,key,saved.youtube,saved.discord,quality);return;
             }
-            // A failed synthetic target is diagnostic only. Never tear down
-            // active Telegram/app sessions to retry a background probe.
-        }catch(Exception ignored) { }
+            // This runs once after a cached startup. Re-select instead of
+            // keeping a stale method forever; ordinary health probes never
+            // restart user sessions.
+            forceSelection=true;retest();
+        }catch(Exception error) {
+            if(desired && started && networkIdentity().equals(networkHandle)) {
+                dpiVerified=false;
+                Settings.prefs(this).edit().putString("probe_result","Проверка сохранённого метода не завершилась · выполняем переподбор").apply();
+                forceSelection=true;retest();
+            }
+        }
     }
     private void recover(Throwable error) {
         if(!desired||destroyed)return;

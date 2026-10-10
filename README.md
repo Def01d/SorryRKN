@@ -15,6 +15,21 @@
   <a href="https://github.com/Def01d/SorryRKN/releases">Релизы</a>
 </p>
 
+## Предварительные сборки с исправлениями
+
+| Платформа | Скачать | Установка |
+| --- | --- | --- |
+| **Android 0.11.0 Test** | [**APK**](https://github.com/Def01d/SorryRKN/releases/download/v0.11.0-test.1/SorryRKN-Android-0.11.0-test.apk) · [Описание релиза](https://github.com/Def01d/SorryRKN/releases/tag/v0.11.0-test.1) | Отдельное приложение **SorryRKN Test**, Android 8.0+, ARM64/x86_64. Выключите старый VPN и добавьте Telegram-прокси заново. |
+| **Windows 1.2.0 RC** | [**Portable ZIP**](https://github.com/Def01d/SorryRKN/releases/download/windows-v1.2.0-rc.1/SorryRKN-Windows-1.2.0.zip) · [Описание релиза](https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.2.0-rc.1) | Распакуйте весь архив, завершите старое приложение, запустите `SorryRKN.exe` от администратора. |
+
+Telegram выбирает маршрут по настоящему ответу MTProto и показывает задержку. Добавлены резервирование DNS, расширенный подбор DPI и проверка адресов ChatGPT. Android по умолчанию разрешает внешний маршрут для нейросетей и запасное реле Telegram; они отдельно отключаются в меню «Маршруты».
+
+Telegram прошёл 10/10 протокольных проверок на каждой платформе; через Android VPN прошли 7/7 публичных проверок YouTube, Discord, Instagram и ChatGPT. Проверки аккаунтов, воспроизведения видео, звонков и всех операторов не проводились. У ChatGPT наблюдались периодические Cloudflare challenge. Полный тест драйвера Windows остался незавершённым после отменённого запроса UAC.
+
+[Исходники Android](android/src/README.md) · [Проверки Android](android/src/VALIDATION.md) · [Исходники Windows](windows/src/BUILD.md) · [Проверки Windows](windows/src/VALIDATION.md) · [Исходники обеих платформ одним ZIP](https://github.com/Def01d/SorryRKN/releases/download/v0.11.0-test.1/SorryRKN-Android-0.11.0-Windows-1.2.0-source.zip).
+
+Android Test подписан отладочным ключом и устанавливается рядом с прежним приложением. Неподписанный release APK из Assets предназначен для подписи владельцем и не устанавливается как есть. Автоматические обновления остаются на стабильных версиях ниже.
+
 ## Скачивание
 
 | Платформа | Версия | Скачать | Требования |
@@ -97,7 +112,7 @@ Android и Windows используют отдельные источники о
 
 [Исходники Android](android/src) · [Сборка Android](android/src/README.md) · [Исходники Windows](windows/src) · [Сборка Windows](windows/src/BUILD.md)
 
-Исходники Android **0.10.3** и Windows **1.1.0** открыты в этом репозитории. [Скачать исходники обеих платформ одним ZIP](sources/SorryRKN-Android-0.10.3-Windows-1.1.0-source.zip) · [Состав и проверка архива](sources/README.md).
+В основной ветке находятся исходники Android **0.11.0** и Windows **1.2.0**. [Исходники предварительных сборок одним ZIP](https://github.com/Def01d/SorryRKN/releases/download/v0.11.0-test.1/SorryRKN-Android-0.11.0-Windows-1.2.0-source.zip) · [Архив предыдущих исходников 0.10.3 / 1.1.0](sources/README.md).
 
 В Android включены Java-интерфейс и служба, Python-прокси, JNI и исходники нативных зависимостей; в Windows — Go-приложение, Telegram-прокси, ресурсы и сценарии сборки. Ключ подписи официального APK и личные конфигурации не публикуются. Для самостоятельной сборки используется собственная подпись.
 

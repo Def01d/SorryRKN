@@ -2,14 +2,20 @@
 
 [← Главная](../README.md)
 
+## Текущие предварительные сборки
+
+[**Android 0.11.0 + Windows 1.2.0 — исходники ZIP**](https://github.com/Def01d/SorryRKN/releases/download/v0.11.0-test.1/SorryRKN-Android-0.11.0-Windows-1.2.0-source.zip). Исходники в основной ветке: [Android](../android/src), [Windows](../windows/src). Результаты проверки: [Android](../android/src/VALIDATION.md), [Windows](../windows/src/VALIDATION.md). Контрольные суммы и готовые файлы приложены к [Android-релизу](https://github.com/Def01d/SorryRKN/releases/tag/v0.11.0-test.1) и [Windows-релизу](https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.2.0-rc.1).
+
+## Архив исходников 0.10.3 / 1.1.0
+
 [**Скачать Android 0.10.3 + Windows 1.1.0 одним ZIP**](SorryRKN-Android-0.10.3-Windows-1.1.0-source.zip) · [SHA-256](SHA256SUMS.txt)
 
 В архиве **815 файлов исходного пакета** и два файла описания/контрольных сумм. Размер ZIP — 3,018,856 байт. Для просмотра на GitHub:
 
 | Платформа | Исходники | Сборка |
 | --- | --- | --- |
-| Android 0.10.3 | [android/src](../android/src) | [README](../android/src/README.md) |
-| Windows 1.1.0 | [windows/src](../windows/src) | [BUILD.md](../windows/src/BUILD.md) |
+| Android 0.10.3 | [android/src](https://github.com/Def01d/SorryRKN/tree/dc2141f4ec9e91589420277d629fedcdf9901126/android/src) | [README](https://github.com/Def01d/SorryRKN/blob/dc2141f4ec9e91589420277d629fedcdf9901126/android/src/README.md) |
+| Windows 1.1.0 | [windows/src](https://github.com/Def01d/SorryRKN/tree/dc2141f4ec9e91589420277d629fedcdf9901126/windows/src) | [BUILD.md](https://github.com/Def01d/SorryRKN/blob/dc2141f4ec9e91589420277d629fedcdf9901126/windows/src/BUILD.md) |
 
 Включены интерфейсы, службы, адаптированные Telegram-прокси, ресурсы, сценарии сборки и тесты. Android содержит исходники своих нативных зависимостей; HEV-подмодули уже заполнены. Windows-сборка загружает сторонний runtime из закреплённого архива с проверкой SHA-256. Первоначальная сборка обеих платформ требует интернета и описанных в инструкциях инструментов.
 
