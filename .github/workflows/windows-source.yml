@@ -38,12 +38,25 @@ jobs:
           go-version-file: windows/src/go.mod
           cache-dependency-path: windows/src/go.sum
 
+      - name: Set up verified portable NSIS
+        run: |
+          New-Item -ItemType Directory -Force dist/ci-logs | Out-Null
+          Start-Transcript -Path dist/ci-logs/setup-nsis.log
+          try {
+            & ./scripts/setup-nsis.ps1
+          } finally {
+            Stop-Transcript
+          }
+
       - name: Hydrate runtime and build current package
         run: |
           New-Item -ItemType Directory -Force dist/ci-logs | Out-Null
           Start-Transcript -Path dist/ci-logs/build.log
           try {
             & ./scripts/build.ps1
+            foreach ($artifact in @('dist/SorryRKN-Windows-1.2.0.zip', 'dist/SorryRKN-Windows-1.2.0-Setup.exe')) {
+              if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) { throw "Missing Windows package: $artifact" }
+            }
           } finally {
             Stop-Transcript
           }
@@ -63,11 +76,13 @@ jobs:
           & ./runtime/python/python.exe -m unittest discover -s runtime/app -p 'test_*.py' -v 2>&1 | Tee-Object -FilePath dist/ci-logs/python-test.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Upload tested portable package
+      - name: Upload tested Windows packages
         uses: actions/upload-artifact@v4
         with:
-          name: windows-source-portable
-          path: windows/src/dist/SorryRKN-Windows-1.2.0.zip
+          name: windows-source-packages
+          path: |
+            windows/src/dist/SorryRKN-Windows-1.2.0.zip
+            windows/src/dist/SorryRKN-Windows-1.2.0-Setup.exe
           if-no-files-found: error
           compression-level: 0
 

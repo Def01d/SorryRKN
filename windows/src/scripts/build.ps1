@@ -35,7 +35,7 @@ try {
     }
     Compress-Archive $package 'dist/SorryRKN-Windows-1.2.0.zip' -Force
     if (Get-Command makensis -ErrorAction SilentlyContinue) {
-        makensis scripts/installer.nsi
+        makensis /NOCONFIG /INPUTCHARSET UTF8 scripts/installer.nsi
         if ($LASTEXITCODE -ne 0) {throw 'NSIS build failed'}
     } else {Write-Host 'Portable ZIP built. Install NSIS 3 and add makensis to PATH to also build Setup.exe.'}
 } finally {Pop-Location}
