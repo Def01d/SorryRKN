@@ -1,9 +1,9 @@
 {
   "platform": "windows-x64",
-  "versionCode": 10100,
-  "versionName": "1.1.0",
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0-Setup.exe",
-  "size": 17121933,
-  "sha256": "2f5a783b50e4c937a9e962c67d5eecb08428e4313b60326d7be2a2cf86295e5a",
-  "notes": "Мои ресурсы: ручные домены DNS-профиля и прямые исключения. Прямые правила приоритетнее DNS-профиля и DPI. Списки сохраняются при обновлениях. После сохранения выключите и включите соединение; DNS-профиль зависит от поддержки сайта провайдером Comss."
+  "versionCode": 10200,
+  "versionName": "1.2.0",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.2.0/windows/SorryRKN-Windows-1.2.0-Setup.exe",
+  "notes": "Telegram: подтверждённые MTProto-маршруты и задержка пяти DC. Резервирование DNS, общий проверенный маршрут ChatGPT и расширенный подбор DPI. Обновление устанавливается поверх прежней версии с сохранением настроек и Telegram-секрета. Перед установкой закройте SorryRKN через «Выход» в трее. Доступность зависит от оператора и правил сервиса.",
+  "size": 16623862,
+  "sha256": "69b0f8e8c855ce75356ef4f2810ecec56d3fa3d95c6075ab80a44cb24b52737c"
 }
