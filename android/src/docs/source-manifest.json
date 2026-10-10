@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "size": 12975,
-      "sha256": "b36e4bae88bad98418d13b6050b869fd0ed197576491f4a5709a0d355aace1c3"
+      "size": 13804,
+      "sha256": "a6fa9a42ff3610c75751675750014ed216e0a02829c6dd045ca75f68bc352815"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -30,8 +30,8 @@
     },
     {
       "path": "VALIDATION.md",
-      "size": 8498,
-      "sha256": "6d0d4d6b3276214795aa1972bd031649b4a38a17cd407c6cfe8ff99235507263"
+      "size": 10617,
+      "sha256": "30955f65d2a15f9a146524b2c3e8e589315a921fc81bd5975194b9944f62df1b"
     },
     {
       "path": "app/build.gradle",

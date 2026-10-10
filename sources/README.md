@@ -2,9 +2,9 @@
 
 [← Главная](../README.md)
 
-## Текущие предварительные сборки
+## Текущие версии
 
-[**Android 0.11.0 + Windows 1.2.0 — исходники ZIP**](https://github.com/Def01d/SorryRKN/releases/download/v0.11.0-test.1/SorryRKN-Android-0.11.0-Windows-1.2.0-source.zip). Исходники в основной ветке: [Android](../android/src), [Windows](../windows/src). Результаты проверки: [Android](../android/src/VALIDATION.md), [Windows](../windows/src/VALIDATION.md). Контрольные суммы и готовые файлы приложены к [Android-релизу](https://github.com/Def01d/SorryRKN/releases/tag/v0.11.0-test.1) и [Windows-релизу](https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.2.0-rc.1).
+[**Android 0.11.0 + Windows 1.2.0 — исходники ZIP**](https://github.com/Def01d/SorryRKN/releases/download/v0.11.0/SorryRKN-Android-0.11.0-Windows-1.2.0-source.zip). Исходники в основной ветке: [Android](../android/src), [Windows](../windows/src). Результаты проверки: [Android](../android/src/VALIDATION.md), [Windows](../windows/src/VALIDATION.md). Контрольные суммы и готовые файлы приложены к [Android-релизу](https://github.com/Def01d/SorryRKN/releases/tag/v0.11.0) и [Windows-релизу](https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.2.0).
 
 ## Архив исходников 0.10.3 / 1.1.0
 
@@ -21,7 +21,7 @@
 
 Приватные ключи подписи, токены, личные конфигурации, кеши и результаты сборок исключены. Для своей Android-сборки используется собственная подпись, поэтому она не устанавливается поверх официального APK с другой подписью. Лицензии собственного кода и зависимостей находятся внутри соответствующих каталогов.
 
-## Что проверено при публикации
+## Что проверено при публикации архива 0.10.3 / 1.1.0
 
 - Android собран из отдельной чистой копии: APK, test APK и lint. Все нативные библиотеки пересобраны из опубликованных исходников. Использован отдельный локальный debug-ключ; ключ официального APK не нужен. Lint: 0 ошибок, 3 прежних предупреждения; выравнивание 16 KiB проверено.
 - Сетевые тестовые бинарники собраны из этой копии; **366 Python-тестов и 28 подтестов прошли**. Для Linux-тестов нужен заголовок из `libcap-dev`, что указано в инструкции.
@@ -30,7 +30,7 @@
 
 Публикация исходников не меняет версии приложений и не подтверждает устранение проблем Telegram в сети пользователя. Результаты сетевых проверок: [Android](../docs/VALIDATION-ANDROID.md), [Windows](../windows/VALIDATION.md).
 
-SHA-256 ZIP:
+SHA-256 архива 0.10.3 / 1.1.0:
 
 ```text
 8ba4bb9ef4b070db35cd3ff78141a3900ee133e9f2412bfec4c18d815e350dc4
