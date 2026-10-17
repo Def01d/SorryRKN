@@ -20,6 +20,16 @@ public class DeviceChecks extends Instrumentation {
                 StartupUpdateChecks.run(this,target,report);report.putString("result","PASS");finish(0,report);return;
             }
             if (!Python.isStarted()) Python.start(new AndroidPlatform(target));
+            if(arguments!=null && Boolean.parseBoolean(arguments.getString("dnsMatrixLiveChecks","false"))) {
+                String matrix=Python.getInstance().getModule("dns_matrix").callAttr("scan_json",target.getFilesDir().getPath(),false).toString();
+                try(java.io.OutputStream output=new java.io.FileOutputStream(new java.io.File(target.getFilesDir(),"dns-matrix-live.json"))) {
+                    output.write(matrix.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
+                report.putString("result","COMPLETE: public HTTPS comparison, account access unchecked");finish(0,report);return;
+            }
+            if(arguments!=null && Boolean.parseBoolean(arguments.getString("dnsProfilesChecks","false"))) {
+                DnsProfileChecks.run(this,target,report);report.putString("result","PASS");finish(0,report);return;
+            }
             if(arguments!=null && Boolean.parseBoolean(arguments.getString("publicServiceChecks","false"))) {
                 boolean passed=publicServiceChecks(target,report);
                 report.putString("result",passed?"PASS":"PARTIAL: public service checks failed");finish(passed?0:1,report);return;

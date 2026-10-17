@@ -1,6 +1,6 @@
-# Сборка Windows 1.2.0
+# Сборка Windows 1.3.0
 
-Этот каталог содержит исходники Go-приложения, адаптированного Telegram-прокси, тесты, иконку и лицензии. Он соответствует Windows 1.2.0 (`VersionCode = 10200`). Область подтверждённых проверок и ограничения описаны в [VALIDATION.md](VALIDATION.md).
+Этот каталог содержит исходники Go-приложения, адаптированного Telegram-прокси, тесты, иконку и лицензии. Он соответствует Windows 1.3.0 (`VersionCode = 10300`). Область подтверждённых проверок и ограничения описаны в [VALIDATION.md](VALIDATION.md).
 
 Нужны Windows 10/11 x64, Go 1.24 или новее, PowerShell и доступ к GitHub/Go Modules. Для установщика дополнительно нужен NSIS 3 (`makensis` в `PATH`). Python отдельно устанавливать не требуется. Из этого каталога выполните:
 
@@ -17,15 +17,15 @@ powershell -ExecutionPolicy Bypass -File scripts/build.ps1
 
 Helper проверяет SHA-256 архива NSIS (`ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8`), распаковывает его в `dist/tools` и добавляет компилятор в PATH текущего процесса. В GitHub Actions путь сохраняется через `GITHUB_PATH`. Установщик компилируется с UTF-8 и без пользовательского `nsisconf.nsh`; он получает те же очищенные файлы из `dist/package/SorryRKN`, что и ZIP. Сборка не запускает установщик или UAC.
 
-Скрипт восстанавливает сторонний runtime, создаёт ресурсы версии 1.2.0 из `resources/icon.png` с помощью закреплённого `go-winres v0.3.3` и собирает приложение. Сгенерированный `.syso` не включён в исходники и исключён через `.gitignore`; для повторной генерации доступен `scripts/resources.ps1`. Секретов автора и сертификата подписи для сборки не требуется; EXE остаётся без подписи издателя.
+Скрипт восстанавливает сторонний runtime, создаёт ресурсы версии 1.3.0 из `resources/icon.png` с помощью закреплённого `go-winres v0.3.3` и собирает приложение. Сгенерированный `.syso` не включён в исходники и исключён через `.gitignore`; для повторной генерации доступен `scripts/resources.ps1`. Секретов автора и сертификата подписи для сборки не требуется; EXE остаётся без подписи издателя.
 
 Результаты:
 
 - `dist/SorryRKN.exe` — интерфейс; для работы нужны соседние каталоги `runtime` и `licenses`.
 - `dist/check-network.exe` — диагностика HTTPS/API/WebSocket без загрузки драйвера.
 - `dist/package/SorryRKN/` — готовая папка приложения.
-- `dist/SorryRKN-Windows-1.2.0.zip` — переносная версия.
-- `dist/SorryRKN-Windows-1.2.0-Setup.exe` — установщик, если доступен NSIS.
+- `dist/SorryRKN-Windows-1.3.0.zip` — переносная версия.
+- `dist/SorryRKN-Windows-1.3.0-Setup.exe` — установщик, если доступен NSIS.
 
 ## Сторонние зависимости
 
@@ -67,7 +67,7 @@ dist\package\SorryRKN\runtime\python\python.exe scripts/check-telegram.py --runt
 Отдельная ручная нативная проверка на Windows с правами администратора:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -AppDir dist/package/SorryRKN -InstallerPath dist/SorryRKN-Windows-1.2.0-Setup.exe
+powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -AppDir dist/package/SorryRKN -InstallerPath dist/SorryRKN-Windows-1.3.0-Setup.exe
 ```
 
 Если NSIS не установлен, опустите параметр `-InstallerPath`. Проверяются криптография, DPAPI, WinDivert, выборочный DNS, Telegram, завершение дочерних процессов, интерфейс и трей; при передаче установщика — также установка и удаление. Проверка создаёт тестовые настройки и отчёт в профиле текущего пользователя, поэтому для неё удобен отдельный тестовый пользователь Windows. Нативная проверка не входит в обычную сборку или CI исходников и не доказывает обход ограничений конкретного оператора.

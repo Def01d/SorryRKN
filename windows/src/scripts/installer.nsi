@@ -2,7 +2,7 @@ Unicode true
 !include "MUI2.nsh"
 !include "x64.nsh"
 Name "SorryRKN"
-OutFile "..\dist\SorryRKN-Windows-1.2.0-Setup.exe"
+OutFile "..\dist\SorryRKN-Windows-1.3.0-Setup.exe"
 !define PACKAGE "..\dist\package\SorryRKN"
 InstallDir "$PROGRAMFILES64\SorryRKN"
 InstallDirRegKey HKLM "Software\SorryRKN" "InstallPath"
@@ -20,11 +20,11 @@ BrandingText "SorryRKN"
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "Russian"
-VIProductVersion "1.2.0.0"
+VIProductVersion "1.3.0.0"
 VIAddVersionKey /LANG=1049 "ProductName" "SorryRKN"
-VIAddVersionKey /LANG=1049 "ProductVersion" "1.2.0"
+VIAddVersionKey /LANG=1049 "ProductVersion" "1.3.0"
 VIAddVersionKey /LANG=1049 "FileDescription" "SorryRKN Windows Installer"
-VIAddVersionKey /LANG=1049 "FileVersion" "1.2.0"
+VIAddVersionKey /LANG=1049 "FileVersion" "1.3.0"
 VIAddVersionKey /LANG=1049 "LegalCopyright" "SorryRKN contributors"
 Function .onInit
  ${IfNot} ${RunningX64}
@@ -63,7 +63,7 @@ Section "SorryRKN" Main
  CreateShortcut "$DESKTOP\SorryRKN.lnk" "$INSTDIR\SorryRKN.exe"
  WriteRegStr HKLM "Software\SorryRKN" "InstallPath" "$INSTDIR"
  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SorryRKN" "DisplayName" "SorryRKN"
- WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SorryRKN" "DisplayVersion" "1.2.0"
+ WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SorryRKN" "DisplayVersion" "1.3.0"
  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SorryRKN" "UninstallString" '"$INSTDIR\Uninstall.exe"'
  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SorryRKN" "DisplayIcon" "$INSTDIR\SorryRKN.exe"
  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SorryRKN" "NoModify" 1

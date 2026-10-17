@@ -6,7 +6,9 @@ AI_HOSTS=('chatgpt.com','openai.com','oaistatic.com','oaiusercontent.com','oaist
           'claude.ai','anthropic.com','claudeusercontent.com',
           'gemini.google.com','bard.google.com','aistudio.google.com','generativelanguage.googleapis.com',
           'gemini-pa.googleapis.com','proactivebackend-pa.googleapis.com',
-          'alkalimakersuite-pa.googleapis.com','alkalimakersuite-pa.clients6.google.com')
+          'alkalimakersuite-pa.googleapis.com','alkalimakersuite-pa.clients6.google.com',
+          'grok.com','x.ai','copilot.microsoft.com','copilot.cloud.microsoft','sydney.bing.com',
+          'deepseek.com','perplexity.ai','pplx.ai','notebooklm.google.com','notebooklm.google')
 INSTAGRAM_HOSTS=('instagram.com','cdninstagram.com','ig.me','fbcdn.net','facebook.com','facebook.net')
 YOUTUBE_HOSTS=('youtube.com','youtube-nocookie.com','googlevideo.com','ytimg.com','youtu.be','youtubekids.com',
                'youtube.googleapis.com','youtubei.googleapis.com','youtubeembeddedplayer.googleapis.com',

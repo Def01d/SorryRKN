@@ -154,6 +154,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         page.addView(footer,footerParams);
         refresh();
         DataUpdates.request(this, false);
+        DnsProfiles.check(this,false);
         if (getIntent().getBooleanExtra("connect",false)) { getIntent().removeExtra("connect"); handler.post(this::connect); }
     }
 
@@ -289,7 +290,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         if (intent.getBooleanExtra("connect",false)) { intent.removeExtra("connect"); connect(); }
     }
     @Override protected void onStart() { super.onStart(); AppUpdates.check(this,false); }
-    @Override protected void onResume() { super.onResume(); AppUpdates.resume(this); dev.graybridge.Settings.prefs(this).registerOnSharedPreferenceChangeListener(this); refresh(); }
+    @Override protected void onResume() { super.onResume(); AppUpdates.resume(this); dev.graybridge.Settings.prefs(this).registerOnSharedPreferenceChangeListener(this); refresh(); DnsProfiles.check(this,false); }
     @Override protected void onPause() { dev.graybridge.Settings.prefs(this).unregisterOnSharedPreferenceChangeListener(this); super.onPause(); }
     @Override public void onSharedPreferenceChanged(SharedPreferences prefs,String key) { handler.post(this::refresh); }
 
@@ -324,9 +325,10 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         popup.getMenu().add("Расширенный подбор").setEnabled(canRetry);
         String state=dev.graybridge.Settings.state(this);
         popup.getMenu().add("Маршруты").setEnabled(!state.equals("starting") && !state.equals("stopping"));
-        popup.getMenu().add("Мои ресурсы"); popup.getMenu().add("Обновить приложение"); popup.getMenu().add("Диагностика"); popup.getMenu().add("Обновления GitHub"); popup.getMenu().add("Работа в фоне"); popup.getMenu().add("О приложении");
+        popup.getMenu().add("DNS и нейросети"); popup.getMenu().add("Мои ресурсы"); popup.getMenu().add("Обновить приложение"); popup.getMenu().add("Диагностика"); popup.getMenu().add("Обновления GitHub"); popup.getMenu().add("Работа в фоне"); popup.getMenu().add("О приложении");
         popup.setOnMenuItemClickListener(item -> {
             switch (item.getTitle().toString()) {
+                case "DNS и нейросети" -> DnsProfiles.show(this);
                 case "Маршруты" -> routeSettings();
                 case "Мои ресурсы" -> userRules();
                 case "Обновить приложение" -> AppUpdates.show(this);

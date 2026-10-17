@@ -2,6 +2,8 @@
 
 [← Главная](../README.md) · [Android](ANDROID.md) · [Помощь](FAQ.md)
 
+В исходниках следующей версии 1.3.0 подготовлен экран [«DNS и нейросети»](DNS-PROFILES.md): семь профилей, проверки восьми сервисов и сохранение собственного выбора. Он ещё не входит в опубликованную 1.2.0.
+
 ## Скачать
 
 [**Установщик 1.2.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.2.0/windows/SorryRKN-Windows-1.2.0-Setup.exe) · [**Переносной ZIP 1.2.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.2.0/windows/SorryRKN-Windows-1.2.0.zip)

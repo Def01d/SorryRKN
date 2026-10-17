@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "updated": "2026-10-17",
+  "profiles": [
+    {"id":"comss","name":"Comss","url":"https://dns.comss.one/dns-query","bootstrap":["212.109.195.93","83.220.169.155","195.133.25.16"],"source":"https://www.comss.ru/page.php?id=7315"},
+    {"id":"geohide","name":"GeoHide RU","url":"https://geohide.ru/dns-query","bootstrap":["193.233.112.67","193.233.112.68"],"source":"https://geohide.ru/"},
+    {"id":"geohide-eu","name":"GeoHide EU","url":"https://eu.geohide.ru/dns-query","bootstrap":["217.60.245.219","217.60.245.233"],"source":"https://geohide.ru/"},
+    {"id":"geohide-us","name":"GeoHide US","url":"https://us.geohide.ru/dns-query","bootstrap":["192.255.159.240","192.255.159.241"],"source":"https://geohide.ru/"},
+    {"id":"malw","name":"dns.malw.link","url":"https://dns.malw.link/dns-query","bootstrap":["179.254.166.171","164.5.224.81"],"source":"https://info.dns.malw.link/"},
+    {"id":"malw-cloudflare","name":"malw / Cloudflare","url":"https://5u35p8m9i7.cloudflare-gateway.com/dns-query","bootstrap":[],"source":"https://info.dns.malw.link/"},
+    {"id":"zapret-dns","name":"Zapret DNS","url":"https://dns.zapret.moe/dns-query","bootstrap":["83.217.211.149"],"source":"https://wiki.zapret.moe/Zapret/zapret-dns"}
+  ]
+}

@@ -147,6 +147,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		e.set(s)
 	}
 	rules, ruleError := c.Rules()
+	rules.DNSDirectory = e.data
 	if ruleError != nil {
 		fail(ruleError)
 		return

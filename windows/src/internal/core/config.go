@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 )
 
-const Version = "1.2.0"
-const VersionCode = 10200
+const Version = "1.3.0"
+const VersionCode = 10300
 const UpdateURL = "https://raw.githubusercontent.com/Def01d/SorryRKN/main/windows-update.json"
 
 type Config struct {
@@ -23,7 +23,11 @@ type Config struct {
 	AutoData        bool     `json:"auto_data"`
 	GeoDomains      []string `json:"geo_domains,omitempty"`
 	DirectDomains   []string `json:"direct_domains,omitempty"`
+	DNSProfile      string   `json:"dns_profile,omitempty"`
+	DNSCheckStartup *bool    `json:"dns_check_startup,omitempty"`
 }
+
+func (c Config) DNSAutoCheck() bool { return c.DNSCheckStartup == nil || *c.DNSCheckStartup }
 
 func DefaultConfig() Config { return Config{DPI: true, Telegram: true, Method: "auto", AutoData: true} }
 func LoadConfig(path string) Config {
