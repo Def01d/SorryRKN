@@ -4,7 +4,7 @@
 
 ## Текущие версии
 
-[**Android 0.12.0 + Windows 1.3.0 — исходники ZIP**](https://github.com/Def01d/SorryRKN/releases/download/v0.12.0/SorryRKN-Android-0.12.0-Windows-1.3.0-source.zip). Исходники в основной ветке: [Android](../android/src), [Windows](../windows/src). Результаты проверки: [DNS и нейросети](../docs/VALIDATION-DNS-PROFILES.md). Исторические отчёты: [Android 0.11.0](../android/src/VALIDATION.md), [Windows 1.2.0](../windows/src/VALIDATION.md). Контрольные суммы и готовые файлы приложены к [Android-релизу](https://github.com/Def01d/SorryRKN/releases/tag/v0.12.0) и [Windows-релизу](https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.3.0).
+[**Android 0.12.0 + Windows 1.3.0 — исходники ZIP**](https://github.com/Def01d/SorryRKN/releases/download/windows-v1.3.0/SorryRKN-Android-0.12.0-Windows-1.3.0-source.zip). Исходники в основной ветке: [Android](../android/src), [Windows](../windows/src). Результаты проверки: [DNS и нейросети](../docs/VALIDATION-DNS-PROFILES.md). Исторические отчёты: [Android 0.11.0](../android/src/VALIDATION.md), [Windows 1.2.0](../windows/src/VALIDATION.md). Android 0.12.0 пока ожидает подпись APK; текущий Android-релиз — [0.11.0](https://github.com/Def01d/SorryRKN/releases/tag/v0.11.0). Архив исходников и контрольные суммы приложены к [Windows-релизу](https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.3.0).
 
 ## Архив исходников 0.10.3 / 1.1.0
 
