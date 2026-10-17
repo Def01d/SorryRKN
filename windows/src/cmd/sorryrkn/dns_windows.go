@@ -71,7 +71,7 @@ func refreshDNSWindow() {
 	dnsCheckMu.Unlock()
 	status := "Выберите DNS. Изменение применяется при следующем включении соединения."
 	if busy {
-		status = "Проверяем семь DNS-профилей и восемь сервисов…"
+		status = "Проверяем DNS-профили и восемь сервисов…"
 	}
 	call(user, "SetWindowTextW", dnsStatus, uintptr(unsafe.Pointer(u(status))))
 	text := report.Text()
