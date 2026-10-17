@@ -1,6 +1,6 @@
 # DNS и нейросети
 
-В исходниках Android 0.12.0 и Windows 1.3.0 добавлен экран **«··· → DNS и нейросети»**. Он сравнивает публичные HTTPS-ответы ChatGPT, Claude, Gemini, Grok, Copilot, DeepSeek, Perplexity и NotebookLM через каждый DNS-профиль. Опубликованные релизы 0.11.0 / 1.2.0 этого экрана ещё не содержат.
+В Android 0.12.0 и Windows 1.3.0 добавлен экран **«··· → DNS и нейросети»**. Он сравнивает публичные HTTPS-ответы ChatGPT, Claude, Gemini, Grok, Copilot, DeepSeek, Perplexity и NotebookLM через каждый DNS-профиль. Обновление доступно через меню приложения и обычные релизы GitHub.
 
 ## Профили
 

@@ -4,6 +4,16 @@
 
 Android и Windows имеют независимые номера версий.
 
+## Android 0.12.0 и Windows 1.3.0
+
+[Android](https://github.com/Def01d/SorryRKN/releases/tag/v0.12.0) · [Windows](https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.3.0)
+
+- Меню «DNS и нейросети»: семь профилей Comss, GeoHide, malw и Zapret DNS и сравнение ChatGPT, Claude, Gemini, Grok, Copilot, DeepSeek, Perplexity и NotebookLM.
+- Фоновые проверки при запуске, ручной повтор и отключение автопроверок; результаты различают публичную страницу, вход, региональный отказ, challenge и сетевые ошибки.
+- Сохранённый DNS применяется к рабочему маршруту при следующем подключении. Сравнения не меняют выбор пользователя; в Android режим своего IP приостанавливает автоматическое сравнение.
+- Проверяемое обновление каталога с GitHub; TLS остаётся обязательным. Аккаунты и генерация сообщений не проверяются. [Подробности](docs/DNS-PROFILES.md) · [Проверки и ограничения](docs/VALIDATION-DNS-PROFILES.md).
+- Обычные релизы с обновлением поверх предыдущих версий; Android сохраняет прежнюю подпись.
+
 ## Android 0.11.0
 
 [Релиз](https://github.com/Def01d/SorryRKN/releases/tag/v0.11.0)
