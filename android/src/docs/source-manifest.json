@@ -265,8 +265,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/DnsProfiles.java",
-      "size": 8517,
-      "sha256": "9dd4870969e23b1caf14f58aafad3ff3c1f928846ab3628fbff78254222f6ebe"
+      "size": 8736,
+      "sha256": "048030775408c5033d42a0fd2d4e48e176f6e2c2f7507e86ee78112fa1f47662"
     },
     {
       "path": "app/src/main/java/dev/graybridge/MainActivity.java",

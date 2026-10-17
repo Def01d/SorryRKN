@@ -20,7 +20,7 @@ final class DnsProfiles {
 
     static void check(Context context, boolean force) {
         Context app = context.getApplicationContext();
-        if (!force && (!Settings.prefs(app).getBoolean("dns_check_startup", true)
+        if (!force && (!Settings.aiRelay(app) || !Settings.prefs(app).getBoolean("dns_check_startup", true)
                 || SystemClock.elapsedRealtime()-lastAttempt<300000 && lastAttempt!=0)) return;
         if (!BUSY.compareAndSet(false,true)) return;
         lastAttempt=SystemClock.elapsedRealtime();
@@ -60,7 +60,7 @@ final class DnsProfiles {
         LinearLayout body=new LinearLayout(activity);body.setOrientation(LinearLayout.VERTICAL);
         int pad=(int)(20*activity.getResources().getDisplayMetrics().density);body.setPadding(pad,pad,pad,pad);
         TextView note=new TextView(activity);
-        note.setText("Выберите DNS по результатам HTTPS-проверок в вашей сети. Проверяются публичные страницы; аккаунты и отправка сообщений не проверяются. Проверки не меняют DNS. Сохранённый профиль применяется при следующем включении соединения.");
+        note.setText("Выберите DNS по результатам HTTPS-проверок в вашей сети. Для сравнения отправляются отдельные публичные запросы через каждый профиль; аккаунты и отправка сообщений не проверяются. Проверки не меняют DNS. Сохранённый профиль применяется при следующем включении соединения.");
         body.addView(note);
         Spinner picker=new Spinner(activity);picker.setEnabled(false);body.addView(picker);
         ArrayList<String> ids=new ArrayList<>();ArrayList<String> names=new ArrayList<>();
@@ -94,7 +94,7 @@ final class DnsProfiles {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(picker.isEnabled());
             StringBuilder text=new StringBuilder(Settings.prefs(activity).getString("dns_scan_status","Ещё не проверено"));
             text.append("\nВыбран: ").append(Settings.prefs(activity).getString("dns_profile","comss"));
-            if(!Settings.aiRelay(activity))text.append("\nРеле нейросетей выключено в «Маршрутах».");
+            if(!Settings.aiRelay(activity))text.append("\nРеле выключено: автопроверка приостановлена. Кнопка «Проверить» сравнит реле отдельными запросами.");
             try {
                 JSONObject report=new JSONObject(Settings.prefs(activity).getString("dns_scan_report","{}"));
                 text.append("\n").append(report.optString("checked_at",""));
