@@ -15,10 +15,26 @@ import (
 
 func main() {
 	output := flag.String("output", "", "optional JSON report path")
+	matrix := flag.Bool("dns-matrix", false, "compare all bundled DNS profiles against eight public AI services")
+	profile := flag.String("dns-profile", "comss", "DNS profile for the ordinary network diagnostic")
 	flag.Parse()
+	if *matrix {
+		ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
+		defer cancel()
+		report := core.ScanDNSProfiles(ctx, core.LoadDNSCatalog(""))
+		b, _ := json.MarshalIndent(report, "", "  ")
+		fmt.Println(string(b))
+		if *output != "" {
+			if err := core.SaveJSON(*output, report); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	resolver := core.NewSmartDNS(core.DomainRules{Builtin: true, Secure: true})
+	resolver := core.NewSmartDNS(core.DomainRules{Builtin: true, Secure: true, DNSProfile: *profile})
 	defer resolver.Close()
 	var direct, repaired core.Check
 	var directExtras, repairedExtras []core.Target

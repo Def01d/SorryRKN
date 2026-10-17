@@ -11,6 +11,7 @@ import time
 from collections import OrderedDict
 from doh import Resolver
 from user_rules import DomainRules
+from dns_profiles import selected_profile, providers
 
 COMSS=(('Comss','dns.comss.one','212.109.195.93'),
        ('Comss','dns.comss.one','83.220.169.155'),
@@ -44,14 +45,14 @@ def failure_response(payload):
 
 
 class SmartDNS:
-    def __init__(self,port=None,normal=None,smart=None,rules=None,own_ip=False,protected=None):
+    def __init__(self,port=None,normal=None,smart=None,rules=None,own_ip=False,protected=None,profile='comss',directory=None):
         self.rules=rules or DomainRules()
         self.own_ip=bool(own_ip)
         self.protected=protected or (lambda host:False)
         self.preferences=OrderedDict()
         self.normal=normal or Resolver(port)
         # Do not even create the relay-provider transport in own-IP mode.
-        self.smart=None if self.own_ip else smart or Resolver(None,providers=COMSS)
+        self.smart=None if self.own_ip else smart or Resolver(None,providers=providers(selected_profile(profile,directory)))
         self.stats={'smart_dns_ok':0,'smart_dns_failed':0,'smart_dns_suppressed':0,'secure_dns_suppressed':0}
     @property
     def provider(self):return self.normal.provider

@@ -21,6 +21,7 @@ var AIHosts = []string{
 	"cdn.workos.com", "forwarder.workos.com", "images.workoscdn.com", "setup.workos.com", "workos.imgix.net",
 	"claude.ai", "anthropic.com", "claudeusercontent.com", "gemini.google.com", "bard.google.com", "aistudio.google.com",
 	"generativelanguage.googleapis.com", "gemini-pa.googleapis.com", "proactivebackend-pa.googleapis.com", "alkalimakersuite-pa.googleapis.com", "alkalimakersuite-pa.clients6.google.com",
+	"grok.com", "x.ai", "copilot.microsoft.com", "copilot.cloud.microsoft", "sydney.bing.com", "deepseek.com", "perplexity.ai", "pplx.ai", "notebooklm.google.com", "notebooklm.google",
 }
 
 // These domains need ordinary public answers, not the regional AI relay.
@@ -155,6 +156,7 @@ type SmartDNS struct {
 	mu              sync.Mutex
 	cache           map[string]cachedDNS
 	client          *http.Client
+	profileURL      string
 	fallbacks       []*http.Client
 	preferred       int
 	public          []dnsUpstream
@@ -179,15 +181,7 @@ func NewSmartDNS(rules ...DomainRules) *SmartDNS {
 	// Published bootstrap addresses recover when the local DNS or one route fails.
 	// Each route keeps the original HTTPS hostname and certificate verification.
 	// Source: https://www.comss.ru/page.php?id=7315
-	s := &SmartDNS{rules: selected, cache: make(map[string]cachedDNS), client: newDNSClient("dns.comss.one", "")}
-	for _, address := range []string{"212.109.195.93", "83.220.169.155", "195.133.25.16"} {
-		s.fallbacks = append(s.fallbacks, newDNSClient("dns.comss.one", address))
-	}
-	// Wire-format DoH with bootstrap IPs does not depend on the ISP's resolver.
-	for _, endpoint := range [][2]string{{"cloudflare-dns.com", "1.1.1.1"}, {"dns.google", "8.8.8.8"}, {"cloudflare-dns.com", "1.0.0.1"}, {"dns.google", "8.8.4.4"}} {
-		s.public = append(s.public, dnsUpstream{url: "https://" + endpoint[0] + "/dns-query", client: newDNSClient(endpoint[0], endpoint[1])})
-	}
-	return s
+	return NewProfileDNS(FindDNSProfile(LoadDNSCatalog(selected.DNSDirectory), selected.DNSProfile), selected)
 }
 
 func newDNSClient(host, bootstrap string) *http.Client {
@@ -315,7 +309,11 @@ func (s *SmartDNS) Resolve(ctx context.Context, q []byte) []byte {
 
 func (s *SmartDNS) query(ctx context.Context, q []byte, public bool) []byte {
 	q = append([]byte(nil), q...)
-	endpoints := []dnsUpstream{{url: "https://dns.comss.one/dns-query", client: s.client}}
+	address := s.profileURL
+	if address == "" {
+		address = "https://dns.comss.one/dns-query"
+	}
+	endpoints := []dnsUpstream{{url: address, client: s.client}}
 	for _, client := range s.fallbacks {
 		endpoints = append(endpoints, dnsUpstream{url: endpoints[0].url, client: client})
 	}

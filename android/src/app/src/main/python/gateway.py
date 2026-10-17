@@ -198,7 +198,8 @@ class Gateway:
     async def start(self):
         self._closed = False
         self.resolver = (SmartDNS(rules=self.routes.rules,own_ip=self.routes.own_ip,
-                                 protected=self.routes.protected) if self.routes
+                                 protected=self.routes.protected,profile=self.routes.ports.get('dns_profile','comss'),
+                                 directory=self.routes.ports.get('dns_directory')) if self.routes
                          else Resolver(self.upstream_port))
         self.server = await asyncio.start_server(self.accept, "127.0.0.1", self.port)
         self.port = self.server.sockets[0].getsockname()[1]

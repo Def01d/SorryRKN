@@ -15,6 +15,7 @@ app/src/androidTest/assets/telegram_route_check.py
 app/src/androidTest/assets/telegram_verified_check.py
 app/src/androidTest/assets/telegram_wire_check.py
 app/src/androidTest/java/dev/graybridge/DeviceChecks.java
+app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java
 app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java
 app/src/main/AndroidManifest.xml
 app/src/main/assets/bundled-data.json
@@ -49,6 +50,7 @@ app/src/main/java/dev/graybridge/BridgeService.java
 app/src/main/java/dev/graybridge/BridgeTile.java
 app/src/main/java/dev/graybridge/DataUpdateJob.java
 app/src/main/java/dev/graybridge/DataUpdates.java
+app/src/main/java/dev/graybridge/DnsProfiles.java
 app/src/main/java/dev/graybridge/MainActivity.java
 app/src/main/java/dev/graybridge/NativeTunnel.java
 app/src/main/java/dev/graybridge/Settings.java
@@ -60,6 +62,9 @@ app/src/main/python/android_bridge.py
 app/src/main/python/bridge_data.py
 app/src/main/python/connection_health.py
 app/src/main/python/discord_gateway.py
+app/src/main/python/dns_matrix.py
+app/src/main/python/dns_profiles.json
+app/src/main/python/dns_profiles.py
 app/src/main/python/doh.py
 app/src/main/python/extra_sites.py
 app/src/main/python/gateway.py
@@ -127,6 +132,7 @@ tests/telegram_dpi_server.py
 tests/telegram_fronting_server.py
 tests/test_ai_route_selection.py
 tests/test_discord.py
+tests/test_dns_profiles_matrix.py
 tests/test_dns_routing_regressions.py
 tests/test_doh.py
 tests/test_extra_sites.py

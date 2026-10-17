@@ -75,10 +75,12 @@ func ParseDomains(text string) ([]string, error) {
 }
 
 type DomainRules struct {
-	Geo     []string
-	Direct  []string
-	Builtin bool
-	Secure  bool
+	Geo          []string
+	Direct       []string
+	Builtin      bool
+	Secure       bool
+	DNSProfile   string
+	DNSDirectory string
 }
 
 func MatchDomains(host string, domains []string) bool {
@@ -106,7 +108,7 @@ func (c Config) Rules() (DomainRules, error) {
 	if e != nil {
 		return DomainRules{}, e
 	}
-	return DomainRules{Geo: geo, Direct: direct, Builtin: c.Extras, Secure: c.DPI || c.Telegram || c.Extras}, nil
+	return DomainRules{Geo: geo, Direct: direct, Builtin: c.Extras, Secure: c.DPI || c.Telegram || c.Extras, DNSProfile: c.DNSProfile}, nil
 }
 func WriteBypassList(data string, r DomainRules) (string, error) {
 	hosts := append(append([]string{}, r.Direct...), r.Geo...)

@@ -1,5 +1,5 @@
 {
-  "version": "0.11.0",
+  "version": "0.12.0",
   "scope": "Android source export; excludes generated build outputs and private local configuration",
   "manifest_self_excluded": true,
   "files": [
@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "size": 13804,
-      "sha256": "a6fa9a42ff3610c75751675750014ed216e0a02829c6dd045ca75f68bc352815"
+      "size": 14415,
+      "sha256": "bfdd0f5672782661ed944092821e9f27f55d3d2f9d6173eaf1ca0282eed6b406"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -30,13 +30,13 @@
     },
     {
       "path": "VALIDATION.md",
-      "size": 10617,
-      "sha256": "30955f65d2a15f9a146524b2c3e8e589315a921fc81bd5975194b9944f62df1b"
+      "size": 10803,
+      "sha256": "d243accb2fca0369a32637412c3b4428cc3b9bf0841b34012e8fb9b324cff3c0"
     },
     {
       "path": "app/build.gradle",
       "size": 1459,
-      "sha256": "3b17c35136c4b247ea4cc9878e10393d68638723cf2e04bc3d1ea2253a5296bb"
+      "sha256": "705fca7ea32acdf38b9c4be65b344573fe403b9e1e0d21c2add3c5450ce5f100"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -85,8 +85,13 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 57720,
-      "sha256": "5f4285843f554407911b893a3fa1c43081e9d74783eb357d616eb8cd51cd7dfa"
+      "size": 58611,
+      "sha256": "ea5ab21d42e76935190858ba2540336af8f9aa175e185545516d122c9c43a65e"
+    },
+    {
+      "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
+      "size": 3891,
+      "sha256": "06ac8eda026ff814f88d81ba35ac77b69d93ea8b83e3574035dc92cc1ec7c083"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java",
@@ -240,8 +245,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeService.java",
-      "size": 36475,
-      "sha256": "d11714f6b0c1aaca912eeb192b7a5312e1ea3a6af8d2dd0098cf606d48dce2bd"
+      "size": 36613,
+      "sha256": "bf94c56181ca14922fb7942fec0cafbd35c744e663d94fefcbd371dcf1d3593c"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeTile.java",
@@ -259,9 +264,14 @@
       "sha256": "0d49161257510961ee28d85a15ab8d754f8fdc7bf0e38750726006cdaa072ab6"
     },
     {
+      "path": "app/src/main/java/dev/graybridge/DnsProfiles.java",
+      "size": 8736,
+      "sha256": "048030775408c5033d42a0fd2d4e48e176f6e2c2f7507e86ee78112fa1f47662"
+    },
+    {
       "path": "app/src/main/java/dev/graybridge/MainActivity.java",
-      "size": 45811,
-      "sha256": "f09a334ebff9028f1c6d5e1f3200eec8f1c60340dca41fae5205f6ec161d9628"
+      "size": 46009,
+      "sha256": "7da26b893d8fd5aa511e15f9e0bbe36891ab790a5cc68b0b7748217767294234"
     },
     {
       "path": "app/src/main/java/dev/graybridge/NativeTunnel.java",
@@ -314,19 +324,34 @@
       "sha256": "6225df9254956e7065e9ab78e735e7596884b0631fbb46842132f2e2e7ecba8b"
     },
     {
+      "path": "app/src/main/python/dns_matrix.py",
+      "size": 7273,
+      "sha256": "adcc418023b8ecfd79a5b559543ccd7b43232c36a9827607916165960a10898d"
+    },
+    {
+      "path": "app/src/main/python/dns_profiles.json",
+      "size": 1250,
+      "sha256": "648f11372e412cea2f36b75c70a50328a9c692bc3e08c552dbeb70d3bcb6aed3"
+    },
+    {
+      "path": "app/src/main/python/dns_profiles.py",
+      "size": 3327,
+      "sha256": "ad65875c89e3b6a881e5edf32a1b032cec66c2907eb3e8cf63ab89215b2378c1"
+    },
+    {
       "path": "app/src/main/python/doh.py",
       "size": 12551,
       "sha256": "8da24845524b567e22eadbfdbe6b9375c0d351383a42b2dc2f2d7d06e6b48e0c"
     },
     {
       "path": "app/src/main/python/extra_sites.py",
-      "size": 1745,
-      "sha256": "699fa26dd34b0f6d367f5c8d876b29e4d50c10a32a1080905963b71caf1e6e48"
+      "size": 1938,
+      "sha256": "3abbcafdcee7e355f9308b929c1072af8200ff0e66336f2e82a2a6f01e42dc04"
     },
     {
       "path": "app/src/main/python/gateway.py",
-      "size": 24040,
-      "sha256": "bac444383ebffbcf72a9fc8a785f3dd2e7260c8ede05bf63426db820e5f4bb0c"
+      "size": 24176,
+      "sha256": "97f27a4254ae918d5390db0e246a2a40b16197e8998b58bbe242c197e9f0c129"
     },
     {
       "path": "app/src/main/python/geo_route.py",
@@ -435,8 +460,8 @@
     },
     {
       "path": "app/src/main/python/smart_dns.py",
-      "size": 5282,
-      "sha256": "9c05d3f462ee7cd920edb701db810d75d4c19df73034f5385ee92cbeb7e51508"
+      "size": 5407,
+      "sha256": "1b8b14d818879c89716714dffd9082b13d22d232c1e029c0d26f735914abe79e"
     },
     {
       "path": "app/src/main/python/strategy_probe.py",
@@ -505,8 +530,8 @@
     },
     {
       "path": "docs/source-files.txt",
-      "size": 46813,
-      "sha256": "6e276030b3151a98cbba0e62474671c020b162fbb714d2d20a6a840a1a3cfb67"
+      "size": 47067,
+      "sha256": "da0015313accdce4a89b01918330dc019e6e4dc65e99e0fc7ebf345ecd0ddcaf"
     },
     {
       "path": "docs/upstream-lock.json",
@@ -642,6 +667,11 @@
       "path": "tests/test_discord.py",
       "size": 9620,
       "sha256": "38f75e1ee7b9387aa3f85d2f88e6d648767a147ca8e349ffc2f5277d5e393760"
+    },
+    {
+      "path": "tests/test_dns_profiles_matrix.py",
+      "size": 4449,
+      "sha256": "3d13a8b8b3ac77adcbdd2cc37661b1fceb27b675ebb7ff13d8ef6ac9a8bbb3cc"
     },
     {
       "path": "tests/test_dns_routing_regressions.py",

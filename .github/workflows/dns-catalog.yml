@@ -1,0 +1,44 @@
+name: Validate DNS catalogs
+
+on:
+  push:
+    paths:
+      - dns-profiles.json
+      - android/src/app/src/main/python/dns_profiles.py
+      - android/src/app/src/main/python/dns_profiles.json
+      - windows/src/internal/core/dns_profiles.json
+      - .github/workflows/dns-catalog.yml
+  pull_request:
+    paths:
+      - dns-profiles.json
+      - android/src/app/src/main/python/dns_profiles.py
+      - android/src/app/src/main/python/dns_profiles.json
+      - windows/src/internal/core/dns_profiles.json
+      - .github/workflows/dns-catalog.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate public endpoints and catalog limits
+        env:
+          PYTHONPATH: android/src/app/src/main/python
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from dns_profiles import parse_catalog
+          for name in ('dns-profiles.json', 'android/src/app/src/main/python/dns_profiles.json', 'windows/src/internal/core/dns_profiles.json'):
+              catalog = parse_catalog(Path(name).read_bytes())
+              print(f"{name}: {len(catalog['profiles'])} validated DNS profiles")
+          PY

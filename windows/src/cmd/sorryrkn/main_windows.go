@@ -240,8 +240,12 @@ func main() {
 	call(user, "ShowWindow", hwnd, SW_SHOW)
 	call(user, "UpdateWindow", hwnd)
 	go updateStartup()
+	checkDNSProfiles(false)
 	var m msg
 	for call(user, "GetMessageW", uintptr(unsafe.Pointer(&m)), 0, 0, 0) != 0 {
+		if dnsWindow != 0 && call(user, "IsDialogMessageW", dnsWindow, uintptr(unsafe.Pointer(&m))) != 0 {
+			continue
+		}
 		if rulesWindow != 0 && call(user, "IsDialogMessageW", rulesWindow, uintptr(unsafe.Pointer(&m))) != 0 {
 			continue
 		}
@@ -261,6 +265,9 @@ func windowProc(window uintptr, messageID uint32, w, l uintptr) uintptr {
 		return 0
 	}
 	switch messageID {
+	case dnsDoneMessage:
+		refreshDNSWindow()
+		return 0
 	case WM_PAINT:
 		paint(window)
 		return 0
@@ -365,6 +372,8 @@ func retest(extended bool) {
 }
 func command(id int) {
 	switch id {
+	case DNSProfilesID:
+		showDNSProfiles()
 	case RulesID:
 		editRules()
 	case PowerID:
@@ -407,7 +416,7 @@ func command(id int) {
 	case DiagnosticsID:
 		diagnostics()
 	case AboutID:
-		message("SorryRKN "+core.Version, "Локальный обход DPI с zapret/winws и Telegram-прокси Flowseal.\n\nНейросети: выборочный Comss DNS. Браузер должен использовать системный DNS; собственный защищённый DNS может обходить профиль. Доступ зависит от сети и сервиса.\n\nЗакрытие окна сворачивает приложение в трей. «Выход» выключает соединения.\n\nЛицензии открытых компонентов находятся в папке licenses рядом с приложением.")
+		message("SorryRKN "+core.Version, "Локальный обход DPI с zapret/winws и Telegram-прокси Flowseal.\n\nНейросети: выбранный DNS-профиль. Сравнение доступно в меню «DNS и нейросети». Браузер должен использовать системный DNS; собственный защищённый DNS может обходить профиль. Доступ зависит от сети и сервиса.\n\nЗакрытие окна сворачивает приложение в трей. «Выход» выключает соединения.\n\nЛицензии открытых компонентов находятся в папке licenses рядом с приложением.")
 	case ExitID:
 		shutdown()
 	default:
@@ -427,6 +436,11 @@ func shutdown() {
 		return
 	}
 	quitting = true
+	dnsCheckMu.Lock()
+	if dnsCheckCancel != nil {
+		dnsCheckCancel()
+	}
+	dnsCheckMu.Unlock()
 	go func() {
 		if engine != nil {
 			engine.Stop()
@@ -472,6 +486,7 @@ func menu(tray bool) {
 	addItem(m, RetestID, "Подобрать заново", false, false)
 	addItem(m, ExtendedID, "Расширенный подбор", false, false)
 	addItem(m, RulesID, "Мои ресурсы", false, false)
+	addItem(m, DNSProfilesID, "DNS и нейросети", false, false)
 	addItem(m, UpdatesID, "Обновить приложение", false, false)
 	addItem(m, DataID, "Обновить данные GitHub", false, false)
 	addItem(m, AutoDataID, "Обновлять данные автоматически", currentConfig().AutoData, false)
