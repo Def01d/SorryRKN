@@ -1,0 +1,47 @@
+{
+  "release": "https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.4.0",
+  "release_public": true,
+  "prerelease": false,
+  "binaries": [
+    {
+      "name": "SorryRKN-Windows-1.4.0-Setup.exe",
+      "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.4.0/windows/SorryRKN-Windows-1.4.0-Setup.exe",
+      "http_status": 200,
+      "size": 16567387,
+      "sha256": "032f6660421145233e0470753cf9131d82162ba7e7f935a989b7184a359b0eba",
+      "verified": true
+    },
+    {
+      "name": "SorryRKN-Windows-1.4.0.zip",
+      "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.4.0/windows/SorryRKN-Windows-1.4.0.zip",
+      "http_status": 200,
+      "size": 23534026,
+      "sha256": "e04bbfd024880fc5b9d7b504ae302699640348e40a693243b8ba1fa3537b5fbe",
+      "verified": true
+    }
+  ],
+  "feed": {
+    "windows": "1.4.0",
+    "code": 10400,
+    "public_feed_matches": true,
+    "signature_verified_by_shipped_cli": true,
+    "android_signed_channel": "0.11.0 (18)"
+  },
+  "updaters": [
+    {
+      "client": "legacy",
+      "ok": true,
+      "download_verified": true,
+      "installer_executed": false
+    },
+    {
+      "client": "current",
+      "ok": true,
+      "download_verified": true,
+      "installer_executed": false
+    }
+  ],
+  "feed_commit": "992d5fd",
+  "build_commit": "6bcb28b710c360bf97bb4717b7dabf2b8654146a",
+  "build_and_native_validation": "https://github.com/Def01d/SorryRKN/actions/runs/40211179064"
+}
