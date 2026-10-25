@@ -2,12 +2,77 @@
   "schema": 1,
   "updated": "2026-10-17",
   "profiles": [
-    {"id":"comss","name":"Comss","url":"https://dns.comss.one/dns-query","bootstrap":["212.109.195.93","83.220.169.155","195.133.25.16"],"source":"https://www.comss.ru/page.php?id=7315"},
-    {"id":"geohide","name":"GeoHide RU","url":"https://geohide.ru/dns-query","bootstrap":["193.233.112.67","193.233.112.68"],"source":"https://geohide.ru/"},
-    {"id":"geohide-eu","name":"GeoHide EU","url":"https://eu.geohide.ru/dns-query","bootstrap":["217.60.245.219","217.60.245.233"],"source":"https://geohide.ru/"},
-    {"id":"geohide-us","name":"GeoHide US","url":"https://us.geohide.ru/dns-query","bootstrap":["192.255.159.240","192.255.159.241"],"source":"https://geohide.ru/"},
-    {"id":"malw","name":"dns.malw.link","url":"https://dns.malw.link/dns-query","bootstrap":["179.254.166.171","164.5.224.81"],"source":"https://info.dns.malw.link/"},
-    {"id":"malw-cloudflare","name":"malw / Cloudflare","url":"https://5u35p8m9i7.cloudflare-gateway.com/dns-query","bootstrap":[],"source":"https://info.dns.malw.link/"},
-    {"id":"zapret-dns","name":"Zapret DNS","url":"https://dns.zapret.moe/dns-query","bootstrap":["83.217.211.149"],"source":"https://wiki.zapret.moe/Zapret/zapret-dns"}
-  ]
+    {
+      "id": "comss",
+      "name": "Comss",
+      "url": "https://dns.comss.one/dns-query",
+      "bootstrap": [
+        "212.109.195.93",
+        "83.220.169.155",
+        "195.133.25.16"
+      ],
+      "source": "https://www.comss.ru/page.php?id=7315"
+    },
+    {
+      "id": "geohide",
+      "name": "GeoHide RU",
+      "url": "https://geohide.ru/dns-query",
+      "bootstrap": [
+        "193.233.112.67",
+        "193.233.112.68"
+      ],
+      "source": "https://geohide.ru/"
+    },
+    {
+      "id": "geohide-eu",
+      "name": "GeoHide EU",
+      "url": "https://eu.geohide.ru/dns-query",
+      "bootstrap": [
+        "217.60.245.219",
+        "217.60.245.233"
+      ],
+      "source": "https://geohide.ru/"
+    },
+    {
+      "id": "geohide-us",
+      "name": "GeoHide US",
+      "url": "https://us.geohide.ru/dns-query",
+      "bootstrap": [
+        "192.255.159.240",
+        "192.255.159.241"
+      ],
+      "source": "https://geohide.ru/"
+    },
+    {
+      "id": "malw",
+      "name": "dns.malw.link",
+      "url": "https://dns.malw.link/dns-query",
+      "bootstrap": [
+        "179.254.166.171",
+        "164.5.224.81"
+      ],
+      "source": "https://info.dns.malw.link/"
+    },
+    {
+      "id": "malw-cloudflare",
+      "name": "malw / Cloudflare",
+      "url": "https://5u35p8m9i7.cloudflare-gateway.com/dns-query",
+      "bootstrap": [],
+      "source": "https://info.dns.malw.link/"
+    },
+    {
+      "id": "zapret-dns",
+      "name": "Zapret DNS",
+      "url": "https://dns.zapret.moe/dns-query",
+      "bootstrap": [
+        "83.217.211.149"
+      ],
+      "source": "https://wiki.zapret.moe/Zapret/zapret-dns"
+    }
+  ],
+  "signed": "eyJzY2hlbWEiOjEsInVwZGF0ZWQiOiIyMDI2LTEwLTE3IiwicHJvZmlsZXMiOlt7ImlkIjoiY29tc3MiLCJuYW1lIjoiQ29tc3MiLCJ1cmwiOiJodHRwczovL2Rucy5jb21zcy5vbmUvZG5zLXF1ZXJ5IiwiYm9vdHN0cmFwIjpbIjIxMi4xMDkuMTk1LjkzIiwiODMuMjIwLjE2OS4xNTUiLCIxOTUuMTMzLjI1LjE2Il0sInNvdXJjZSI6Imh0dHBzOi8vd3d3LmNvbXNzLnJ1L3BhZ2UucGhwP2lkPTczMTUifSx7ImlkIjoiZ2VvaGlkZSIsIm5hbWUiOiJHZW9IaWRlIFJVIiwidXJsIjoiaHR0cHM6Ly9nZW9oaWRlLnJ1L2Rucy1xdWVyeSIsImJvb3RzdHJhcCI6WyIxOTMuMjMzLjExMi42NyIsIjE5My4yMzMuMTEyLjY4Il0sInNvdXJjZSI6Imh0dHBzOi8vZ2VvaGlkZS5ydS8ifSx7ImlkIjoiZ2VvaGlkZS1ldSIsIm5hbWUiOiJHZW9IaWRlIEVVIiwidXJsIjoiaHR0cHM6Ly9ldS5nZW9oaWRlLnJ1L2Rucy1xdWVyeSIsImJvb3RzdHJhcCI6WyIyMTcuNjAuMjQ1LjIxOSIsIjIxNy42MC4yNDUuMjMzIl0sInNvdXJjZSI6Imh0dHBzOi8vZ2VvaGlkZS5ydS8ifSx7ImlkIjoiZ2VvaGlkZS11cyIsIm5hbWUiOiJHZW9IaWRlIFVTIiwidXJsIjoiaHR0cHM6Ly91cy5nZW9oaWRlLnJ1L2Rucy1xdWVyeSIsImJvb3RzdHJhcCI6WyIxOTIuMjU1LjE1OS4yNDAiLCIxOTIuMjU1LjE1OS4yNDEiXSwic291cmNlIjoiaHR0cHM6Ly9nZW9oaWRlLnJ1LyJ9LHsiaWQiOiJtYWx3IiwibmFtZSI6ImRucy5tYWx3LmxpbmsiLCJ1cmwiOiJodHRwczovL2Rucy5tYWx3LmxpbmsvZG5zLXF1ZXJ5IiwiYm9vdHN0cmFwIjpbIjE3OS4yNTQuMTY2LjE3MSIsIjE2NC41LjIyNC44MSJdLCJzb3VyY2UiOiJodHRwczovL2luZm8uZG5zLm1hbHcubGluay8ifSx7ImlkIjoibWFsdy1jbG91ZGZsYXJlIiwibmFtZSI6Im1hbHcgLyBDbG91ZGZsYXJlIiwidXJsIjoiaHR0cHM6Ly81dTM1cDhtOWk3LmNsb3VkZmxhcmUtZ2F0ZXdheS5jb20vZG5zLXF1ZXJ5IiwiYm9vdHN0cmFwIjpbXSwic291cmNlIjoiaHR0cHM6Ly9pbmZvLmRucy5tYWx3LmxpbmsvIn0seyJpZCI6InphcHJldC1kbnMiLCJuYW1lIjoiWmFwcmV0IEROUyIsInVybCI6Imh0dHBzOi8vZG5zLnphcHJldC5tb2UvZG5zLXF1ZXJ5IiwiYm9vdHN0cmFwIjpbIjgzLjIxNy4yMTEuMTQ5Il0sInNvdXJjZSI6Imh0dHBzOi8vd2lraS56YXByZXQubW9lL1phcHJldC96YXByZXQtZG5zIn1dfQ==",
+  "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
+  "signedAt": 1792943573,
+  "expires": 1808495573,
+  "signature": "MEUCIQCBDerKIM4nbKzBQQQBtzUrgKdXD083aTE+3BYdracPDwIgE6be3QWTAhS5SdkEvuxj0EXyqV8ZH2/tWS2HF1X1Huc="
 }

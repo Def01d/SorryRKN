@@ -16,13 +16,7 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-var AIHosts = []string{
-	"chatgpt.com", "openai.com", "oaistatic.com", "oaiusercontent.com", "oaistatsig.com", "openaimerge.com",
-	"cdn.workos.com", "forwarder.workos.com", "images.workoscdn.com", "setup.workos.com", "workos.imgix.net",
-	"claude.ai", "anthropic.com", "claudeusercontent.com", "gemini.google.com", "bard.google.com", "aistudio.google.com",
-	"generativelanguage.googleapis.com", "gemini-pa.googleapis.com", "proactivebackend-pa.googleapis.com", "alkalimakersuite-pa.googleapis.com", "alkalimakersuite-pa.clients6.google.com",
-	"grok.com", "x.ai", "copilot.microsoft.com", "copilot.cloud.microsoft", "sydney.bing.com", "deepseek.com", "perplexity.ai", "pplx.ai", "notebooklm.google.com", "notebooklm.google",
-}
+var AIHosts = ServiceDomains()
 
 // These domains need ordinary public answers, not the regional AI relay.
 var ProtectedDNSHosts = []string{
@@ -157,6 +151,7 @@ type SmartDNS struct {
 	cache           map[string]cachedDNS
 	client          *http.Client
 	profileURL      string
+	profileID       string
 	fallbacks       []*http.Client
 	preferred       int
 	public          []dnsUpstream
@@ -165,6 +160,8 @@ type SmartDNS struct {
 	chatGPTRoute    chatGPTRoute
 	chatGPTFlight   chan struct{}
 	chatGPTProbe    func(context.Context, string) error
+	serviceRouter   *ServiceRouter
+	serviceDNS      map[string]*SmartDNS
 }
 
 type dnsUpstream struct {
@@ -181,7 +178,12 @@ func NewSmartDNS(rules ...DomainRules) *SmartDNS {
 	// Published bootstrap addresses recover when the local DNS or one route fails.
 	// Each route keeps the original HTTPS hostname and certificate verification.
 	// Source: https://www.comss.ru/page.php?id=7315
-	return NewProfileDNS(FindDNSProfile(LoadDNSCatalog(selected.DNSDirectory), selected.DNSProfile), selected)
+	s := NewProfileDNS(FindDNSProfile(LoadDNSCatalog(selected.DNSDirectory), selected.DNSProfile), selected)
+	if len(selected.ServiceDNS) > 0 {
+		s.serviceRouter = NewServiceRouter(selected)
+		s.serviceDNS = make(map[string]*SmartDNS)
+	}
+	return s
 }
 
 func newDNSClient(host, bootstrap string) *http.Client {
@@ -195,6 +197,13 @@ func newDNSClient(host, bootstrap string) *http.Client {
 }
 
 func (s *SmartDNS) Close() {
+	s.mu.Lock()
+	children := s.serviceDNS
+	s.serviceDNS = nil
+	s.mu.Unlock()
+	for _, child := range children {
+		child.Close()
+	}
 	s.client.CloseIdleConnections()
 	for _, client := range s.fallbacks {
 		client.CloseIdleConnections()
@@ -202,6 +211,24 @@ func (s *SmartDNS) Close() {
 	for _, endpoint := range s.public {
 		endpoint.client.CloseIdleConnections()
 	}
+}
+
+func (s *SmartDNS) RouteStatus() []ServiceRouteStatus {
+	var out []ServiceRouteStatus
+	if s.serviceRouter != nil {
+		out = s.serviceRouter.Snapshot()
+	} else {
+		for _, service := range ServiceDefinitions {
+			out = append(out, ServiceRouteStatus{Service: service.ID, Name: service.Name, Mode: "default", Profile: s.profileID})
+		}
+	}
+	for i, service := range ServiceDefinitions {
+		if !s.rules.IsGeo(service.Domains[0]) {
+			out[i].Profile = "direct"
+			out[i].Mode = "direct"
+		}
+	}
+	return out
 }
 
 // DialContext permits read-only diagnostics through the same DNS routes without
@@ -273,6 +300,26 @@ func (s *SmartDNS) Resolve(ctx context.Context, q []byte) []byte {
 		return nil
 	}
 	geo := s.rules.IsGeo(host)
+	if geo && s.serviceRouter != nil {
+		id := ServiceForHost(host)
+		if id != "" {
+			profile := s.serviceRouter.Profile(id)
+			s.mu.Lock()
+			child := s.serviceDNS[profile]
+			if child == nil && s.serviceDNS != nil {
+				child = NewProfileDNS(FindDNSProfile(s.serviceRouter.catalog, profile), s.rules)
+				s.serviceDNS[profile] = child
+			}
+			s.mu.Unlock()
+			if child != nil {
+				answer := child.Resolve(ctx, q)
+				if s.serviceRouter.modes[id] == "auto" {
+					return capDNSReplyTTL(answer, 30)
+				}
+				return answer
+			}
+		}
+	}
 	// The regional relay is IPv4-only. HTTPS/SVCB hints can enable ECH or QUIC
 	// and bypass the visible TLS hostname used by the selected DPI profile.
 	if geo && typ == 28 || typ == 64 || typ == 65 {
@@ -305,6 +352,25 @@ func (s *SmartDNS) Resolve(ctx context.Context, q []byte) []byte {
 		s.mu.Unlock()
 	}
 	return s.preferChatGPT(ctx, host, typ, b)
+}
+
+func capDNSReplyTTL(packet []byte, ttl uint32) []byte {
+	var message dnsmessage.Message
+	if message.Unpack(packet) != nil {
+		return packet
+	}
+	for _, section := range [][]dnsmessage.Resource{message.Answers, message.Authorities, message.Additionals} {
+		for i := range section {
+			if section[i].Header.Type != dnsmessage.TypeOPT {
+				section[i].Header.TTL = min(section[i].Header.TTL, ttl)
+			}
+		}
+	}
+	out, e := message.Pack()
+	if e != nil {
+		return packet
+	}
+	return out
 }
 
 func (s *SmartDNS) query(ctx context.Context, q []byte, public bool) []byte {

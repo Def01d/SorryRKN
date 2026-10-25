@@ -10,17 +10,8 @@ import httpx
 from dns_profiles import CATALOG_URL, MAX_CATALOG, load_catalog, parse_catalog, providers
 from doh import PinnedTransport, Resolver, verified_context
 from service_probe import _classify, _error_stage
-
-SERVICES = (
-    ('chatgpt', 'ChatGPT', 'https://chatgpt.com/api/auth/providers'),
-    ('claude', 'Claude', 'https://claude.ai/login'),
-    ('gemini', 'Gemini', 'https://gemini.google.com/app'),
-    ('grok', 'Grok', 'https://grok.com/'),
-    ('copilot', 'Copilot', 'https://copilot.microsoft.com/'),
-    ('deepseek', 'DeepSeek', 'https://chat.deepseek.com/'),
-    ('perplexity', 'Perplexity', 'https://www.perplexity.ai/'),
-    ('notebooklm', 'NotebookLM', 'https://notebooklm.google.com/'),
-)
+from service_catalog import SERVICES
+from service_routing import selection, selection_key, fresh, cache_fresh, load_report, best_profile
 
 
 async def refresh_catalog(directory):
@@ -37,13 +28,14 @@ async def refresh_catalog(directory):
                     body.extend(chunk)
                     if len(body) > MAX_CATALOG:
                         raise ValueError('DNS catalog too large')
-            incoming = parse_catalog(body)
+            from update_trust import verified_payload
+            incoming = parse_catalog(verified_payload(bytes(body)))
             current = load_catalog(directory)
             merged = {p['id']: p for p in current['profiles']}
             merged.update((p['id'], p) for p in incoming['profiles'])
             if len(merged)>12:
                 raise ValueError('DNS catalog merge too large')
-            body = json.dumps(dict(incoming,profiles=list(merged.values())),ensure_ascii=False).encode()
+            # Keep the signed envelope intact on disk; loading merges fallbacks.
             temporary = target.with_suffix('.part')
             temporary.write_bytes(body)
             temporary.replace(target)
@@ -73,7 +65,7 @@ async def probe(profile, service):
     identifier, name, url = service
     host = httpx.URL(url).host
     result = {'service': identifier, 'name': name, 'state': 'dns_error',
-              'authenticated_access': False}
+              'authenticated_access': False,'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')}
     started = time.monotonic()
     resolver = Resolver(None, providers=providers(profile))
     try:
@@ -101,9 +93,11 @@ async def probe(profile, service):
                             state = (classify(identifier, response.status_code, response.headers, bytes(body))
                                      if encoded in ('', 'identity') else 'invalid_response')
                             result.update(state=state, http_status=response.status_code, address=address)
+                            result.pop('stage',None);result.pop('error',None)
                             if state in ('reachable_public', 'login_unchecked'):
                                 break
                 except (httpx.HTTPError, OSError, ValueError) as error:
+                    result.pop('http_status',None);result.pop('address',None)
                     result.update(state='transport_error', stage=_error_stage(error), error=type(error).__name__)
     except asyncio.TimeoutError:
         result.update(state='timeout')
@@ -147,9 +141,41 @@ def catalog_json(directory):
     return json.dumps(load_catalog(directory), ensure_ascii=False)
 
 
-def scan_json(directory, refresh=True):
+def scan_json(directory, refresh=True, force=True, selected='{}', network_key=''):
     async def run():
+        value=json.loads(selected)
+        chosen=selection(value.get('default','comss'),value.get('services',{}))
+        old=load_report(directory)
+        if not force and cache_fresh(old,network_key) and (old.get('coverage')=='full' or old.get('selection_key')==selection_key(chosen)):
+            return dict(old,cached=True)
         if refresh:
             await refresh_catalog(directory)
-        return await scan(load_catalog(directory))
+        catalog=load_catalog(directory)
+        if force:
+            report=await scan(catalog)
+            report['coverage']='full'
+        else:
+            slots=asyncio.Semaphore(4)
+            rows=[{'id':p['id'],'name':p['name'],'results':[
+                {'service':s[0],'name':s[1],'state':'not_checked','authenticated_access':False} for s in SERVICES]} for p in catalog['profiles']]
+            async def one(index,service):
+                async with slots:
+                    identifier=chosen['services'].get(service[0]) or chosen['default']
+                    if identifier=='auto':identifier=best_profile(old,service[0],chosen['default'],catalog,network_key)
+                    profile=next((p for p in catalog['profiles'] if p['id']==identifier),catalog['profiles'][0])
+                    result=await probe(profile,service)
+                    next(r for r in rows if r['id']==profile['id'])['results'][index]=result
+            tasks=[asyncio.create_task(one(i,s)) for i,s in enumerate(SERVICES)]
+            try:
+                async with asyncio.timeout(30):await asyncio.gather(*tasks)
+            except TimeoutError:pass
+            finally:
+                for task in tasks:task.cancel()
+                await asyncio.gather(*tasks,return_exceptions=True)
+            report={'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
+                    'scope':'anonymous_public_https','account_checked':False,'selection_changed':False,'profiles':rows,'coverage':'selected'}
+        report.update(network_key=network_key,selection_key=selection_key(chosen))
+        target=Path(directory,'dns-scan.json');temporary=target.with_suffix('.part')
+        temporary.write_text(json.dumps(report,ensure_ascii=False),encoding='utf-8');temporary.replace(target)
+        return report
     return json.dumps(asyncio.run(run()), ensure_ascii=False)

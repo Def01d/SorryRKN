@@ -129,7 +129,7 @@ public class DeviceChecks extends Instrumentation {
                 catch(java.io.IOException expected) { }
                 org.json.JSONObject manifest=new org.json.JSONObject().put("versionCode",9).put("versionName","0.9.0")
                     .put("url","https://example.com/update.apk").put("sha256",new String(new char[64]).replace('\0','a')).put("size",20_000_000);
-                new AppUpdates.Release(manifest);
+                try {new AppUpdates.Release(manifest);throw new AssertionError("Accepted unsigned update manifest");}catch(java.io.IOException expected) { }
                 for(String invalid:new String[]{"http://example.com/x","file:///x","https://user:secret@example.com/x"}) {
                     try {AppUpdates.safeUrl(invalid);throw new AssertionError("Accepted "+invalid);}catch(java.io.IOException expected) { }
                 }

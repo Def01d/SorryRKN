@@ -17,7 +17,30 @@ func main() {
 	output := flag.String("output", "", "optional JSON report path")
 	matrix := flag.Bool("dns-matrix", false, "compare all bundled DNS profiles against eight public AI services")
 	profile := flag.String("dns-profile", "comss", "DNS profile for the ordinary network diagnostic")
+	verifyData := flag.String("verify-data", "", "verify a signed local JSON envelope without network or driver")
 	flag.Parse()
+	if *verifyData != "" {
+		b, err := os.ReadFile(*verifyData)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		payload, err := core.VerifyEnvelope(b)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		report := map[string]any{"signature_verified": true, "scope": "offline_signature_and_expiry_only", "payload": json.RawMessage(payload)}
+		encoded, _ := json.MarshalIndent(report, "", "  ")
+		fmt.Println(string(encoded))
+		if *output != "" {
+			if err = core.SaveJSON(*output, report); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		return
+	}
 	if *matrix {
 		ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
 		defer cancel()

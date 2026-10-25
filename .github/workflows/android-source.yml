@@ -1,0 +1,30 @@
+name: Validate Android source
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths: ['android/src/**', 'services.json', '.github/workflows/android-source.yml']
+  pull_request:
+    paths: ['android/src/**', 'services.json', '.github/workflows/android-source.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  python-network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: android/src
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Install native test headers and Python dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libcap-dev zlib1g-dev
+          python -m venv .venv
+          .venv/bin/pip install -r requirements-dev.txt
+      - name: Build isolated native fixtures and run Python suite
+        run: bash scripts/test-network.sh

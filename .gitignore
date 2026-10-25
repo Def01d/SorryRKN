@@ -1,0 +1,9 @@
+# Private release material must remain outside source control.
+.private/
+.env
+.env.*
+*.keystore
+*.jks
+*.p12
+*.dpapi
+*.key-backup.json

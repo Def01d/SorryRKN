@@ -215,6 +215,8 @@ public class BridgeService extends VpnService {
             if(Settings.extras(this))routes.put("smart_dns",true).put("instagram",1084).put("ai",1084);
             if(UserRules.geo(this))routes.put("smart_dns",true).put("ai",1084);
             routes.put("dns_profile",Settings.prefs(this).getString("dns_profile","comss")).put("dns_directory",getFilesDir().getPath());
+            routes.put("service_dns",new JSONObject(Settings.prefs(this).getString("service_dns","{}")))
+                .put("dns_network_key",DnsProfiles.networkKey(this));
             routes.put("own_ip",!Settings.aiRelay(this)).put("builtin_extras",Settings.extras(this)).put("geo_domains",UserRules.domains(this,"geo_domains"))
                 .put("direct_domains",UserRules.domains(this,"direct_domains"));
             engine.callAttr("start", Settings.secret(this), Settings.telegram(this), vpnActive, getFilesDir().getPath(),routes.toString());

@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "services": [
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "url": "https://chatgpt.com/api/auth/providers",
+      "domains": [
+        "chatgpt.com",
+        "openai.com",
+        "oaistatic.com",
+        "oaiusercontent.com",
+        "oaistatsig.com",
+        "openaimerge.com",
+        "cdn.workos.com",
+        "forwarder.workos.com",
+        "images.workoscdn.com",
+        "setup.workos.com",
+        "workos.imgix.net",
+        "frontend-apps-multi-region.workos.com"
+      ]
+    },
+    {
+      "id": "claude",
+      "name": "Claude",
+      "url": "https://claude.ai/login",
+      "domains": [
+        "claude.ai",
+        "anthropic.com",
+        "claudeusercontent.com"
+      ]
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "url": "https://gemini.google.com/app",
+      "domains": [
+        "gemini.google.com",
+        "bard.google.com",
+        "aistudio.google.com",
+        "generativelanguage.googleapis.com",
+        "gemini-pa.googleapis.com",
+        "proactivebackend-pa.googleapis.com",
+        "alkalimakersuite-pa.googleapis.com",
+        "alkalimakersuite-pa.clients6.google.com"
+      ]
+    },
+    {
+      "id": "grok",
+      "name": "Grok",
+      "url": "https://grok.com/",
+      "domains": [
+        "grok.com",
+        "x.ai"
+      ]
+    },
+    {
+      "id": "copilot",
+      "name": "Copilot",
+      "url": "https://copilot.microsoft.com/",
+      "domains": [
+        "copilot.microsoft.com",
+        "copilot.cloud.microsoft",
+        "sydney.bing.com"
+      ]
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "url": "https://chat.deepseek.com/",
+      "domains": [
+        "deepseek.com"
+      ]
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity",
+      "url": "https://www.perplexity.ai/",
+      "domains": [
+        "perplexity.ai",
+        "pplx.ai"
+      ]
+    },
+    {
+      "id": "notebooklm",
+      "name": "NotebookLM",
+      "url": "https://notebooklm.google.com/",
+      "domains": [
+        "notebooklm.google.com",
+        "notebooklm.google"
+      ]
+    }
+  ],
+  "shared_domains": [
+    "challenges.cloudflare.com"
+  ]
+}

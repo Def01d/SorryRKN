@@ -1,0 +1,14 @@
+{
+  "platform": "windows-x64",
+  "versionCode": 1,
+  "versionName": "0.0.1-fixture",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v0.0.1/fixture.exe",
+  "size": 100,
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "notes": "Test fixture: проверка подписи; не выпуск приложения.",
+  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEsInZlcnNpb25OYW1lIjoiMC4wLjEtZml4dHVyZSIsInVybCI6Imh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9EZWYwMWQvU29ycnlSS04vd2luZG93cy12MC4wLjEvZml4dHVyZS5leGUiLCJzaXplIjoxMDAsInNoYTI1NiI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJub3RlcyI6IlRlc3QgZml4dHVyZTog0L/RgNC+0LLQtdGA0LrQsCDQv9C+0LTQv9C40YHQuDsg0L3QtSDQstGL0L/Rg9GB0Log0L/RgNC40LvQvtC20LXQvdC40Y8uIn0=",
+  "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
+  "signedAt": 1792941292,
+  "expires": 1808493292,
+  "signature": "MEUCIQCDUI3QfGNKt5Geu7enzpTLFI9OO2Qu8P2sQXmJuBC+OgIgUDatoJV9vff6v+Yv7VJDU0MMEfKqjZ+o+NjTHg8WRZw="
+}

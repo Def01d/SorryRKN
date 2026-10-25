@@ -27,6 +27,8 @@ final class AppUpdates {
     static final class Release {
         final int code; final String name, url, sha, notes; final long size;
         Release(JSONObject j) throws Exception {
+            j=UpdateTrust.verified(j);
+            if(!j.optString("platform","android").equals("android"))throw new IOException("Обновление другой платформы");
             code=j.getInt("versionCode"); name=j.getString("versionName"); url=j.getString("url");
             sha=j.getString("sha256").toLowerCase(Locale.ROOT); size=j.getLong("size"); notes=j.optString("notes","");
             if(code<=0 || name.length()>40 || notes.length()>4000 || !sha.matches("[0-9a-f]{64}") || size<=0 || size>MAX_APK)

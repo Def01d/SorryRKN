@@ -81,6 +81,7 @@ type DomainRules struct {
 	Secure       bool
 	DNSProfile   string
 	DNSDirectory string
+	ServiceDNS   map[string]string
 }
 
 func MatchDomains(host string, domains []string) bool {
@@ -100,6 +101,9 @@ func (r DomainRules) ShouldResolveDNS(host string) bool {
 	return !r.IsDirect(host) && (r.IsGeo(host) || r.Secure && MatchDomains(host, ProtectedDNSHosts))
 }
 func (c Config) Rules() (DomainRules, error) {
+	if err := ValidateServiceDNS(c.ServiceDNS); err != nil {
+		return DomainRules{}, err
+	}
 	geo, e := ParseDomains(strings.Join(c.GeoDomains, "\n"))
 	if e != nil {
 		return DomainRules{}, e
@@ -108,7 +112,7 @@ func (c Config) Rules() (DomainRules, error) {
 	if e != nil {
 		return DomainRules{}, e
 	}
-	return DomainRules{Geo: geo, Direct: direct, Builtin: c.Extras, Secure: c.DPI || c.Telegram || c.Extras, DNSProfile: c.DNSProfile}, nil
+	return DomainRules{Geo: geo, Direct: direct, Builtin: c.Extras, Secure: c.DPI || c.Telegram || c.Extras, DNSProfile: c.DNSProfile, ServiceDNS: c.ServiceDNS}, nil
 }
 func WriteBypassList(data string, r DomainRules) (string, error) {
 	hosts := append(append([]string{}, r.Direct...), r.Geo...)

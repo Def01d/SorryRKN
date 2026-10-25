@@ -18,6 +18,7 @@ import (
 const DNSProfilesID = 210
 const dnsDoneMessage = 0x8000 + 71
 const dnsPickID, dnsScanID, dnsSaveID, dnsAutoID, dnsCloseID = 9101, 9102, 9103, 9104, 9105
+const dnsFullID = 9107
 
 var dnsWindow, dnsPicker, dnsResults, dnsStatus, dnsBrush uintptr
 var dnsClassRegistered bool
@@ -26,6 +27,7 @@ var dnsCheckMu sync.Mutex
 var dnsCheckBusy bool
 var dnsCheckCancel context.CancelFunc
 var dnsCheckReport core.DNSMatrix
+var dnsShowAll bool
 
 func checkDNSProfiles(force bool) {
 	if !force && !currentConfig().DNSAutoCheck() {
@@ -48,7 +50,12 @@ func checkDNSProfiles(force bool) {
 			core.RefreshDNSCatalog(refreshCtx, data)
 			stop()
 		}
-		report := core.ScanDNSProfiles(ctx, core.LoadDNSCatalog(data))
+		var report core.DNSMatrix
+		if force {
+			report = core.ScanDNSProfiles(ctx, core.LoadDNSCatalog(data))
+		} else {
+			report = core.CheckConfiguredDNS(ctx, currentConfig(), core.LoadDNSCatalog(data), data, false)
+		}
 		if ctx.Err() == nil {
 			core.SaveJSON(filepath.Join(data, "dns-scan.json"), report)
 		}
@@ -74,7 +81,10 @@ func refreshDNSWindow() {
 		status = "Проверяем DNS-профили и восемь сервисов…"
 	}
 	call(user, "SetWindowTextW", dnsStatus, uintptr(unsafe.Pointer(u(status))))
-	text := report.Text()
+	text := report.SelectedText(currentConfig(), engine.Snapshot().Routes, core.LoadDNSCatalog(data))
+	if dnsShowAll {
+		text = report.Text()
+	}
 	if len(report.Profiles) == 0 {
 		text = "Результатов пока нет. Нажмите «Проверить»."
 	}
@@ -116,11 +126,14 @@ func showDNSProfiles() {
 			call(user, "SendMessageW", dnsPicker, 0x014e, uintptr(i), 0)
 		}
 	}
-	auto := create("BUTTON", "Проверять при запуске приложения", dnsAutoID, 24, 108, 670, 32, 3)
+	auto := create("BUTTON", "Проверять при запуске", dnsAutoID, 24, 108, 350, 32, 3)
+	full := create("BUTTON", "Вся матрица DNS", dnsFullID, 440, 108, 250, 32, 3)
+	call(user, "SendMessageW", full, 0x00f1, boolInt(dnsShowAll), 0)
 	call(user, "SendMessageW", auto, 0x00f1, boolInt(currentConfig().DNSAutoCheck()), 0)
 	dnsStatus = create("STATIC", "", 0, 24, 148, 670, 46, 0)
 	dnsResults = create("EDIT", "", 0, 24, 202, 670, 420, 0x00800000|0x00200000|0x0004|0x0040|0x0800)
 	create("BUTTON", "Проверить", dnsScanID, 24, 642, 140, 36, 0)
+	create("BUTTON", "Маршруты", serviceRoutesID, 180, 642, 140, 36, 0)
 	create("BUTTON", "Сохранить DNS", dnsSaveID, 328, 642, 190, 36, 1)
 	create("BUTTON", "Закрыть", dnsCloseID, 532, 642, 162, 36, 0)
 	dnsCheckMu.Lock()
@@ -153,6 +166,11 @@ func dnsWindowProc(window uintptr, id uint32, w, l uintptr) uintptr {
 		return dnsBrush
 	case WM_COMMAND:
 		switch int(w & 0xffff) {
+		case dnsFullID:
+			dnsShowAll = !dnsShowAll
+			refreshDNSWindow()
+		case serviceRoutesID:
+			editServiceRoutes()
 		case dnsScanID:
 			checkDNSProfiles(true)
 		case dnsAutoID:
