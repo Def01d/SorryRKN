@@ -76,6 +76,10 @@ func CheckUpdate(ctx context.Context) (Release, error) {
 	if e != nil {
 		return r, e
 	}
+	b, e = VerifyEnvelope(b)
+	if e != nil {
+		return r, e
+	}
 	if e = json.Unmarshal(b, &r); e != nil {
 		return r, e
 	}

@@ -51,7 +51,8 @@ def load_catalog(directory=None):
     bundled = parse_catalog(pkgutil.get_data(__name__, 'dns_profiles.json'))
     if directory:
         try:
-            remote = parse_catalog(Path(directory, 'dns-profiles.json').read_bytes())
+            from update_trust import verified_payload
+            remote = parse_catalog(verified_payload(Path(directory, 'dns-profiles.json').read_bytes()))
             # Preserve every bundled choice if an upstream update omits it.
             merged = {p['id']: p for p in bundled['profiles']}
             merged.update((p['id'], p) for p in remote['profiles'])

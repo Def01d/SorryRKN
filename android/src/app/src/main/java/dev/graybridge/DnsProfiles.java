@@ -10,6 +10,9 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.json.*;
+import android.net.*;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 
 /** DNS comparisons own anonymous connections and never change the saved choice. */
 final class DnsProfiles {
@@ -17,19 +20,46 @@ final class DnsProfiles {
     private static final AtomicBoolean BUSY = new AtomicBoolean();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static long lastAttempt;
+    private static String lastNetwork="";
+
+    static String networkKey(Context context) {
+        try {
+            ConnectivityManager cm=context.getSystemService(ConnectivityManager.class);
+            Network network=cm.getActiveNetwork();
+            // Prefer the underlying physical network when our local VPN is active.
+            for(Network n:cm.getAllNetworks()) {
+                NetworkCapabilities caps=cm.getNetworkCapabilities(n);
+                if(caps!=null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)) {
+                    if(network==null || !Objects.equals(network,n))network=n;
+                    NetworkInfo info=cm.getNetworkInfo(n);if(info!=null && info.isConnected())break;
+                }
+            }
+            if(network==null)return "offline";
+            String value=network.toString()+"/"+cm.getLinkProperties(network);
+            byte[] hash=MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder out=new StringBuilder();for(int i=0;i<16;i++)out.append(String.format(Locale.ROOT,"%02x",hash[i]));
+            return out.toString();
+        } catch(Exception ignored){return "unknown";}
+    }
 
     static void check(Context context, boolean force) {
         Context app = context.getApplicationContext();
+        String network=networkKey(app);
         if (!force && (!Settings.aiRelay(app) || !Settings.prefs(app).getBoolean("dns_check_startup", true)
-                || SystemClock.elapsedRealtime()-lastAttempt<300000 && lastAttempt!=0)) return;
+                || SystemClock.elapsedRealtime()-lastAttempt<300000 && lastAttempt!=0 && network.equals(lastNetwork))) return;
         if (!BUSY.compareAndSet(false,true)) return;
         lastAttempt=SystemClock.elapsedRealtime();
+        lastNetwork=network;
         Settings.prefs(app).edit().putString("dns_scan_status","Проверяем DNS и восемь сервисов…").apply();
         WORK.execute(()->{
             try {
                 DataUpdates.module(app);
+                JSONObject selected=new JSONObject().put("default",Settings.prefs(app).getString("dns_profile","comss"))
+                    .put("services",new JSONObject(Settings.prefs(app).getString("service_dns","{}")));
                 String result=Python.getInstance().getModule("dns_matrix").callAttr("scan_json",
-                    app.getFilesDir().getPath(),Settings.prefs(app).getBoolean("auto_updates",true)).toString();
+                    app.getFilesDir().getPath(),Settings.prefs(app).getBoolean("auto_updates",true),force,selected.toString(),network).toString();
+                if(!network.equals(networkKey(app)))throw new IllegalStateException("Network changed");
                 new JSONObject(result);
                 Settings.prefs(app).edit().putString("dns_scan_report",result)
                     .putString("dns_scan_status","Проверка завершена").apply();
@@ -62,19 +92,24 @@ final class DnsProfiles {
         TextView note=new TextView(activity);
         note.setText("Выберите DNS по результатам HTTPS-проверок в вашей сети. Для сравнения отправляются отдельные публичные запросы через каждый профиль; аккаунты и отправка сообщений не проверяются. Проверки не меняют DNS. Сохранённый профиль применяется при следующем включении соединения.");
         body.addView(note);
+        Button services=new Button(activity);services.setText("Маршруты сервисов");body.addView(services);
+        services.setOnClickListener(v->ServiceRoutes.show(activity));
         Spinner picker=new Spinner(activity);picker.setEnabled(false);body.addView(picker);
         ArrayList<String> ids=new ArrayList<>();ArrayList<String> names=new ArrayList<>();
         ids.add("comss");names.add("Comss");
         ArrayAdapter<String> adapter=new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,names);
         picker.setAdapter(adapter);
         String selected=Settings.prefs(activity).getString("dns_profile","comss");
+        final JSONArray[] definitions=new JSONArray[1];
         WORK.execute(()->{
             try {
                 DataUpdates.module(activity.getApplicationContext());
                 JSONObject catalog=new JSONObject(Python.getInstance().getModule("dns_matrix").callAttr("catalog_json",activity.getFilesDir().getPath()).toString());
+                JSONArray serviceList=new JSONArray(Python.getInstance().getModule("service_catalog").callAttr("services_json").toString());
                 MAIN.post(()->{
                     if(activity.isFinishing() || activity.isDestroyed())return;
                     ids.clear();names.clear();JSONArray profiles=catalog.optJSONArray("profiles");
+                    definitions[0]=serviceList;
                     if(profiles!=null)for(int i=0;i<profiles.length();i++) {
                         JSONObject p=profiles.optJSONObject(i);if(p!=null){ids.add(p.optString("id"));names.add(p.optString("name"));}
                     }
@@ -85,6 +120,7 @@ final class DnsProfiles {
         CheckBox auto=new CheckBox(activity);auto.setText("Проверять при открытии приложения");
         auto.setChecked(Settings.prefs(activity).getBoolean("dns_check_startup",true));
         auto.setOnCheckedChangeListener((b,value)->Settings.prefs(activity).edit().putBoolean("dns_check_startup",value).apply());body.addView(auto);
+        CheckBox full=new CheckBox(activity);full.setText("Показать всю матрицу DNS");body.addView(full);
         TextView results=new TextView(activity);results.setTextIsSelectable(true);results.setTypeface(Typeface.MONOSPACE);body.addView(results);
         ScrollView scroll=new ScrollView(activity);scroll.addView(body);
         AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("DNS и нейросети").setView(scroll)
@@ -98,8 +134,12 @@ final class DnsProfiles {
             try {
                 JSONObject report=new JSONObject(Settings.prefs(activity).getString("dns_scan_report","{}"));
                 text.append("\n").append(report.optString("checked_at",""));
+                text.append(report.optBoolean("cached")?" · из кеша":"");
+                text.append("full".equals(report.optString("coverage"))?"\nПолное сравнение":"\nПроверены выбранные маршруты; полный перебор — кнопка «Проверить»");
+                if(!networkKey(activity).equals(report.optString("network_key")))text.append("\nРезультаты относятся к другой сети");
                 JSONArray profiles=report.optJSONArray("profiles");
-                if(profiles!=null)for(int i=0;i<profiles.length();i++) {
+                if(!full.isChecked())text.append(RouteSummary.text(activity,report,definitions[0]));
+                if(full.isChecked() && profiles!=null)for(int i=0;i<profiles.length();i++) {
                     JSONObject p=profiles.getJSONObject(i);text.append("\n\n").append(p.optString("name"));
                     JSONArray cells=p.getJSONArray("results");
                     for(int j=0;j<cells.length();j++) {

@@ -1,5 +1,6 @@
-param([Parameter(Mandatory=$true)][string]$AppDir,[string]$InstallerPath)
+param([Parameter(Mandatory=$true)][string]$AppDir,[string]$InstallerPath,[switch]$IsolatedTestMachine)
 $ErrorActionPreference = 'Stop'
+if (-not $IsolatedTestMachine) {throw 'Native driver/installer validation requires an explicitly selected isolated test machine.'}
 $AppDir = (Resolve-Path $AppDir).Path
 $exe = Join-Path $AppDir 'SorryRKN.exe'
 $settings = Join-Path $env:LOCALAPPDATA 'SorryRKN'
@@ -156,5 +157,3 @@ if ($InstallerPath) {
     } finally {$results | ConvertTo-Json -Depth 20 | Set-Content 'validation-results.json'}
 }
 Write-Host ($results | ConvertTo-Json -Depth 20)
-if (Test-Path 'windows-screen.png') {Write-Host ('SCREENSHOT_BASE64:'+ [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD/windows-screen.png")))}
-if (Test-Path 'windows-rules.png') {Write-Host ('RULES_SCREENSHOT_BASE64:'+ [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD/windows-rules.png")))}

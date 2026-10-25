@@ -9,22 +9,23 @@ import (
 	"path/filepath"
 )
 
-const Version = "1.3.0"
-const VersionCode = 10300
+const Version = "1.4.0"
+const VersionCode = 10400
 const UpdateURL = "https://raw.githubusercontent.com/Def01d/SorryRKN/main/windows-update.json"
 
 type Config struct {
-	DPI             bool     `json:"dpi"`
-	Telegram        bool     `json:"telegram"`
-	Extras          bool     `json:"extra_sites"`
-	Method          string   `json:"method"`
-	ProtectedSecret string   `json:"protected_secret"`
-	SavedProfile    string   `json:"last_profile"`
-	AutoData        bool     `json:"auto_data"`
-	GeoDomains      []string `json:"geo_domains,omitempty"`
-	DirectDomains   []string `json:"direct_domains,omitempty"`
-	DNSProfile      string   `json:"dns_profile,omitempty"`
-	DNSCheckStartup *bool    `json:"dns_check_startup,omitempty"`
+	DPI             bool              `json:"dpi"`
+	Telegram        bool              `json:"telegram"`
+	Extras          bool              `json:"extra_sites"`
+	Method          string            `json:"method"`
+	ProtectedSecret string            `json:"protected_secret"`
+	SavedProfile    string            `json:"last_profile"`
+	AutoData        bool              `json:"auto_data"`
+	GeoDomains      []string          `json:"geo_domains,omitempty"`
+	DirectDomains   []string          `json:"direct_domains,omitempty"`
+	DNSProfile      string            `json:"dns_profile,omitempty"`
+	DNSCheckStartup *bool             `json:"dns_check_startup,omitempty"`
+	ServiceDNS      map[string]string `json:"service_dns,omitempty"`
 }
 
 func (c Config) DNSAutoCheck() bool { return c.DNSCheckStartup == nil || *c.DNSCheckStartup }

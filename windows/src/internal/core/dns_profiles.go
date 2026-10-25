@@ -64,7 +64,8 @@ func ParseDNSCatalog(data []byte) (DNSCatalog, error) {
 func LoadDNSCatalog(directory string) DNSCatalog {
 	catalog, _ := ParseDNSCatalog(bundledDNSCatalog)
 	if data, err := os.ReadFile(filepath.Join(directory, "dns-profiles.json")); directory != "" && err == nil {
-		if remote, err := ParseDNSCatalog(data); err == nil {
+		payload, signatureError := VerifyEnvelope(data)
+		if remote, err := ParseDNSCatalog(payload); err == nil && signatureError == nil {
 			positions := map[string]int{}
 			for i, p := range catalog.Profiles {
 				positions[p.ID] = i
@@ -96,7 +97,11 @@ func RefreshDNSCatalog(ctx context.Context, directory string) error {
 	if err != nil {
 		return err
 	}
-	catalog, err := ParseDNSCatalog(body)
+	payload, err := VerifyEnvelope(body)
+	if err != nil {
+		return err
+	}
+	catalog, err := ParseDNSCatalog(payload)
 	if err != nil {
 		return err
 	}
@@ -117,7 +122,7 @@ func RefreshDNSCatalog(ctx context.Context, directory string) error {
 		return errors.New("DNS catalog merge too large")
 	}
 	current.Updated = catalog.Updated
-	return SaveJSON(path, current)
+	return SaveJSON(path, json.RawMessage(body))
 }
 
 func FindDNSProfile(catalog DNSCatalog, identifier string) DNSProfile {
@@ -136,7 +141,7 @@ func FindDNSProfile(catalog DNSCatalog, identifier string) DNSProfile {
 
 func NewProfileDNS(profile DNSProfile, rules DomainRules) *SmartDNS {
 	host, _ := url.Parse(profile.URL)
-	s := &SmartDNS{rules: rules, cache: make(map[string]cachedDNS), client: newDNSClient(host.Hostname(), ""), profileURL: profile.URL}
+	s := &SmartDNS{rules: rules, cache: make(map[string]cachedDNS), client: newDNSClient(host.Hostname(), ""), profileURL: profile.URL, profileID: profile.ID}
 	for _, address := range profile.Bootstrap {
 		s.fallbacks = append(s.fallbacks, newDNSClient(host.Hostname(), address))
 	}

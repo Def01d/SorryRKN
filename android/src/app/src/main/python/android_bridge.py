@@ -191,6 +191,8 @@ def diagnostics():
         if getattr(_gateway.resolver,'smart',None):
             result.update(_gateway.resolver.stats)
             result['smart_dns_provider']=_gateway.resolver.smart.provider
+            if hasattr(_gateway.resolver,'route_status'):
+                result['service_routes']=_gateway.resolver.route_status()
     from proxy.stats import stats as telegram_stats
     result["telegram"] = dict(vars(telegram_stats))
     result["telegram_counters_scope"] = "current_connection"

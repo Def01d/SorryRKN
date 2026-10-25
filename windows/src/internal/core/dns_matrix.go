@@ -20,16 +20,13 @@ import (
 
 type DNSService struct{ ID, Name, URL string }
 
-var DNSServices = []DNSService{
-	{"chatgpt", "ChatGPT", "https://chatgpt.com/api/auth/providers"},
-	{"claude", "Claude", "https://claude.ai/login"},
-	{"gemini", "Gemini", "https://gemini.google.com/app"},
-	{"grok", "Grok", "https://grok.com/"},
-	{"copilot", "Copilot", "https://copilot.microsoft.com/"},
-	{"deepseek", "DeepSeek", "https://chat.deepseek.com/"},
-	{"perplexity", "Perplexity", "https://www.perplexity.ai/"},
-	{"notebooklm", "NotebookLM", "https://notebooklm.google.com/"},
-}
+var DNSServices = func() []DNSService {
+	var out []DNSService
+	for _, s := range ServiceDefinitions {
+		out = append(out, DNSService{s.ID, s.Name, s.URL})
+	}
+	return out
+}()
 
 type DNSServiceResult struct {
 	Service             string `json:"service"`
@@ -39,6 +36,7 @@ type DNSServiceResult struct {
 	LatencyMS           int64  `json:"latency_ms,omitempty"`
 	Address             string `json:"address,omitempty"`
 	AuthenticatedAccess bool   `json:"authenticated_access"`
+	CheckedAt           string `json:"checked_at,omitempty"`
 }
 type DNSProfileResult struct {
 	ID      string             `json:"id"`
@@ -50,6 +48,10 @@ type DNSMatrix struct {
 	Scope            string             `json:"scope"`
 	AccountChecked   bool               `json:"account_checked"`
 	SelectionChanged bool               `json:"selection_changed"`
+	NetworkKey       string             `json:"network_key,omitempty"`
+	SelectionKey     string             `json:"selection_key,omitempty"`
+	Coverage         string             `json:"coverage,omitempty"`
+	Cached           bool               `json:"cached,omitempty"`
 	Profiles         []DNSProfileResult `json:"profiles"`
 }
 
@@ -143,7 +145,7 @@ func dnsProfileAddresses(ctx context.Context, resolver *SmartDNS, host string) [
 }
 
 func ProbeDNSService(ctx context.Context, profile DNSProfile, service DNSService) DNSServiceResult {
-	result := DNSServiceResult{Service: service.ID, Name: service.Name, State: "dns_error"}
+	result := DNSServiceResult{Service: service.ID, Name: service.Name, State: "dns_error", CheckedAt: time.Now().UTC().Format(time.RFC3339)}
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
 	defer cancel()
@@ -202,7 +204,7 @@ func ScanDNSProfiles(ctx context.Context, catalog DNSCatalog) DNSMatrix {
 func scanDNSProfiles(ctx context.Context, catalog DNSCatalog, probe func(context.Context, DNSProfile, DNSService) DNSServiceResult) DNSMatrix {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	result := DNSMatrix{CheckedAt: time.Now().UTC().Format(time.RFC3339), Scope: "anonymous_public_https"}
+	result := DNSMatrix{CheckedAt: time.Now().UTC().Format(time.RFC3339), Scope: "anonymous_public_https", NetworkKey: NetworkFingerprint(), Coverage: "full"}
 	for _, p := range catalog.Profiles {
 		row := DNSProfileResult{ID: p.ID, Name: p.Name}
 		for _, s := range DNSServices {
@@ -217,14 +219,18 @@ func scanDNSProfiles(ctx context.Context, catalog DNSCatalog, probe func(context
 			workers.Add(1)
 			go func(i, j int, p DNSProfile, s DNSService) {
 				defer workers.Done()
-				if ctx.Err()!=nil {return}
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case semaphore <- struct{}{}:
 				case <-ctx.Done():
 					return
 				}
 				defer func() { <-semaphore }()
-				if ctx.Err()!=nil {return}
+				if ctx.Err() != nil {
+					return
+				}
 				result.Profiles[i].Results[j] = probe(ctx, p, s)
 			}(i, j, p, s)
 		}
@@ -265,6 +271,15 @@ func DNSStateLabel(state string) string {
 func (m DNSMatrix) Text() string {
 	var out strings.Builder
 	fmt.Fprintf(&out, "Проверено: %s\r\nПубличные страницы; аккаунты не проверялись.\r\n", m.CheckedAt)
+	if m.Cached {
+		fmt.Fprintln(&out, "Результаты из кеша текущей сети.")
+	}
+	if m.Coverage == "selected" {
+		fmt.Fprintln(&out, "Проверены выбранные маршруты. Полный перебор — кнопка «Проверить».")
+	}
+	if m.NetworkKey != "" && m.NetworkKey != NetworkFingerprint() {
+		fmt.Fprintln(&out, "Результаты относятся к другой сети; повторите проверку.")
+	}
 	for _, p := range m.Profiles {
 		fmt.Fprintf(&out, "\r\n%s\r\n", p.Name)
 		for _, s := range p.Results {
@@ -277,6 +292,72 @@ func (m DNSMatrix) Text() string {
 			}
 			fmt.Fprint(&out, "\r\n")
 		}
+	}
+	return out.String()
+}
+
+func DNSStateHint(state string) string {
+	switch state {
+	case "challenge":
+		return "Откройте сервис в браузере и пройдите проверку."
+	case "login_unchecked":
+		return "Страница отвечает; проверьте вход в своём браузере."
+	case "regional_refusal":
+		return "Выберите другой DNS или включите авто с резервом."
+	case "rate_limited":
+		return "Подождите перед повторной проверкой."
+	case "denied":
+		return "Причина HTTP 403 не подтверждена как геоблокировка."
+	case "dns_error", "timeout", "transport_error":
+		return "Повторите проверку или сравните другой DNS."
+	case "invalid_response", "http_error":
+		return "Ответ сервиса не подтверждает доступ; откройте диагностику."
+	}
+	return ""
+}
+
+func (m DNSMatrix) SelectedText(c Config, active []ServiceRouteStatus, catalog DNSCatalog) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "Проверено: %s\r\nПубличные страницы; вход и генерация не проверены.\r\n", m.CheckedAt)
+	current := map[string]string{}
+	for _, route := range active {
+		current[route.Service] = route.Profile
+	}
+	now := time.Now()
+	valid := matrixFresh(m, now, NetworkFingerprint())
+	for _, service := range ServiceDefinitions {
+		mode := "по умолчанию"
+		profile := c.ServiceDNS[service.ID]
+		if profile == "auto" {
+			mode = "авто с резервом"
+			profile = bestServiceProfile(m, service.ID, FindDNSProfile(catalog, c.DNSProfile).ID, catalog, now)
+		} else if profile == "" {
+			profile = FindDNSProfile(catalog, c.DNSProfile).ID
+		} else {
+			mode = "закреплён"
+		}
+		fmt.Fprintf(&out, "\r\n%s · %s · %s\r\n", service.Name, mode, FindDNSProfile(catalog, profile).Name)
+		if actual := current[service.ID]; actual != "" {
+			fmt.Fprintf(&out, "  Активен: %s\r\n", FindDNSProfile(catalog, actual).Name)
+			profile = actual
+		}
+		state := "not_checked"
+		for _, row := range m.Profiles {
+			if row.ID == profile {
+				for _, cell := range row.Results {
+					if cell.Service == service.ID && valid && cellFresh(m, cell, now) {
+						state = cell.State
+					}
+				}
+			}
+		}
+		fmt.Fprintf(&out, "  %s\r\n", DNSStateLabel(state))
+		if hint := DNSStateHint(state); hint != "" {
+			fmt.Fprintf(&out, "  %s\r\n", hint)
+		}
+	}
+	if !valid {
+		fmt.Fprintln(&out, "\r\nРезультаты отсутствуют, устарели или относятся к другой сети.")
 	}
 	return out.String()
 }

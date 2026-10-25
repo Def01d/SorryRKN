@@ -1,5 +1,5 @@
 {
-  "version": "0.12.0",
+  "version": "0.13.0",
   "scope": "Android source export; excludes generated build outputs and private local configuration",
   "manifest_self_excluded": true,
   "files": [
@@ -10,8 +10,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "size": 3226,
-      "sha256": "adfac446d051f94047f6a45a804fdbb0643da43443e1382721fafaee23b2c001"
+      "size": 3877,
+      "sha256": "c2c04062a7048178226bc4bc011b4b86ea7c37de727d85a0446322ae978163d7"
     },
     {
       "path": "LICENSE",
@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "size": 14415,
-      "sha256": "bfdd0f5672782661ed944092821e9f27f55d3d2f9d6173eaf1ca0282eed6b406"
+      "size": 14660,
+      "sha256": "c6d1ece3836d3c7cb7482d662ce5122b4d2c945355369578b809bbcb9e51021c"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -36,7 +36,7 @@
     {
       "path": "app/build.gradle",
       "size": 1459,
-      "sha256": "705fca7ea32acdf38b9c4be65b344573fe403b9e1e0d21c2add3c5450ce5f100"
+      "sha256": "cbdd981079258ec5341a4c33f340ad6f48f039677ab9587804faec413aa8f394"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -47,6 +47,11 @@
       "path": "app/src/androidTest/assets/python_failure_snapshot.py",
       "size": 3278,
       "sha256": "52c6869bd2a6058bca257f43e655230dc2d9a32cbe6937bf252cc7fa6ce49f1e"
+    },
+    {
+      "path": "app/src/androidTest/assets/signed-update.json",
+      "size": 1056,
+      "sha256": "d065d04e9ff4383a9383c9c3f4449ac8daa4e9e8082803851170dc5f41fb603d"
     },
     {
       "path": "app/src/androidTest/assets/telegram_dpi_check.py",
@@ -90,8 +95,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
-      "size": 3891,
-      "sha256": "06ac8eda026ff814f88d81ba35ac77b69d93ea8b83e3574035dc92cc1ec7c083"
+      "size": 6878,
+      "sha256": "dcf92cd9d3076a6d196ab758774c9afcae472f3807a0199bfeb195cf0e412c11"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java",
@@ -235,8 +240,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/AppUpdates.java",
-      "size": 12441,
-      "sha256": "ceceaeb73a8043b0344150744a30d4e7df6661a20a86d2d6b5151e93524105dd"
+      "size": 12627,
+      "sha256": "a3911bf594fd08f5ababd58ccea6076d99d9f783b3e9c7001a6493124e21e2ce"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeApp.java",
@@ -245,8 +250,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeService.java",
-      "size": 36613,
-      "sha256": "bf94c56181ca14922fb7942fec0cafbd35c744e663d94fefcbd371dcf1d3593c"
+      "size": 36788,
+      "sha256": "59e46114e3e6735ad9c3b14458465332e206ce4ad9a0088e531d08822a1692d9"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeTile.java",
@@ -265,8 +270,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/DnsProfiles.java",
-      "size": 8736,
-      "sha256": "048030775408c5033d42a0fd2d4e48e176f6e2c2f7507e86ee78112fa1f47662"
+      "size": 11766,
+      "sha256": "b0702f3cfd5d3e93db138afce00ac342254f38125f2b9d7b393421e43f03d990"
     },
     {
       "path": "app/src/main/java/dev/graybridge/MainActivity.java",
@@ -277,6 +282,16 @@
       "path": "app/src/main/java/dev/graybridge/NativeTunnel.java",
       "size": 218,
       "sha256": "78b6013c2a9c1e6930410fb32e3a20b54788a876a66010b02ed8c1588e159021"
+    },
+    {
+      "path": "app/src/main/java/dev/graybridge/RouteSummary.java",
+      "size": 5130,
+      "sha256": "effca5b4d1bef03af91e08ee65ba11795fb43806a6b7e043aaaf92b53b066b97"
+    },
+    {
+      "path": "app/src/main/java/dev/graybridge/ServiceRoutes.java",
+      "size": 3906,
+      "sha256": "d059d17401522ec53436c6797e206352c8fc021b2d66c3190fb867338d30832e"
     },
     {
       "path": "app/src/main/java/dev/graybridge/Settings.java",
@@ -299,14 +314,19 @@
       "sha256": "916f807b18dc8a9a3d557a21554f3801dd50ac6731575805067aaf611ef1af54"
     },
     {
+      "path": "app/src/main/java/dev/graybridge/UpdateTrust.java",
+      "size": 2190,
+      "sha256": "7cb35a6be0832c8aa2017218aa4d03211b022607966dacb310ef096dfe9a6697"
+    },
+    {
       "path": "app/src/main/java/dev/graybridge/UserRules.java",
       "size": 3004,
       "sha256": "389f444c6629285b761674166584638b5cf333d43a7cfafbb1f2c277e143fe1b"
     },
     {
       "path": "app/src/main/python/android_bridge.py",
-      "size": 11870,
-      "sha256": "6d4fb7e3b0bf7b04ab1cd6aabb656085b009f711d9013a914ac0a974cbc12a3a"
+      "size": 12002,
+      "sha256": "54a1ff9896b47041a3135716ac6af9cdbc2ff6c0d08c577b89dd619451ca1a75"
     },
     {
       "path": "app/src/main/python/bridge_data.py",
@@ -325,8 +345,8 @@
     },
     {
       "path": "app/src/main/python/dns_matrix.py",
-      "size": 7273,
-      "sha256": "adcc418023b8ecfd79a5b559543ccd7b43232c36a9827607916165960a10898d"
+      "size": 9377,
+      "sha256": "7fb8307aeb31f9f9e1438b975fcd93616404c61d2f037bca632bbe6b76a52dae"
     },
     {
       "path": "app/src/main/python/dns_profiles.json",
@@ -335,8 +355,8 @@
     },
     {
       "path": "app/src/main/python/dns_profiles.py",
-      "size": 3327,
-      "sha256": "ad65875c89e3b6a881e5edf32a1b032cec66c2907eb3e8cf63ab89215b2378c1"
+      "size": 3399,
+      "sha256": "54a3d2f83eb77114c332ed8b2dbafdb445e78e7590a35fbc13046ac07fe89461"
     },
     {
       "path": "app/src/main/python/doh.py",
@@ -345,13 +365,13 @@
     },
     {
       "path": "app/src/main/python/extra_sites.py",
-      "size": 1938,
-      "sha256": "3abbcafdcee7e355f9308b929c1072af8200ff0e66336f2e82a2a6f01e42dc04"
+      "size": 1226,
+      "sha256": "b21a3fbdfb2771c381ebb141b70189a492a7ef8b832547056d0f2f46c7c517e5"
     },
     {
       "path": "app/src/main/python/gateway.py",
-      "size": 24176,
-      "sha256": "97f27a4254ae918d5390db0e246a2a40b16197e8998b58bbe242c197e9f0c129"
+      "size": 24447,
+      "sha256": "0e6a6652377a6c7f6a864bba6edec3c195e63a582ab272fd81abccbe713eadd3"
     },
     {
       "path": "app/src/main/python/geo_route.py",
@@ -454,14 +474,29 @@
       "sha256": "fd7c6d81c4d8ae5c5ce2d012e103a5a9b47ee717a53811652b7d21ecb8996879"
     },
     {
+      "path": "app/src/main/python/service_catalog.py",
+      "size": 727,
+      "sha256": "ab4c445dd7f81400d9e4c6f5b1a6f209dc867a08e799078d73c1f038f6a253e1"
+    },
+    {
       "path": "app/src/main/python/service_probe.py",
       "size": 7020,
       "sha256": "4c6bb433c7cf3156fbfef07a93cd6b07056be27d1b56ba25327bea1f83036b04"
     },
     {
+      "path": "app/src/main/python/service_routing.py",
+      "size": 7149,
+      "sha256": "50f06ad71ec8ebba3f4dc8b521272421505d74bdd021b74af7ed873320a22fdc"
+    },
+    {
+      "path": "app/src/main/python/services.json",
+      "size": 2151,
+      "sha256": "7cc5e688573bd0b8b1564bdbafd478f741ac3e6f24feb6f4f3bad033fe64384b"
+    },
+    {
       "path": "app/src/main/python/smart_dns.py",
-      "size": 5407,
-      "sha256": "1b8b14d818879c89716714dffd9082b13d22d232c1e029c0d26f735914abe79e"
+      "size": 7114,
+      "sha256": "6a5e3f937654aa28134be4994c7edd740826db1de93912b6ba83818ae6eeabb2"
     },
     {
       "path": "app/src/main/python/strategy_probe.py",
@@ -477,6 +512,16 @@
       "path": "app/src/main/python/traffic.py",
       "size": 5948,
       "sha256": "265170bd6607ddcff9796b99ad371ade7c1c72f2e12dcb93e0ae8414e1c77d91"
+    },
+    {
+      "path": "app/src/main/python/update_trust.json",
+      "size": 246,
+      "sha256": "2dc293f8e2cf720c14e98c7534d335a02d105faee67c13c5aec5e89f8daf56b9"
+    },
+    {
+      "path": "app/src/main/python/update_trust.py",
+      "size": 1906,
+      "sha256": "b0db4b87d707189fe44bb6ba327949fc907206df778bfaba7ce76722a8b5a3aa"
     },
     {
       "path": "app/src/main/python/user_rules.py",
@@ -530,8 +575,8 @@
     },
     {
       "path": "docs/source-files.txt",
-      "size": 47067,
-      "sha256": "da0015313accdce4a89b01918330dc019e6e4dc65e99e0fc7ebf345ecd0ddcaf"
+      "size": 47482,
+      "sha256": "57412c226e0291152342fcf875c785ec66b2bcb784d50d821d3ae19388292383"
     },
     {
       "path": "docs/upstream-lock.json",
@@ -722,6 +767,11 @@
       "path": "tests/test_service_probe.py",
       "size": 10839,
       "sha256": "1434883d04aed5100764d28fb7a24199f1c69b2f30a1c0acce58000c71b99674"
+    },
+    {
+      "path": "tests/test_service_routing.py",
+      "size": 4927,
+      "sha256": "954878b5998a70e1ac147bafbc7966b56e7b6f97e151e424eec8a3efd3d68e4a"
     },
     {
       "path": "tests/test_telegram_end_to_end.py",

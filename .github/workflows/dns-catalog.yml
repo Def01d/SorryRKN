@@ -4,6 +4,14 @@ on:
   push:
     paths:
       - dns-profiles.json
+      - services.json
+      - update-trust.json
+      - scripts/validate_catalogs.py
+      - testdata/**
+      - android/src/app/src/main/python/services.json
+      - windows/src/internal/core/services.json
+      - windows/src/internal/core/update_trust.json
+      - android/src/app/src/main/java/dev/graybridge/UpdateTrust.java
       - android/src/app/src/main/python/dns_profiles.py
       - android/src/app/src/main/python/dns_profiles.json
       - windows/src/internal/core/dns_profiles.json
@@ -11,6 +19,14 @@ on:
   pull_request:
     paths:
       - dns-profiles.json
+      - services.json
+      - update-trust.json
+      - scripts/validate_catalogs.py
+      - testdata/**
+      - android/src/app/src/main/python/services.json
+      - windows/src/internal/core/services.json
+      - windows/src/internal/core/update_trust.json
+      - android/src/app/src/main/java/dev/graybridge/UpdateTrust.java
       - android/src/app/src/main/python/dns_profiles.py
       - android/src/app/src/main/python/dns_profiles.json
       - windows/src/internal/core/dns_profiles.json
@@ -35,10 +51,4 @@ jobs:
         env:
           PYTHONPATH: android/src/app/src/main/python
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          from dns_profiles import parse_catalog
-          for name in ('dns-profiles.json', 'android/src/app/src/main/python/dns_profiles.json', 'windows/src/internal/core/dns_profiles.json'):
-              catalog = parse_catalog(Path(name).read_bytes())
-              print(f"{name}: {len(catalog['profiles'])} validated DNS profiles")
-          PY
+          python scripts/validate_catalogs.py

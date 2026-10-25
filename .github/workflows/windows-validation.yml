@@ -1,28 +1,47 @@
 name: Validate Windows release
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Normal release tag; empty uses windows-update.json'
+        required: false
+        type: string
+permissions:
+  contents: read
 jobs:
   windows:
     runs-on: windows-latest
-    permissions:
-      contents: read
+    timeout-minutes: 12
     steps:
-      - name: Download release package and validation script
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Download tagged packages and verify checksums
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          $base = "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}"
-          Invoke-WebRequest "$base/windows/SorryRKN-Windows-1.1.0.zip" -OutFile package.zip
-          Expand-Archive package.zip -DestinationPath app
-          Invoke-WebRequest "$base/windows/validate.ps1" -OutFile validate.ps1
-          Invoke-WebRequest "$base/windows/SorryRKN-Windows-1.1.0-Setup.exe" -OutFile Setup.exe
-          ./validate.ps1 -AppDir "$PWD/app/SorryRKN" -InstallerPath "$PWD/Setup.exe"
-      - name: Upload validation logs
+          $tag = $env:RELEASE_TAG
+          if (-not $tag) {
+            $feed = Get-Content windows-update.json -Raw | ConvertFrom-Json
+            $tag = ([Uri]$feed.url).AbsolutePath.Split('/')[3]
+          }
+          if ($tag -notmatch '^windows-v[0-9]+\.[0-9]+\.[0-9]+$') { throw 'A normal Windows release tag is required' }
+          $version = $tag.Substring('windows-v'.Length)
+          $base = "https://raw.githubusercontent.com/${{ github.repository }}/$tag/windows"
+          Invoke-WebRequest "$base/SHA256SUMS.txt" -OutFile SHA256SUMS.txt
+          foreach ($name in @("SorryRKN-Windows-$version.zip", "SorryRKN-Windows-$version-Setup.exe")) {
+            Invoke-WebRequest "$base/$name" -OutFile $name
+            $expected = (Get-Content SHA256SUMS.txt | Where-Object { $_.EndsWith("  $name") }).Split(' ')[0]
+            if (-not $expected -or (Get-FileHash -LiteralPath $name -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw "Checksum mismatch: $name" }
+          }
+          Expand-Archive "SorryRKN-Windows-$version.zip" -DestinationPath app
+          ./windows/validate.ps1 -AppDir "$PWD/app/SorryRKN" -InstallerPath "$PWD/SorryRKN-Windows-$version-Setup.exe" -IsolatedTestMachine
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: windows-validation
           path: |
             validation-results.json
             windows-screen.png
             windows-rules.png
-            app/SorryRKN/README.md
+          if-no-files-found: warn

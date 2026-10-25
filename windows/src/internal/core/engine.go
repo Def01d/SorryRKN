@@ -26,17 +26,18 @@ type Extra interface {
 	Resolver() *SmartDNS
 }
 type State struct {
-	Status         string         `json:"state"`
-	Detail         string         `json:"detail"`
-	Profile        string         `json:"profile,omitempty"`
-	Checks         []Check        `json:"checks,omitempty"`
-	Error          string         `json:"error,omitempty"`
-	Telegram       bool           `json:"telegram"`
-	DPI            bool           `json:"dpi"`
-	Extras         bool           `json:"extra_sites"`
-	DNS            bool           `json:"dns"`
-	TelegramHealth TelegramHealth `json:"telegram_health"`
-	Services       []Target       `json:"services,omitempty"`
+	Status         string               `json:"state"`
+	Detail         string               `json:"detail"`
+	Profile        string               `json:"profile,omitempty"`
+	Checks         []Check              `json:"checks,omitempty"`
+	Error          string               `json:"error,omitempty"`
+	Telegram       bool                 `json:"telegram"`
+	DPI            bool                 `json:"dpi"`
+	Extras         bool                 `json:"extra_sites"`
+	DNS            bool                 `json:"dns"`
+	TelegramHealth TelegramHealth       `json:"telegram_health"`
+	Services       []Target             `json:"services,omitempty"`
+	Routes         []ServiceRouteStatus `json:"service_routes,omitempty"`
 }
 type Engine struct {
 	mu            sync.Mutex
@@ -63,6 +64,7 @@ func (e *Engine) Snapshot() State {
 		s.Checks[i].Targets = append([]Target(nil), s.Checks[i].Targets...)
 	}
 	s.Services = append([]Target(nil), s.Services...)
+	s.Routes = append([]ServiceRouteStatus(nil), s.Routes...)
 	if s.TelegramHealth.Datacenters != nil {
 		s.TelegramHealth.Datacenters = make(map[string]TelegramDCHealth, len(e.state.TelegramHealth.Datacenters))
 		for dc, health := range e.state.TelegramHealth.Datacenters {
@@ -338,6 +340,11 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		s.TelegramHealth = ReadTelegramHealth(healthPath, time.Now())
 	}
 	applyServiceHealth(&s, baseStatus, baseDetail)
+	if s.DNS {
+		if resolver := e.extra.Resolver(); resolver != nil {
+			s.Routes = resolver.RouteStatus()
+		}
+	}
 	e.set(s)
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -354,6 +361,9 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			if c.Extras && !serviceChecking {
 				serviceChecking = true
 				go func() {
+					if resolver := e.extra.Resolver(); resolver != nil && resolver.serviceRouter != nil {
+						resolver.serviceRouter.Recover(ctx)
+					}
 					result := e.probeServices(ctx, e.extra.Resolver())
 					select {
 					case serviceResults <- result:
@@ -367,6 +377,11 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			applyServiceHealth(&s, baseStatus, baseDetail)
 			e.set(s)
 		case <-ticker.C:
+			if s.DNS {
+				if resolver := e.extra.Resolver(); resolver != nil {
+					s.Routes = resolver.RouteStatus()
+				}
+			}
 			if s.DNS && !e.extra.Alive() {
 				fail(errors.New("DNS-профиль остановился; подключитесь снова"))
 				return
@@ -380,6 +395,9 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			if s.Telegram {
 				s.TelegramHealth = ReadTelegramHealth(healthPath, time.Now())
 				applyServiceHealth(&s, baseStatus, baseDetail)
+				e.set(s)
+			}
+			if s.DNS && !s.Telegram {
 				e.set(s)
 			}
 		}

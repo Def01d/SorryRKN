@@ -199,7 +199,8 @@ class Gateway:
         self._closed = False
         self.resolver = (SmartDNS(rules=self.routes.rules,own_ip=self.routes.own_ip,
                                  protected=self.routes.protected,profile=self.routes.ports.get('dns_profile','comss'),
-                                 directory=self.routes.ports.get('dns_directory')) if self.routes
+                                 directory=self.routes.ports.get('dns_directory'),service_dns=self.routes.ports.get('service_dns'),
+                                 network_key=self.routes.ports.get('dns_network_key','')) if self.routes
                          else Resolver(self.upstream_port))
         self.server = await asyncio.start_server(self.accept, "127.0.0.1", self.port)
         self.port = self.server.sockets[0].getsockname()[1]
@@ -240,6 +241,8 @@ class Gateway:
             if (self._closed or not self.routes or self.routes.own_ip or self.routes.group('chatgpt.com')!='ai'
                     or not isinstance(self.resolver,SmartDNS) or self.resolver.smart is None):
                 return {'state':'disabled','verified':False,'authenticated_access':False}
+            if 'chatgpt' in await self.resolver.recover_routes():
+                self.ai_route_check=None;self._ai_route_checked=0
             cached=self.ai_route_check
             if (cached and time.monotonic()-self._ai_route_checked<AI_ROUTE_CACHE_TTL
                     and (not cached.get('verified') or
