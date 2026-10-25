@@ -59,6 +59,7 @@ final class DnsProfileChecks {
                 choices.get(0).setSelection(1);choices.get(2).setSelection(4);
                 routes[0].getButton(AlertDialog.BUTTON_POSITIVE).performClick();
             });
+            instrumentation.waitForIdleSync();
             JSONObject selected=new JSONObject(prefs.getString("service_dns","{}"));
             if(!selected.getString("chatgpt").equals("auto") || !selected.getString("gemini").equals("geohide-eu"))throw new AssertionError("Per-service route selection not saved");
             try(java.io.InputStream input=instrumentation.getContext().getAssets().open("signed-update.json")) {

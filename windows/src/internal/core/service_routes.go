@@ -173,6 +173,7 @@ type serviceRoute struct {
 type ServiceRouter struct {
 	mu        sync.Mutex
 	modes     map[string]string
+	enabled   map[string]bool
 	routes    map[string]serviceRoute
 	catalog   DNSCatalog
 	defaultID string
@@ -186,8 +187,9 @@ func NewServiceRouter(r DomainRules) *ServiceRouter {
 	catalog := LoadDNSCatalog(r.DNSDirectory)
 	fallback := FindDNSProfile(catalog, r.DNSProfile).ID
 	m := LoadDNSMatrix(r.DNSDirectory)
-	p := &ServiceRouter{modes: map[string]string{}, routes: map[string]serviceRoute{}, catalog: catalog, defaultID: fallback, probe: ProbeDNSService, cooldowns: map[string]time.Time{}}
+	p := &ServiceRouter{modes: map[string]string{}, enabled: map[string]bool{}, routes: map[string]serviceRoute{}, catalog: catalog, defaultID: fallback, probe: ProbeDNSService, cooldowns: map[string]time.Time{}}
 	for _, s := range ServiceDefinitions {
+		p.enabled[s.ID] = r.IsGeo(s.Domains[0])
 		mode := r.ServiceDNS[s.ID]
 		id := fallback
 		if mode == "auto" {
@@ -240,7 +242,7 @@ func (p *ServiceRouter) Recover(ctx context.Context) {
 	var wg sync.WaitGroup
 	for _, s := range DNSServices {
 		p.mu.Lock()
-		enabled := p.modes[s.ID] == "auto"
+		enabled := p.modes[s.ID] == "auto" && p.enabled[s.ID]
 		p.mu.Unlock()
 		if !enabled {
 			continue

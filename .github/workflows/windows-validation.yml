@@ -44,4 +44,5 @@ jobs:
             validation-results.json
             windows-screen.png
             windows-rules.png
+            windows-service-routes.png
           if-no-files-found: warn

@@ -241,6 +241,8 @@ func scanDNSProfiles(ctx context.Context, catalog DNSCatalog, probe func(context
 
 func DNSStateLabel(state string) string {
 	switch state {
+	case "route_disabled":
+		return "Профиль реле не применяется"
 	case "reachable_public":
 		return "Страница доступна"
 	case "login_unchecked":
@@ -338,7 +340,11 @@ func (m DNSMatrix) SelectedText(c Config, active []ServiceRouteStatus, catalog D
 		}
 		fmt.Fprintf(&out, "\r\n%s · %s · %s\r\n", service.Name, mode, FindDNSProfile(catalog, profile).Name)
 		if actual := current[service.ID]; actual != "" {
-			fmt.Fprintf(&out, "  Активен: %s\r\n", FindDNSProfile(catalog, actual).Name)
+			name := FindDNSProfile(catalog, actual).Name
+			if actual == "direct" {
+				name = "Обычный маршрут"
+			}
+			fmt.Fprintf(&out, "  В соединении: %s\r\n", name)
 			profile = actual
 		}
 		state := "not_checked"
@@ -350,6 +356,9 @@ func (m DNSMatrix) SelectedText(c Config, active []ServiceRouteStatus, catalog D
 					}
 				}
 			}
+		}
+		if profile == "direct" {
+			state = "route_disabled"
 		}
 		fmt.Fprintf(&out, "  %s\r\n", DNSStateLabel(state))
 		if hint := DNSStateHint(state); hint != "" {

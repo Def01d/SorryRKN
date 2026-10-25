@@ -1,5 +1,6 @@
+#requires -Version 7.4
 param(
-    [ValidateSet('Create','Sign','Backup')][string]$Action='Sign',
+    [ValidateSet('Create','Sign','Backup','Restore')][string]$Action='Sign',
     [string]$ManifestPath,
     [string]$PrivateKeyPath=(Join-Path $env:LOCALAPPDATA 'SorryRKN-maintainer/keys/updates-v1.dpapi'),
     [string]$PublicTrustPath=(Join-Path $PSScriptRoot '../update-trust.json'),
@@ -13,10 +14,30 @@ $private=$null
 try {
     if ($Action -eq 'Create') {
         if (Test-Path -LiteralPath $PrivateKeyPath) {throw 'Signing key already exists; refusing to replace it'}
+        if (Test-Path -LiteralPath $PublicTrustPath) {throw 'Public trust already exists. Restore its original private key instead of creating a replacement.'}
         $private=$ecdsa.ExportPkcs8PrivateKey()
         $protected=[Security.Cryptography.ProtectedData]::Protect($private,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
         New-Item -ItemType Directory -Force (Split-Path $PrivateKeyPath -Parent) | Out-Null
         [IO.File]::WriteAllBytes($PrivateKeyPath,$protected)
+    } elseif ($Action -eq 'Restore') {
+        if (-not $BackupPath -or (Test-Path -LiteralPath $PrivateKeyPath)) {throw 'BackupPath and a new PrivateKeyPath are required'}
+        if ((Get-Item -LiteralPath $BackupPath).Length -gt 32768) {throw 'Backup file is too large'}
+        $backup=Get-Content -LiteralPath $BackupPath -Raw | ConvertFrom-Json
+        if ($backup.schema -ne 1 -or $backup.algorithm -ne 'PBKDF2-SHA256/AES-256-GCM' -or $backup.iterations -lt 600000 -or $backup.iterations -gt 2000000) {throw 'Invalid backup format'}
+        $salt=[Convert]::FromBase64String($backup.salt);$nonce=[Convert]::FromBase64String($backup.nonce)
+        $cipher=[Convert]::FromBase64String($backup.ciphertext);$tag=[Convert]::FromBase64String($backup.tag)
+        if ($salt.Length -ne 16 -or $nonce.Length -ne 12 -or $tag.Length -ne 16 -or $cipher.Length -gt 4096) {throw 'Invalid backup data'}
+        $secure=Read-Host 'Password for encrypted signing-key backup' -AsSecureString
+        $pointer=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+        try {
+            $password=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
+            $derive=[Security.Cryptography.Rfc2898DeriveBytes]::new($password,$salt,[int]$backup.iterations,[Security.Cryptography.HashAlgorithmName]::SHA256)
+            $key=$derive.GetBytes(32);$private=[byte[]]::new($cipher.Length)
+            $aes=[Security.Cryptography.AesGcm]::new($key,16)
+            try {$aes.Decrypt($nonce,$cipher,$tag,$private)} finally {$aes.Dispose();$derive.Dispose();[Array]::Clear($key,0,$key.Length)}
+        } finally {[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer);$password=$null;$secure.Dispose()}
+        $consumed=0;$ecdsa.ImportPkcs8PrivateKey($private,[ref]$consumed)
+        if ($consumed -ne $private.Length) {throw 'Invalid restored key'}
     } else {
         $private=[Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($PrivateKeyPath),$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
         $consumed=0;$ecdsa.ImportPkcs8PrivateKey($private,[ref]$consumed)
@@ -28,6 +49,13 @@ try {
     if ($Action -eq 'Create') {
         [IO.File]::WriteAllText([IO.Path]::GetFullPath($PublicTrustPath),($trust|ConvertTo-Json).Replace("`r`n","`n")+"`n",[Text.UTF8Encoding]::new($false))
         Write-Output "Created owner-local DPAPI signing key; public key id: $keyID"
+    } elseif ($Action -eq 'Restore') {
+        $expected=Get-Content -LiteralPath $PublicTrustPath -Raw | ConvertFrom-Json
+        if ($expected.key_id -ne $keyID -or $expected.public_key -ne $trust.public_key -or $backup.key_id -ne $keyID) {throw 'Restored key does not match application trust'}
+        $protected=[Security.Cryptography.ProtectedData]::Protect($private,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
+        New-Item -ItemType Directory -Force (Split-Path $PrivateKeyPath -Parent)|Out-Null
+        [IO.File]::WriteAllBytes($PrivateKeyPath,$protected)
+        Write-Output "Restored owner-local signing key; public key id: $keyID"
     } elseif ($Action -eq 'Sign') {
         if (-not $ManifestPath) {throw 'ManifestPath is required'}
         $expected=Get-Content -LiteralPath $PublicTrustPath -Raw | ConvertFrom-Json

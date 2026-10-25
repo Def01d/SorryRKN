@@ -66,6 +66,9 @@ jobs:
           go test -v ./... 2>&1 | Tee-Object -FilePath dist/ci-logs/go-test.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Test update-signing backup and restore with disposable keys
+        run: ../../tools/tests/Update-Signing.Tests.ps1
+
       - name: Vet core and Windows platform
         run: |
           go vet ./internal/core ./internal/platform 2>&1 | Tee-Object -FilePath dist/ci-logs/go-vet.log
@@ -123,5 +126,6 @@ jobs:
             validation-results.json
             windows-screen.png
             windows-rules.png
+            windows-service-routes.png
             native-app/SorryRKN/VALIDATION.md
           if-no-files-found: warn

@@ -55,7 +55,7 @@ class SmartDNS:
         self.normal=normal or Resolver(port)
         # Do not even create the relay-provider transport in own-IP mode.
         self.smart=None if self.own_ip else smart or Resolver(None,providers=providers(selected_profile(profile,directory)))
-        self.routing=None if self.own_ip or not service_dns else ServiceRouter(profile,service_dns,directory,network_key)
+        self.routing=None if self.own_ip or not service_dns else ServiceRouter(profile,service_dns,directory,network_key,self.rules.is_geo)
         self.smart_pool={profile or 'comss':self.smart} if self.smart else {}
         self.directory=directory
         self.default_profile=profile or 'comss'
@@ -134,6 +134,8 @@ class SmartDNS:
         return changed
 
     def route_status(self):
-        if self.routing:return self.routing.snapshot()
-        return [dict(service=s['id'],name=s['name'],mode='own_ip' if self.own_ip else 'default',
-                     profile='public-doh' if self.own_ip else self.default_profile,changes=0,state='') for s in DEFINITIONS]
+        rows=(self.routing.snapshot() if self.routing else [dict(service=s['id'],name=s['name'],mode='own_ip' if self.own_ip else 'default',
+                     profile='public-doh' if self.own_ip else self.default_profile,changes=0,state='') for s in DEFINITIONS])
+        for row,service in zip(rows,DEFINITIONS):
+            if not self.rules.is_geo(service['domains'][0]):row.update(mode='direct',profile='direct')
+        return rows

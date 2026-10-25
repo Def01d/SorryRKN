@@ -125,6 +125,33 @@ try {
     try {$tcp.Connect('127.0.0.1',1443)}catch{$stopped=$true}finally{$tcp.Dispose()}
     if (-not $stopped) {throw 'Telegram listener remained after GUI stop'}
     $results.gui_stop = $true
+    # Exercise the new route editor without enabling service traffic.
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]210,[IntPtr]::Zero)|Out-Null
+    $dnsWindow=[NativeUI]::FindWindow('SorryRKNDNSProfiles','DNS и нейросети')
+    if ($dnsWindow -eq [IntPtr]::Zero) {throw 'DNS window did not open'}
+    [NativeUI]::SendMessage($dnsWindow,0x111,[IntPtr]9106,[IntPtr]::Zero)|Out-Null
+    $routeWindow=[NativeUI]::FindWindow('SorryRKNServiceRoutes','Маршруты сервисов')
+    if ($routeWindow -eq [IntPtr]::Zero) {throw 'Service route editor did not open'}
+    for ($i=0;$i -lt 8;$i++) {
+        $picker=[NativeUI]::GetDlgItem($routeWindow,9200+$i)
+        if ($picker -eq [IntPtr]::Zero -or [NativeUI]::SendMessage($picker,0x146,[IntPtr]::Zero,[IntPtr]::Zero).ToInt64() -ne 9) {throw 'Service profile choices missing'}
+    }
+    [NativeUI]::SendMessage([NativeUI]::GetDlgItem($routeWindow,9200),0x14e,[IntPtr]1,[IntPtr]::Zero)|Out-Null
+    [NativeUI]::SendMessage([NativeUI]::GetDlgItem($routeWindow,9202),0x14e,[IntPtr]4,[IntPtr]::Zero)|Out-Null
+    try {
+        $bounds=New-Object NativeUI+Rect;[NativeUI]::GetWindowRect($routeWindow,[ref]$bounds)|Out-Null
+        $image=New-Object System.Drawing.Bitmap ($bounds.right-$bounds.left),($bounds.bottom-$bounds.top)
+        $drawing=[System.Drawing.Graphics]::FromImage($image);$hdc=$drawing.GetHdc()
+        [NativeUI]::PrintWindow($routeWindow,$hdc,2)|Out-Null;$drawing.ReleaseHdc($hdc)
+        $image.Save("$PWD/windows-service-routes.png");$drawing.Dispose();$image.Dispose()
+    } catch {$results.service_routes_screenshot_note=$_.Exception.Message}
+    $secretBefore=(Get-Content $configPath -Raw|ConvertFrom-Json).protected_secret
+    [NativeUI]::SendMessage($routeWindow,0x111,[IntPtr]9301,[IntPtr]::Zero)|Out-Null
+    $saved=Get-Content $configPath -Raw|ConvertFrom-Json
+    if ($saved.service_dns.chatgpt -ne 'auto' -or $saved.service_dns.gemini -ne 'geohide-eu') {throw 'Service route choices were not saved'}
+    if ($saved.protected_secret -ne $secretBefore) {throw 'Route editor changed Telegram secret'}
+    $results.service_routes_ui=$true;$results.service_routes_persistence=$true;$results.route_editor_preserves_secret=$true
+    [NativeUI]::SendMessage($dnsWindow,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
     [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]206,[IntPtr]::Zero) | Out-Null
     if (-not $p.WaitForExit(20000)) {throw 'Exit did not stop the application'}
     $results.gui_exit = $true
@@ -134,13 +161,16 @@ try {
 }
 if ($InstallerPath) {
     try {
-        $setup=Start-Process (Resolve-Path $InstallerPath).Path -ArgumentList '/S' -PassThru
+        $configBeforeInstall=(Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash
+        $setup=Start-Process (Resolve-Path $InstallerPath).Path -ArgumentList '/S' -PassThru -WindowStyle Hidden
         if (-not $setup.WaitForExit(120000) -or $setup.ExitCode -ne 0) {throw 'Installer failed'}
         $installed=(Get-ItemProperty 'HKLM:\Software\SorryRKN').InstallPath
         $installedExe=Join-Path $installed 'SorryRKN.exe'
         if ((Get-FileHash $installedExe).Hash -ne (Get-FileHash $exe).Hash) {throw 'Installed executable differs from portable build'}
         if (-not (Test-Path (Join-Path $installed 'runtime\python\python.exe'))) {throw 'Installer omitted embedded Python'}
         $results.installer=$true
+        if ((Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash -ne $configBeforeInstall) {throw 'Installer changed existing settings'}
+        $results.installer_preserves_existing_settings=$true
         $p=Start-Process $installedExe -ArgumentList '--self-test' -PassThru
         if (-not $p.WaitForExit(60000)) {$p.Kill();throw 'Installed self-test timed out'}
         $installedReport=Get-Content (Join-Path $settings 'self-test.json') -Raw | ConvertFrom-Json
@@ -148,7 +178,7 @@ if ($InstallerPath) {
             if ($installedReport.$name -ne $true) {throw "Installed native self-test failed: $name"}
         }
         $results.installed_runtime=$true
-        $uninstall=Start-Process (Join-Path $installed 'Uninstall.exe') -ArgumentList '/S' -PassThru
+        $uninstall=Start-Process (Join-Path $installed 'Uninstall.exe') -ArgumentList '/S' -PassThru -WindowStyle Hidden
         $uninstall.WaitForExit(60000)|Out-Null
         for ($i=0;$i -lt 100 -and ((Test-Path $installedExe) -or (Test-Path 'HKLM:\Software\SorryRKN'));$i++) {Start-Sleep -Milliseconds 200}
         if ((Test-Path $installedExe) -or (Test-Path 'HKLM:\Software\SorryRKN')) {throw 'Uninstaller left the app or registry entry'}

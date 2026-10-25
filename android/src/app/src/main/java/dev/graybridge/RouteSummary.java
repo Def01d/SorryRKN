@@ -37,6 +37,7 @@ final class RouteSummary {
                 JSONObject row=profiles.getJSONObject(j);JSONObject cell=cell(row,id);
                 if(row.optString("id").equals(selected) && cell!=null && fresh(cell.optString("checked_at",report.optString("checked_at"))))state=cell.optString("state");
             }
+            if(selected.equals("direct") || selected.equals("public-doh"))state="route_disabled";
             out.append("\n").append(DnsProfiles.stateLabel(state));
             String hint=hint(state);if(!hint.isEmpty())out.append("\n").append(hint);
             out.append("\n");
@@ -52,6 +53,7 @@ final class RouteSummary {
     private static int score(String state){return state.equals("reachable_public")?2:state.equals("login_unchecked")?1:0;}
     private static String profileName(String id,JSONArray profiles) throws JSONException {
         if(id.equals("public-doh"))return "Обычный DNS · свой IP";
+        if(id.equals("direct"))return "Обычный маршрут";
         if(profiles!=null)for(int i=0;i<profiles.length();i++)if(profiles.getJSONObject(i).optString("id").equals(id))return profiles.getJSONObject(i).optString("name",id);
         return id;
     }

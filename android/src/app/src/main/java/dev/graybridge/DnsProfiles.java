@@ -71,6 +71,7 @@ final class DnsProfiles {
 
     static String stateLabel(String state) {
         return switch(state) {
+            case "route_disabled" -> "Профиль реле не применяется";
             case "reachable_public" -> "Страница доступна";
             case "login_unchecked" -> "Вход не проверен";
             case "regional_refusal" -> "Отказ по региону";

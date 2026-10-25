@@ -214,13 +214,19 @@ func (s *SmartDNS) Close() {
 }
 
 func (s *SmartDNS) RouteStatus() []ServiceRouteStatus {
-	if s.serviceRouter != nil {
-		return s.serviceRouter.Snapshot()
-	}
-	profile := s.profileID
 	var out []ServiceRouteStatus
-	for _, service := range ServiceDefinitions {
-		out = append(out, ServiceRouteStatus{Service: service.ID, Name: service.Name, Mode: "default", Profile: profile})
+	if s.serviceRouter != nil {
+		out = s.serviceRouter.Snapshot()
+	} else {
+		for _, service := range ServiceDefinitions {
+			out = append(out, ServiceRouteStatus{Service: service.ID, Name: service.Name, Mode: "default", Profile: s.profileID})
+		}
+	}
+	for i, service := range ServiceDefinitions {
+		if !s.rules.IsGeo(service.Domains[0]) {
+			out[i].Profile = "direct"
+			out[i].Mode = "direct"
+		}
 	}
 	return out
 }

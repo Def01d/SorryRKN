@@ -184,6 +184,16 @@ func main() {
 		return
 	}
 	config = core.LoadConfig(filepath.Join(data, "config.json"))
+	if config.LoadError != "" {
+		errorMessage(config.LoadError)
+		return
+	}
+	if config.Recovered {
+		if e = core.SaveJSON(filepath.Join(data, "config.json"), config); e != nil {
+			errorMessage("Не удалось восстановить настройки: " + e.Error())
+			return
+		}
+	}
 	if config.ProtectedSecret == "" {
 		secret, e = core.NewSecret()
 		if e == nil {

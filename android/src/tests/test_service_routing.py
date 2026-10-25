@@ -14,6 +14,13 @@ from user_rules import DomainRules
 
 
 class ServiceRoutingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_direct_exception_blocks_automatic_external_probe(self):
+        dns=SmartDNS(service_dns={'chatgpt':'auto'},rules=DomainRules(direct=('chatgpt.com',)))
+        async def check(profile,service):raise AssertionError('Direct service triggered relay probe')
+        try:
+            await dns.routing.recover(check)
+            self.assertEqual(dns.route_status()[0]['profile'],'direct')
+        finally:await dns.close()
     def test_signed_fixture_rejects_tampering_and_expired_metadata(self):
         from update_trust import verified_payload
         path=Path(__file__).parents[1]/'app/src/androidTest/assets/signed-update.json'

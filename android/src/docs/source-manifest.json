@@ -95,8 +95,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
-      "size": 6878,
-      "sha256": "dcf92cd9d3076a6d196ab758774c9afcae472f3807a0199bfeb195cf0e412c11"
+      "size": 6925,
+      "sha256": "d0526b2759f639dc9fcb6ed7a63db6a06a2ae51945a58de5c105b2bf3f1b4e57"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java",
@@ -270,8 +270,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/DnsProfiles.java",
-      "size": 11766,
-      "sha256": "b0702f3cfd5d3e93db138afce00ac342254f38125f2b9d7b393421e43f03d990"
+      "size": 11858,
+      "sha256": "1f8b3e92c2bc272cd5dd97c1e3e3e5cad7aa801af22aa18ec44c3f147d68a900"
     },
     {
       "path": "app/src/main/java/dev/graybridge/MainActivity.java",
@@ -285,8 +285,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/RouteSummary.java",
-      "size": 5130,
-      "sha256": "effca5b4d1bef03af91e08ee65ba11795fb43806a6b7e043aaaf92b53b066b97"
+      "size": 5299,
+      "sha256": "c8e50b7d3ac6ab5bb977b1a9d1b6ed5c57d15fbc01b97f85216c37ae44b9f44c"
     },
     {
       "path": "app/src/main/java/dev/graybridge/ServiceRoutes.java",
@@ -350,8 +350,8 @@
     },
     {
       "path": "app/src/main/python/dns_profiles.json",
-      "size": 1250,
-      "sha256": "648f11372e412cea2f36b75c70a50328a9c692bc3e08c552dbeb70d3bcb6aed3"
+      "size": 3544,
+      "sha256": "64cd58b66ee552431af0782eacfe7dfbcb613cad00b41ca952cc22a594e47599"
     },
     {
       "path": "app/src/main/python/dns_profiles.py",
@@ -485,8 +485,8 @@
     },
     {
       "path": "app/src/main/python/service_routing.py",
-      "size": 7149,
-      "sha256": "50f06ad71ec8ebba3f4dc8b521272421505d74bdd021b74af7ed873320a22fdc"
+      "size": 7292,
+      "sha256": "5643835ccaa1f0c43c9b12dc1f1a9a4d41213cdaabd5618395073e99f4dbce70"
     },
     {
       "path": "app/src/main/python/services.json",
@@ -495,8 +495,8 @@
     },
     {
       "path": "app/src/main/python/smart_dns.py",
-      "size": 7114,
-      "sha256": "6a5e3f937654aa28134be4994c7edd740826db1de93912b6ba83818ae6eeabb2"
+      "size": 7295,
+      "sha256": "2d950ed3b829bae7ed38d643865c80bdb83250796f9071d186a4ebaf82923a38"
     },
     {
       "path": "app/src/main/python/strategy_probe.py",
@@ -770,8 +770,8 @@
     },
     {
       "path": "tests/test_service_routing.py",
-      "size": 4927,
-      "sha256": "954878b5998a70e1ac147bafbc7966b56e7b6f97e151e424eec8a3efd3d68e4a"
+      "size": 5364,
+      "sha256": "2dfbab027713b77f526c83fc6bef0f5d5879f740d7da251312d88b9c6ca497d4"
     },
     {
       "path": "tests/test_telegram_end_to_end.py",

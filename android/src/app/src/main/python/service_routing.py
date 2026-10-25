@@ -86,12 +86,13 @@ def best_profile(report, identifier, preferred, catalog, network_key):
 
 
 class ServiceRouter:
-    def __init__(self, default='comss', choices=None, directory=None, network_key=''):
+    def __init__(self, default='comss', choices=None, directory=None, network_key='',allowed=None):
         self.selection = selection(default, choices)
         self.catalog = load_catalog(directory)
         self.default = selected_profile(default, directory)['id']
         report = load_report(directory) if directory else {}
         self.routes = {}
+        self.enabled={s['id']:allowed(s['domains'][0]) if allowed else True for s in DEFINITIONS}
         for identifier, _, _ in SERVICES:
             mode = self.selection['services'].get(identifier, '')
             profile = (best_profile(report, identifier, self.default, self.catalog, network_key)
@@ -119,7 +120,7 @@ class ServiceRouter:
         slots = asyncio.Semaphore(4)
         async def one(service):
             identifier = service[0]
-            if self.selection['services'].get(identifier) != 'auto':
+            if self.selection['services'].get(identifier) != 'auto' or not self.enabled[identifier]:
                 return
             async with slots:
                 route = self.routes[identifier]

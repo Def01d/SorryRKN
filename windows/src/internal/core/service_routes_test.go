@@ -85,7 +85,7 @@ func TestServiceAutoNeedsFreshMatchingNetworkAndRetainsWorkingExit(t *testing.T)
 }
 
 func TestRecoveryRequiresTwoFailuresAndNeverChangesManualRoute(t *testing.T) {
-	p := NewServiceRouter(DomainRules{ServiceDNS: map[string]string{"chatgpt": "auto", "gemini": "malw"}})
+	p := NewServiceRouter(DomainRules{Builtin: true, ServiceDNS: map[string]string{"chatgpt": "auto", "gemini": "malw"}})
 	calls := 0
 	p.probe = func(_ context.Context, profile DNSProfile, s DNSService) DNSServiceResult {
 		calls++
@@ -120,6 +120,22 @@ func TestRecoveryRequiresTwoFailuresAndNeverChangesManualRoute(t *testing.T) {
 	p.Recover(context.Background())
 	if p.Profile("chatgpt") != previous {
 		t.Fatal("challenge rotated exit")
+	}
+}
+
+func TestDirectServiceDoesNotTriggerAutomaticRelayProbes(t *testing.T) {
+	p := NewServiceRouter(DomainRules{Builtin: true, Direct: []string{"chatgpt.com"}, ServiceDNS: map[string]string{"chatgpt": "auto"}})
+	p.probe = func(context.Context, DNSProfile, DNSService) DNSServiceResult {
+		t.Error("direct service triggered relay probe")
+		return DNSServiceResult{}
+	}
+	p.Recover(context.Background())
+	resolver := NewSmartDNS(DomainRules{Builtin: false, Secure: true})
+	defer resolver.Close()
+	for _, route := range resolver.RouteStatus() {
+		if route.Profile != "direct" {
+			t.Fatal("disabled service shown as relayed", route)
+		}
 	}
 }
 
