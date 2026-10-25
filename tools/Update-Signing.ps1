@@ -51,7 +51,7 @@ try {
         Write-Output "Created owner-local DPAPI signing key; public key id: $keyID"
     } elseif ($Action -eq 'Restore') {
         $expected=Get-Content -LiteralPath $PublicTrustPath -Raw | ConvertFrom-Json
-        if ($expected.key_id -ne $keyID -or $expected.public_key -ne $trust.public_key -or $backup.key_id -ne $keyID) {throw 'Restored key does not match application trust'}
+        if ($expected.key_id -cne $keyID -or $expected.public_key -cne $trust.public_key -or $backup.key_id -cne $keyID) {throw 'Restored key does not match application trust'}
         $protected=[Security.Cryptography.ProtectedData]::Protect($private,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
         New-Item -ItemType Directory -Force (Split-Path $PrivateKeyPath -Parent)|Out-Null
         [IO.File]::WriteAllBytes($PrivateKeyPath,$protected)
@@ -59,7 +59,7 @@ try {
     } elseif ($Action -eq 'Sign') {
         if (-not $ManifestPath) {throw 'ManifestPath is required'}
         $expected=Get-Content -LiteralPath $PublicTrustPath -Raw | ConvertFrom-Json
-        if ($expected.key_id -ne $keyID -or $expected.public_key -ne $trust.public_key) {throw 'Wrong signing key'}
+        if ($expected.key_id -cne $keyID -or $expected.public_key -cne $trust.public_key) {throw 'Wrong signing key'}
         $value=Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json -AsHashtable
         foreach ($field in @('signed','signature','keyId','signedAt','expires')) {$value.Remove($field)|Out-Null}
         $payload=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($value|ConvertTo-Json -Depth 30 -Compress)))
