@@ -69,6 +69,13 @@ jobs:
       - name: Test update-signing backup and restore with disposable keys
         run: ../../tools/tests/Update-Signing.Tests.ps1
 
+      - name: Authenticate production JSON metadata offline
+        run: |
+          foreach ($name in @('update.json','windows-update.json','dns-profiles.json')) {
+            & ./dist/check-network.exe -verify-data "../../$name" -output "dist/ci-logs/verified-$name"
+            if ($LASTEXITCODE -ne 0) { throw "Metadata signature verification failed: $name" }
+          }
+
       - name: Vet core and Windows platform
         run: |
           go vet ./internal/core ./internal/platform 2>&1 | Tee-Object -FilePath dist/ci-logs/go-vet.log
@@ -96,6 +103,7 @@ jobs:
           name: windows-source-validation
           path: |
             windows/src/dist/ci-logs/*.log
+            windows/src/dist/ci-logs/verified-*.json
             windows/src/VALIDATION.md
           if-no-files-found: warn
 

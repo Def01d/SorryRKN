@@ -181,6 +181,8 @@ func ProbeDNSService(ctx context.Context, profile DNSProfile, service DNSService
 				result.State = classifyDNSResponse(service.ID, response.StatusCode, response.Header, body)
 			}
 		} else {
+			result.HTTPStatus = 0
+			result.Address = address
 			result.State = "transport_error"
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) || strings.Contains(err.Error(), "timeout") {
 				result.State = "timeout"

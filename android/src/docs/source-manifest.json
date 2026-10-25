@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "size": 14660,
-      "sha256": "c6d1ece3836d3c7cb7482d662ce5122b4d2c945355369578b809bbcb9e51021c"
+      "size": 14652,
+      "sha256": "dc093e75190e3bc830d8b46e15cccab50ad7730fe93c27f998eed575b46b3f5f"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -90,8 +90,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 58611,
-      "sha256": "ea5ab21d42e76935190858ba2540336af8f9aa175e185545516d122c9c43a65e"
+      "size": 58718,
+      "sha256": "dabeb297b3c41610c5c4ec5478428f666ce4f5667373414046ed7ee9092eeb02"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
