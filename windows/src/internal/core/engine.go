@@ -358,13 +358,16 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		case <-ctx.Done():
 			return
 		case <-serviceTimer.C:
-			if c.Extras && !serviceChecking {
+			if (c.Extras || s.DNS && len(c.ServiceDNS) > 0) && !serviceChecking {
 				serviceChecking = true
 				go func() {
 					if resolver := e.extra.Resolver(); resolver != nil && resolver.serviceRouter != nil {
 						resolver.serviceRouter.Recover(ctx)
 					}
-					result := e.probeServices(ctx, e.extra.Resolver())
+					var result []Target
+					if c.Extras {
+						result = e.probeServices(ctx, e.extra.Resolver())
+					}
 					select {
 					case serviceResults <- result:
 					case <-ctx.Done():

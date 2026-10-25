@@ -14,6 +14,21 @@ from user_rules import DomainRules
 
 
 class ServiceRoutingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_gateway_maintains_gemini_when_chatgpt_is_direct(self):
+        from gateway import Gateway
+        from types import SimpleNamespace
+        gateway=Gateway(port=0)
+        gateway.routes=SimpleNamespace(rules=DomainRules(direct=('chatgpt.com',)),own_ip=False,
+            protected=lambda host:False,ports={'service_dns':{'gemini':'auto'}})
+        ready=asyncio.Event()
+        try:
+            await gateway.start()
+            async def recover():ready.set()
+            gateway.resolver.routing.recover=recover
+            await asyncio.wait_for(ready.wait(),2)
+            self.assertIsNotNone(gateway._service_route_task)
+        finally:await gateway.close()
+        self.assertIsNone(gateway._service_route_task)
     async def test_direct_exception_blocks_automatic_external_probe(self):
         dns=SmartDNS(service_dns={'chatgpt':'auto'},rules=DomainRules(direct=('chatgpt.com',)))
         async def check(profile,service):raise AssertionError('Direct service triggered relay probe')

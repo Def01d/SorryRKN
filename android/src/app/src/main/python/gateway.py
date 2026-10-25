@@ -193,6 +193,7 @@ class Gateway:
         self._ai_route_checked = 0
         self._ai_route_lock = asyncio.Lock()
         self._ai_route_task = None
+        self._service_route_task = None
         self._closed = False
 
     async def start(self):
@@ -204,6 +205,21 @@ class Gateway:
                          else Resolver(self.upstream_port))
         self.server = await asyncio.start_server(self.accept, "127.0.0.1", self.port)
         self.port = self.server.sockets[0].getsockname()[1]
+        if isinstance(self.resolver,SmartDNS) and self.resolver.routing and any(
+            mode=='auto' and self.resolver.routing.enabled[key] for key,mode in self.resolver.routing.selection['services'].items()):
+            self._service_route_task=asyncio.create_task(self._maintain_service_routes())
+
+    async def _maintain_service_routes(self):
+        while not self._closed:
+            try:await self.recover_service_routes()
+            except Exception:self.stats['last_error']='Автопроверка DNS-маршрутов не завершена'
+            await asyncio.sleep(60)
+
+    async def recover_service_routes(self):
+        async with self._ai_route_lock:
+            if self._closed or not isinstance(self.resolver,SmartDNS):return
+            if 'chatgpt' in await self.resolver.recover_routes():
+                self.ai_route_check=None;self._ai_route_checked=0
 
     def accept(self, reader, writer):
         if len(self.tasks) >= 512:
@@ -241,8 +257,6 @@ class Gateway:
             if (self._closed or not self.routes or self.routes.own_ip or self.routes.group('chatgpt.com')!='ai'
                     or not isinstance(self.resolver,SmartDNS) or self.resolver.smart is None):
                 return {'state':'disabled','verified':False,'authenticated_access':False}
-            if 'chatgpt' in await self.resolver.recover_routes():
-                self.ai_route_check=None;self._ai_route_checked=0
             cached=self.ai_route_check
             if (cached and time.monotonic()-self._ai_route_checked<AI_ROUTE_CACHE_TTL
                     and (not cached.get('verified') or
@@ -484,6 +498,10 @@ class Gateway:
 
     async def close(self):
         self._closed=True
+        if self._service_route_task:
+            self._service_route_task.cancel()
+            await asyncio.gather(self._service_route_task,return_exceptions=True)
+            self._service_route_task=None
         if self._ai_route_task:
             self._ai_route_task.cancel()
             await asyncio.gather(self._ai_route_task,return_exceptions=True)

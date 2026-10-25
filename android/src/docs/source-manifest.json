@@ -370,8 +370,8 @@
     },
     {
       "path": "app/src/main/python/gateway.py",
-      "size": 24447,
-      "sha256": "0e6a6652377a6c7f6a864bba6edec3c195e63a582ab272fd81abccbe713eadd3"
+      "size": 25456,
+      "sha256": "48b8c8e2f827f852230c3450a4032df296effab2df25f51b7d37109c5e660be2"
     },
     {
       "path": "app/src/main/python/geo_route.py",
@@ -770,8 +770,8 @@
     },
     {
       "path": "tests/test_service_routing.py",
-      "size": 5364,
-      "sha256": "2dfbab027713b77f526c83fc6bef0f5d5879f740d7da251312d88b9c6ca497d4"
+      "size": 6105,
+      "sha256": "6b1c5e53eb2fdc06527e3d19583474169a2d93873cce0bcd96f5cd1cbb7be5e2"
     },
     {
       "path": "tests/test_telegram_end_to_end.py",
