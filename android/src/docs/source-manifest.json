@@ -110,8 +110,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/RemoteGuestChecks.java",
-      "size": 5299,
-      "sha256": "df4d5f76cae8c75ab1fa29d274b211f23696e5140e92adfc5e2a53d2c1ea3f80"
+      "size": 5652,
+      "sha256": "83e171877702c70255db109a2330cb028fbe1ec843d1e2485e5d9d52601c7785"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java",
@@ -260,8 +260,8 @@
     },
     {
       "path": "app/src/main/assets/provision.sh",
-      "size": 16578,
-      "sha256": "98bdb6b3c65be26edc2aada57441d1ab6bfb0a5342295c70e11c205f10b72a95"
+      "size": 16639,
+      "sha256": "be3b72f2882f0469730dbada94f360ee20821b6d83d98104fa387648cb21c355"
     },
     {
       "path": "app/src/main/assets/reality.sh",

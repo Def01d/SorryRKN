@@ -36,6 +36,7 @@ grep -q 'Refusing to take it over' "$work/foreign-err"
 [[ $(readlink /run/sorryrkn-https) == "$work/absent" && ! -e /etc/systemd/system/sorryrkn-https.service ]]
 rm -- /run/sorryrkn-https
 run https-on "$id" > "$work/first"
+cp /etc/sorryrkn-https/Caddyfile "$work/before-second"
 run https-on "$id2" > "$work/second"
 run https-profile "$id" > "$work/export"
 run https-on "$id" > "$work/reinstall"
@@ -43,7 +44,7 @@ cmp "$work/first" "$work/export"; cmp "$work/first" "$work/reinstall"
 ! cmp -s "$work/first" "$work/second" || { echo 'Duplicate per-device credential'; exit 1; }
 python3 - "$work" <<'PY'
 import base64,pathlib,ssl,sys,urllib.parse
-w=pathlib.Path(sys.argv[1]); record=(w/'first').read_text().strip().split('\t')
+w=pathlib.Path(sys.argv[1]); record=(w/'second').read_text().strip().split('\t')
 assert record[:2]==['SRKN1','HTTPS']
 u=urllib.parse.urlsplit(record[2]); q=urllib.parse.parse_qs(u.query)
 assert u.hostname=='sorryrkn.invalid' and u.port==443 and q['sni']==['127.0.0.1']
@@ -51,6 +52,14 @@ der=base64.urlsafe_b64decode(q['ca'][0]+'===')
 (w/'ca.pem').write_text(ssl.DER_cert_to_PEM_cert(der))
 (w/'curl.conf').write_text('proxy = "https://127.0.0.1:443"\nproxy-user = "'+u.username+':'+u.password+'"\n')
 PY
+# Simulate interruption after adding the second peer on disk but before the
+# running service activated it. It must fail to authenticate until reconciled.
+/usr/local/lib/sorryrkn-https/caddy reload --address unix//run/sorryrkn-https/admin.sock --config "$work/before-second" --adapter caddyfile >/dev/null 2>&1
+if curl --config "$work/curl.conf" --proxy-http2 --proxy-cacert "$work/ca.pem" --noproxy '' --fail --silent --max-time 6 https://api.github.com/zen >/dev/null 2>&1; then
+    echo 'The missing device unexpectedly authenticated before recovery' >&2; exit 1
+fi
+run https-on "$id2" > "$work/recovered"
+cmp "$work/second" "$work/recovered"
 # Validate the genuine IP SAN without sending any TLS SNI.
 openssl s_client -noservername -connect 127.0.0.1:443 -CAfile "$work/ca.pem" -verify_ip 127.0.0.1 -verify_return_error </dev/null >/dev/null 2>&1
 curl -fsS --cacert "$work/ca.pem" https://127.0.0.1/ > "$work/cover"

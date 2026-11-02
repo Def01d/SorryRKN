@@ -32,9 +32,12 @@ final class RemoteGuestChecks {
             if(!status.contains("vpn:running") || !status.contains("socks:running"))throw new AssertionError("Guest service status");
             report.putString("ssh","Pinned Ubuntu SSH, HTTPS/SOCKS provisioning and status passed");
             if(target.has("httpsPort")) server.put("https",server.getString("https").replace(":443/?",":"+target.getInt("httpsPort")+"/?"));
+            // The activity requests VPN preparation before establishing the interface, even with pre-granted consent.
+            if(android.net.VpnService.prepare(c)!=null)throw new AssertionError("Test emulator requires VPN consent");
             RemoteVault.write(c,"server",server);RemoteVpnService.start(c);
             long deadline=SystemClock.elapsedRealtime()+15000;
             while(!RemoteVpnService.status(c).equals("on") && SystemClock.elapsedRealtime()<deadline) Thread.sleep(100);
+            if(!RemoteVpnService.status(c).equals("on"))throw new AssertionError("HTTPS interface did not start");
             String[] fields=socks.split("\\t");
             try(Socket socket=new Socket()) {
                 socket.connect(new InetSocketAddress("127.0.0.1",SshForward.port()),12000);socket.setSoTimeout(8000);

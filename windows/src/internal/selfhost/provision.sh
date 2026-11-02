@@ -122,9 +122,7 @@ configure_https(){
         printf ' root * %s/site\n file_server\n}\n' "$runtime"
     } > "$tmp/Caddyfile"
     "$runtime/caddy" adapt --config "$tmp/Caddyfile" --adapter caddyfile >/dev/null || die "Cannot validate the generated HTTPS configuration."
-    changed=1
-    cmp -s "$tmp/Caddyfile" "$dir/Caddyfile" && changed=0
-    mv "$tmp/Caddyfile" "$dir/Caddyfile"
+    cmp -s "$tmp/Caddyfile" "$dir/Caddyfile" || mv "$tmp/Caddyfile" "$dir/Caddyfile"
 }
 
 profile(){
@@ -188,14 +186,14 @@ WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
     systemctl enable --now "$vpn" >&2 || die "HTTPS did not start. Check journalctl -u sorryrkn-https and TCP 443."
-    if [ "$changed" -eq 1 ]; then
-        ready=0
-        for n in $(seq 1 20); do
-            if [ -S /run/sorryrkn-https/admin.sock ]; then ready=1; break; fi
-            sleep .25
-        done
-        [ "$ready" = 1 ] && "$runtime/caddy" reload --address unix//run/sorryrkn-https/admin.sock --config "$dir/Caddyfile" --adapter caddyfile >&2 || die "Cannot activate the authenticated HTTPS configuration."
-    fi
+    # SSH may have disconnected after the atomic rename but before reload.
+    # Caddy compares with its live configuration and skips a redundant reload.
+    ready=0
+    for n in $(seq 1 20); do
+        if [ -S /run/sorryrkn-https/admin.sock ]; then ready=1; break; fi
+        sleep .25
+    done
+    [ "$ready" = 1 ] && "$runtime/caddy" reload --address unix//run/sorryrkn-https/admin.sock --config "$dir/Caddyfile" --adapter caddyfile >&2 || die "Cannot activate the authenticated HTTPS configuration."
     ready=0
     for n in $(seq 1 30); do
         if [ "$mode" = private ]; then
