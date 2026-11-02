@@ -1,14 +1,14 @@
 {
   "platform": "windows-x64",
-  "versionCode": 10400,
-  "versionName": "1.4.0",
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.4.0/windows/SorryRKN-Windows-1.4.0-Setup.exe",
-  "notes": "DNS отдельно для восьми сервисов, явный автоматический резерв, кеш проверок по сети и экран состояния. Ручной выбор закреплён; активные соединения не переносятся. Добавлены подписи обновлений и DNS-каталога, резервирование настроек с сохранением Telegram-секрета. Применяйте новые маршруты после переподключения. Перед установкой выйдите через трей. Публичные проверки не подтверждают вход, видео и звонки; доступность зависит от сети и сервиса.",
-  "size": 16567387,
-  "sha256": "032f6660421145233e0470753cf9131d82162ba7e7f935a989b7184a359b0eba",
-  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEwNDAwLCJ2ZXJzaW9uTmFtZSI6IjEuNC4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RlZjAxZC9Tb3JyeVJLTi93aW5kb3dzLXYxLjQuMC93aW5kb3dzL1NvcnJ5UktOLVdpbmRvd3MtMS40LjAtU2V0dXAuZXhlIiwibm90ZXMiOiJETlMg0L7RgtC00LXQu9GM0L3QviDQtNC70Y8g0LLQvtGB0YzQvNC4INGB0LXRgNCy0LjRgdC+0LIsINGP0LLQvdGL0Lkg0LDQstGC0L7QvNCw0YLQuNGH0LXRgdC60LjQuSDRgNC10LfQtdGA0LIsINC60LXRiCDQv9GA0L7QstC10YDQvtC6INC/0L4g0YHQtdGC0Lgg0Lgg0Y3QutGA0LDQvSDRgdC+0YHRgtC+0Y/QvdC40Y8uINCg0YPRh9C90L7QuSDQstGL0LHQvtGAINC30LDQutGA0LXQv9C70ZHQvTsg0LDQutGC0LjQstC90YvQtSDRgdC+0LXQtNC40L3QtdC90LjRjyDQvdC1INC/0LXRgNC10L3QvtGB0Y/RgtGB0Y8uINCU0L7QsdCw0LLQu9C10L3RiyDQv9C+0LTQv9C40YHQuCDQvtCx0L3QvtCy0LvQtdC90LjQuSDQuCBETlMt0LrQsNGC0LDQu9C+0LPQsCwg0YDQtdC30LXRgNCy0LjRgNC+0LLQsNC90LjQtSDQvdCw0YHRgtGA0L7QtdC6INGBINGB0L7RhdGA0LDQvdC10L3QuNC10LwgVGVsZWdyYW0t0YHQtdC60YDQtdGC0LAuINCf0YDQuNC80LXQvdGP0LnRgtC1INC90L7QstGL0LUg0LzQsNGA0YjRgNGD0YLRiyDQv9C+0YHQu9C1INC/0LXRgNC10L/QvtC00LrQu9GO0YfQtdC90LjRjy4g0J/QtdGA0LXQtCDRg9GB0YLQsNC90L7QstC60L7QuSDQstGL0LnQtNC40YLQtSDRh9C10YDQtdC3INGC0YDQtdC5LiDQn9GD0LHQu9C40YfQvdGL0LUg0L/RgNC+0LLQtdGA0LrQuCDQvdC1INC/0L7QtNGC0LLQtdGA0LbQtNCw0Y7RgiDQstGF0L7QtCwg0LLQuNC00LXQviDQuCDQt9Cy0L7QvdC60Lg7INC00L7RgdGC0YPQv9C90L7RgdGC0Ywg0LfQsNCy0LjRgdC40YIg0L7RgiDRgdC10YLQuCDQuCDRgdC10YDQstC40YHQsC4iLCJzaXplIjoxNjU2NzM4Nywic2hhMjU2IjoiMDMyZjY2NjA0MjExNDUyMzNlMDQ3MDc1M2NmOTEzMWQ4MjE2MmJhN2U3ZjkzNWE5ODliNzE4NGEzNTliMGViYSJ9",
+  "versionCode": 10500,
+  "versionName": "1.5.0",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.5.0/windows/SorryRKN-Windows-1.5.0-Setup.exe",
+  "notes": "Проверка обновлений при каждом запуске. Добавлен режим VPN и подписки: настройка своего Linux-сервера по SSH, свой HTTPS-туннель, резервный VLESS REALITY и подключение через подписку. SOCKS5 разворачивается по выбору. Перед установкой выйдите из SorryRKN через трей.",
+  "size": 42622334,
+  "sha256": "2aeca5efba1ea22aeb73fb133603509ea4d986aab7450ce8993ee34487948a81",
+  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEwNTAwLCJ2ZXJzaW9uTmFtZSI6IjEuNS4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RlZjAxZC9Tb3JyeVJLTi93aW5kb3dzLXYxLjUuMC93aW5kb3dzL1NvcnJ5UktOLVdpbmRvd3MtMS41LjAtU2V0dXAuZXhlIiwibm90ZXMiOiLQn9GA0L7QstC10YDQutCwINC+0LHQvdC+0LLQu9C10L3QuNC5INC/0YDQuCDQutCw0LbQtNC+0Lwg0LfQsNC/0YPRgdC60LUuINCU0L7QsdCw0LLQu9C10L0g0YDQtdC20LjQvCBWUE4g0Lgg0L/QvtC00L/QuNGB0LrQuDog0L3QsNGB0YLRgNC+0LnQutCwINGB0LLQvtC10LPQviBMaW51eC3RgdC10YDQstC10YDQsCDQv9C+IFNTSCwg0YHQstC+0LkgSFRUUFMt0YLRg9C90L3QtdC70YwsINGA0LXQt9C10YDQstC90YvQuSBWTEVTUyBSRUFMSVRZINC4INC/0L7QtNC60LvRjtGH0LXQvdC40LUg0YfQtdGA0LXQtyDQv9C+0LTQv9C40YHQutGDLiBTT0NLUzUg0YDQsNC30LLQvtGA0LDRh9C40LLQsNC10YLRgdGPINC/0L4g0LLRi9Cx0L7RgNGDLiDQn9C10YDQtdC0INGD0YHRgtCw0L3QvtCy0LrQvtC5INCy0YvQudC00LjRgtC1INC40LcgU29ycnlSS04g0YfQtdGA0LXQtyDRgtGA0LXQuS4iLCJzaXplIjo0MjYyMjMzNCwic2hhMjU2IjoiMmFlY2E1ZWZiYTFlYTIyYWViNzNmYjEzMzYwMzUwOWVhNGQ5ODZhYWI3NDUwY2U4OTkzZWUzNDQ4Nzk0OGE4MSJ9",
   "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
-  "signedAt": 1792946287,
-  "expires": 1808498287,
-  "signature": "MEUCIG24Ssc/bAN4Iq+dzF2wJX7s1B54ree0TpVR1l7jQDf2AiEA2dMDvGVQ3Ujf2P5uHC/ObIWUTBtyYviKD3/J4WC+R0g="
+  "signedAt": 1793625044,
+  "expires": 1809177044,
+  "signature": "MEMCIH+YHAy7gbBJ4WKyuFYc2jcMViLBgQNGkPGA3CyncUz4Ah9RJwt9C3q+0x861EOQvUXjRSsZXQUGWrQ/qloPdDYT"
 }
