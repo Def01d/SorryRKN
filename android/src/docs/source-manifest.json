@@ -115,8 +115,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java",
-      "size": 6803,
-      "sha256": "9789211c89576207504cd1d2d4e4c4112f56a0e556910aa3e715769bd37d48c9"
+      "size": 7216,
+      "sha256": "a896176c45f62eca7ce6663813156ec93fa34023e9eaad25e48c132fb79dd48d"
     },
     {
       "path": "app/src/main/AndroidManifest.xml",

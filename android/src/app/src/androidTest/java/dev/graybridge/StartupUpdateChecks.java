@@ -59,8 +59,13 @@ final class StartupUpdateChecks {
             try(android.os.ParcelFileDescriptor descriptor=test.getUiAutomation().executeShellCommand("input keyevent 3")) {
                 try(InputStream input=new FileInputStream(descriptor.getFileDescriptor())){while(input.read()!=-1){}}
             }
-            context.startActivity(new Intent(context,MainActivity.class).setAction(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_LAUNCHER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            // Reopening a launcher icon is initiated by another UID. Android can deny an
+            // application which tries to bring itself back from HOME in the background.
+            try(android.os.ParcelFileDescriptor descriptor=test.getUiAutomation().executeShellCommand(
+                    "am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10000000 -n "
+                    +context.getPackageName()+"/dev.graybridge.MainActivity")) {
+                try(InputStream input=new FileInputStream(descriptor.getFileDescriptor())){while(input.read()!=-1){}}
+            }
             offer(test,requests,2,expected.name);dismiss(test);
             Activity original=first;test.runOnMainSync(original::finish);test.waitForIdleSync();
             first=test.startActivitySync(new Intent(context,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
