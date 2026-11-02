@@ -13,6 +13,14 @@ for path in "$state" "$lib" "/etc/systemd/system/$unit"; do [[ ! -e $path && ! -
 work=$(mktemp -d)
 pids=()
 cleanup() {
+    rc=$?
+    if [[ $rc != 0 ]]; then
+        echo 'Failed fixture diagnostics (test endpoints only)'
+        for log in client decoy origin; do
+            if [[ -f "$work/$log.log" ]]; then tail -n 12 "$work/$log.log"; fi
+        done
+        journalctl --no-pager -u "$unit" -n 15
+    fi
     for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
     systemctl disable --now "$unit" >/dev/null 2>&1 || true
     ip addr del 93.184.216.34/32 dev lo 2>/dev/null || true
@@ -68,7 +76,8 @@ PY
 "$lib/sing-box-1.14.4" run -c "$work/client.json" >"$work/client.log" 2>&1 &
 pids+=($!)
 for _ in {1..25}; do grep -q 'sing-box started' "$work/client.log" && break; sleep .1; done
-result=$(curl -fsS --max-time 10 --noproxy '' --proxy socks5h://127.0.0.1:24435 http://93.184.216.34:24434/payload)
+[[ $(curl -fsS --max-time 3 --noproxy '*' http://93.184.216.34:24434/payload) == sorryrkn-reality-fixture ]]
+result=$(curl -fsS --max-time 10 --retry 2 --retry-all-errors --noproxy '' --proxy socks5h://127.0.0.1:24435 http://93.184.216.34:24434/payload)
 [[ $result == sorryrkn-reality-fixture ]]
 sh "$script" reality-off "$device" | grep -q $'SRKN1\tREALITY-STATUS\tstopped'
 [[ -z $(ss -Htln 'sport = :443') ]]

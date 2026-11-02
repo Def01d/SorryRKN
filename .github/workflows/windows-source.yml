@@ -160,5 +160,6 @@ jobs:
             windows-screen.png
             windows-rules.png
             windows-service-routes.png
+            windows-vpn-server.png
             native-app/SorryRKN/VALIDATION.md
           if-no-files-found: warn

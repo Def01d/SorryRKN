@@ -120,6 +120,7 @@ var configMu sync.Mutex
 var latest core.Release
 var latestMu sync.Mutex
 var updateBusy bool
+var updatePrompt bool // Window thread only.
 var updateMu sync.Mutex
 var checkMu sync.Mutex
 var trayAvailable bool
@@ -646,6 +647,14 @@ func checkUpdates(force bool) {
 	call(user, "PostMessageW", hwnd, UPDATE, 0, 0)
 }
 func showUpdate(force bool) {
+	updateMu.Lock()
+	busy := updateBusy
+	updateMu.Unlock()
+	if updatePrompt || busy || quitting {
+		return
+	}
+	updatePrompt = true
+	defer func() { updatePrompt = false }()
 	latestMu.Lock()
 	r := latest
 	latestMu.Unlock()

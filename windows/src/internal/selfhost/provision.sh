@@ -3,7 +3,7 @@
 set -eu
 umask 077
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C
-dir=/etc/sorryrkn-selfhost
+dir=/etc/wireguard/sorryrkn-selfhost
 units=/etc/systemd/system
 vpn=sorryrkn-vpn.service
 socks=sorryrkn-socks.service
@@ -31,8 +31,10 @@ report() {
 }
 
 init_state() {
+    [ ! -L /etc/wireguard ] || die "The WireGuard configuration directory is a symbolic link."
+    if [ ! -d /etc/wireguard ]; then mkdir -m 700 /etc/wireguard; fi
     if [ ! -e "$dir" ] && [ ! -L "$dir" ]; then
-        stage=$(mktemp -d /etc/.sorryrkn-selfhost-XXXXXX)
+        stage=$(mktemp -d /etc/wireguard/.sorryrkn-selfhost-XXXXXX)
         printf '1\n' > "$stage/version"
         mv -T "$stage" "$dir"
     fi
@@ -97,7 +99,7 @@ firewall_script() {
 #!/bin/sh
 set -eu
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
-dir=/etc/sorryrkn-selfhost
+dir=/etc/wireguard/sorryrkn-selfhost
 subnet=$(cat "$dir/subnet")
 out=$(cat "$dir/egress")
 op=$1
@@ -140,18 +142,18 @@ write_config() {
         done
     } > "$tmp/srkn0.conf"
     mv "$tmp/srkn0.conf" "$dir/srkn0.conf"
-    if systemctl is-active --quiet "$vpn"; then wg syncconf srkn0 /dev/stdin < "$dir/srkn0.conf"; fi
+    if systemctl is-active --quiet "$vpn"; then wg syncconf srkn0 "$dir/srkn0.conf"; fi
     cat > "$tmp/interface" <<'SH'
 #!/bin/sh
 set -eu
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
-dir=/etc/sorryrkn-selfhost
+dir=/etc/wireguard/sorryrkn-selfhost
 case "$1" in
 up)
     ip link add srkn0 type wireguard
     trap 'ip link del srkn0' EXIT
     ip link set srkn0 alias sorryrkn-selfhost-v1
-    wg setconf srkn0 /dev/stdin < "$dir/srkn0.conf"
+    wg setconf srkn0 "$dir/srkn0.conf"
     ip addr add "$(cat "$dir/subnet").1/24" dev srkn0
     ip link set srkn0 mtu 1420 up
     "$dir/firewall" up
@@ -194,8 +196,8 @@ After=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/etc/sorryrkn-selfhost/interface up
-ExecStop=/etc/sorryrkn-selfhost/interface down
+ExecStart=/etc/wireguard/sorryrkn-selfhost/interface up
+ExecStop=/etc/wireguard/sorryrkn-selfhost/interface down
 [Install]
 WantedBy=multi-user.target
 UNIT

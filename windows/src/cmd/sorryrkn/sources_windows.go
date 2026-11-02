@@ -159,6 +159,10 @@ func sourceCommand(id, notification int) {
 			return func() {
 				next := copyLibrary()
 				replaceSource(&next, source, replace)
+				if replace >= 0 && replace != vpnLibrary.SelectedSource {
+					// Refreshing another provider should not change the active selection.
+					next.SelectedSource, next.SelectedNode = vpnLibrary.SelectedSource, vpnLibrary.SelectedNode
+				}
 				if commitLibrary(next) {
 					setLabel(fields[subInput], "")
 					vpnStatus = ""

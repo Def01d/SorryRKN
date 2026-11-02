@@ -159,6 +159,16 @@ try {
     [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]1103,[IntPtr]::Zero)|Out-Null
     $server=[NativeUI]::FindWindow('SorryRKNVPN','Свой сервер')
     if ($server -eq [IntPtr]::Zero -or [NativeUI]::GetDlgItem($server,1213) -eq [IntPtr]::Zero) {throw 'SSH setup page missing'}
+    $bounds=New-Object NativeUI+Rect
+    if ([NativeUI]::GetWindowRect($server,[ref]$bounds)) {
+        $image=New-Object System.Drawing.Bitmap ($bounds.right-$bounds.left),($bounds.bottom-$bounds.top)
+        $drawing=[System.Drawing.Graphics]::FromImage($image)
+        try {
+            $dc=$drawing.GetHdc()
+            try { [NativeUI]::PrintWindow($server,$dc,2)|Out-Null } finally { $drawing.ReleaseHdc($dc) }
+            $image.Save("$PWD/windows-vpn-server.png")
+        } finally { $drawing.Dispose();$image.Dispose() }
+    }
     [NativeUI]::SendMessage($server,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
     [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]1104,[IntPtr]::Zero)|Out-Null
     $subs=[NativeUI]::FindWindow('SorryRKNVPN','Подписки и узлы')

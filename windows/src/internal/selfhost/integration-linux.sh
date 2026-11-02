@@ -3,10 +3,11 @@
 # forwarding, SOCKS credentials and an isolated client network namespace.
 set -euo pipefail
 [[ $1 == --isolated-vm && $EUID == 0 ]] || { echo 'A disposable root VM is required.' >&2; exit 2; }
-[[ ! -e /etc/sorryrkn-selfhost && ! -e /etc/systemd/system/sorryrkn-vpn.service && ! -e /etc/systemd/system/sorryrkn-socks.service ]] || { echo 'VM is not clean.' >&2; exit 2; }
+[[ ! -e /etc/wireguard/sorryrkn-selfhost && ! -e /etc/systemd/system/sorryrkn-vpn.service && ! -e /etc/systemd/system/sorryrkn-socks.service ]] || { echo 'VM is not clean.' >&2; exit 2; }
 umask 077
 dir=$(cd "$(dirname "$0")" && pwd)
-work=$(mktemp -d /tmp/srkn-integration-XXXXXX)
+mkdir -p -m 700 /etc/wireguard
+work=$(mktemp -d /etc/wireguard/srkn-integration-XXXXXX)
 ns=srkn-test-client
 peer=01010101010101010101010101010101
 other=02020202020202020202020202020202
@@ -43,7 +44,7 @@ ip link set srkn-client netns "$ns"
 cut -f3 "$work/peer" > "$work/key"
 cut -f5 "$work/peer" > "$work/psk"
 client_ip=$(cut -f6 "$work/peer")
-vpn_ip=$(cat /etc/sorryrkn-selfhost/subnet).1
+vpn_ip=$(cat /etc/wireguard/sorryrkn-selfhost/subnet).1
 ip netns exec "$ns" wg set srkn-client private-key "$work/key" peer "$(cut -f4 "$work/peer")" preshared-key "$work/psk" endpoint 127.0.0.1:51823 allowed-ips 0.0.0.0/0
 ip -n "$ns" addr add "$client_ip/32" dev srkn-client
 ip -n "$ns" link set srkn-client up
@@ -94,5 +95,8 @@ run install-socks "$peer" > "$work/retry-socks"
 cmp "$work/socks" "$work/retry-socks"
 run stop-vpn "$peer" | grep -q 'vpn:stopped'
 run start-vpn "$peer" | grep -q 'vpn:running'
+# Reconnect the client rather than waiting for its stale session to rekey.
+ip netns exec "$ns" wg set srkn-client peer "$(cut -f4 "$work/peer")" remove
+ip netns exec "$ns" wg set srkn-client peer "$(cut -f4 "$work/peer")" preshared-key "$work/psk" endpoint 127.0.0.1:51823 allowed-ips 0.0.0.0/0
 ip netns exec "$ns" ping -c 2 -W 3 "$vpn_ip" >/dev/null
 echo 'Authenticated SOCKS relay, credential preservation and service stop/start passed.'
