@@ -102,7 +102,7 @@ func TestPinnedSSHSession(t *testing.T) {
 		t.Fatalf("status: %v %v", got, err)
 	}
 	entry := <-transcript
-	expected := "exec sudo -n sh -s -- status " + strings.Repeat("0", 32) + "\n"
+	expected := "exec sudo -n sh -s -- status " + strings.Repeat("0", 32) + " 127.0.0.1\n"
 	if entry != expected+strings.ReplaceAll(script, "\r\n", "\n") || strings.Contains(entry, server.Password) {
 		t.Fatal("unexpected command or script")
 	}
@@ -111,23 +111,19 @@ func TestPinnedSSHSession(t *testing.T) {
 	}
 }
 
-func TestClientConfigCannotInjectDirectives(t *testing.T) {
-	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
-	record := "SRKN1\tVPN\t" + key + "\t" + key + "\t" + key + "\t10.197.73.2\t51823\n"
-	result, err := parseResult("2001:db8::1", InstallVPN, record)
-	if err != nil || !strings.Contains(result.VPNConfig, "Endpoint = [2001:db8::1]:51823") {
-		t.Fatalf("config: %v", err)
+func TestOnlyValidHTTPSProfiles(t *testing.T) {
+	u := "naive+https://u" + strings.Repeat("1", 32) + ":" + strings.Repeat("a", 48) + "@sorryrkn.invalid:443/?sni=example.org"
+	record := "SRKN1\tHTTPS\t" + u + "\n"
+	r, err := parseResult("2001:db8::1", InstallHTTPS, record)
+	if err != nil || !strings.Contains(r.NodeURL, "@[2001:db8::1]:443/") {
+		t.Fatal(err)
 	}
-	for _, bad := range []string{strings.Replace(record, "10.197.73.2", "8.8.8.8", 1), strings.Replace(record, "51823", "51823\nPostUp = cmd", 1), record + "another record\n"} {
-		if _, err := parseResult("example.org", InstallVPN, bad); err == nil {
-			t.Fatal("accepted injected or invalid profile")
+	for _, bad := range []string{strings.Replace(record, "?sni=", "?ca=AAAA&sni=", 1), strings.Replace(record, "sorryrkn.invalid", "injected.invalid", 1), record + "extra record"} {
+		if _, err := parseResult("example.org", InstallHTTPS, bad); err == nil {
+			t.Fatal("accepted malformed HTTPS profile")
 		}
 	}
-	if _, err := (Server{Host: "example.org\nPostUp=cmd"}).endpoint(); err == nil {
-		t.Fatal("accepted injected host")
-	}
 }
-
 func TestCancellationInterruptsHandshake(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

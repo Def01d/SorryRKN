@@ -72,6 +72,12 @@ func (l *readyLog) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 func (s *Session) start(appDir string, data []byte) error {
+	return s.startContext(context.Background(), appDir, data)
+}
+func (s *Session) startContext(ctx context.Context, appDir string, data []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.child != nil {
@@ -154,6 +160,9 @@ func (s *Session) start(appDir string, data []byte) error {
 	case <-time.After(12 * time.Second):
 		c.terminate()
 		return errors.New("VPN не создал интерфейс за 12 секунд")
+	case <-ctx.Done():
+		c.terminate()
+		return ctx.Err()
 	}
 }
 func (c *engine) terminate() {

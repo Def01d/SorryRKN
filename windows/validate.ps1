@@ -197,6 +197,15 @@ try {
     }
     if (-not $second -or $second -eq $first) {throw 'Second launch skipped the update check'}
     $hwnd=[NativeUI]::FindWindow('SorryRKNWindow','SorryRKN')
+    $reopen=Start-Process $exe -PassThru -WindowStyle Hidden
+    if (-not $reopen.WaitForExit(10000) -or $p.HasExited) {throw 'Shortcut did not reuse running instance'}
+    $third=$second
+    for ($i=0;$i -lt 200 -and $third -eq $second;$i++){
+        Start-Sleep -Milliseconds 100
+        $third=(Get-Content $updateRecord -Raw|ConvertFrom-Json).checked_at
+    }
+    if (-not $third -or $third -eq $second) {throw 'Launching while minimized skipped the update check'}
+    $results.checked_updates_on_reopen=$true
     [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]206,[IntPtr]::Zero)|Out-Null
     if (-not $p.WaitForExit(20000)) {throw 'Second launch did not exit'}
     $results.checked_updates_on_both_launches=$true

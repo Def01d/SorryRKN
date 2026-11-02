@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/x509"
 	_ "embed"
 	"encoding/base64"
 	"encoding/hex"
@@ -12,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/netip"
 	"net/url"
 	"os"
 	"regexp"
@@ -32,10 +32,11 @@ var realityScript string
 type Action string
 
 const (
-	InstallVPN   Action = "install-vpn"
-	StartVPN     Action = "start-vpn"
-	StopVPN      Action = "stop-vpn"
-	ExportVPN    Action = "export-vpn"
+	InstallHTTPS Action = "https-on"
+	StartHTTPS   Action = "https-start"
+	StopHTTPS    Action = "https-off"
+	ExportHTTPS  Action = "https-profile"
+	HTTPSStatus  Action = "https-status"
 	Status       Action = "status"
 	InstallSOCKS Action = "install-socks"
 	StopSOCKS    Action = "stop-socks"
@@ -51,7 +52,7 @@ type Server struct {
 }
 
 type Result struct {
-	Status, VPNConfig, SOCKSURL, NodeURL string
+	Status, SOCKSURL, NodeURL string
 }
 
 var (
@@ -164,36 +165,40 @@ func (b *limitedBuffer) Write(p []byte) (int, error) {
 	return count, nil
 }
 
-func Run(ctx context.Context, s Server, action Action) (Result, error) {
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Minute)
-	defer cancel()
-	switch action {
-	case InstallVPN, ExportVPN, InstallTCP, ExportTCP:
-		if !clientID.MatchString(s.ClientID) {
-			return Result{}, errors.New("не задан идентификатор VPN-клиента")
-		}
-	case StartVPN, StopVPN, Status, InstallSOCKS, StopSOCKS, StopTCP, TCPStatus:
-		s.ClientID = strings.Repeat("0", 32)
-	default:
-		return Result{}, errors.New("неизвестная операция сервера")
-	}
+func verifiedSSH(ctx context.Context, s Server) (*ssh.Client, error) {
 	if !username.MatchString(s.User) {
-		return Result{}, errors.New("неверное имя пользователя SSH")
+		return nil, errors.New("неверное имя пользователя SSH")
 	}
 	fp, err := base64.RawStdEncoding.DecodeString(strings.TrimPrefix(s.Fingerprint, "SHA256:"))
 	if !strings.HasPrefix(s.Fingerprint, "SHA256:") || err != nil || len(fp) != 32 {
-		return Result{}, errors.New("сначала подтвердите отпечаток SSH сервера")
+		return nil, errors.New("сначала подтвердите отпечаток SSH сервера")
 	}
 	auth, err := methods(s)
 	if err != nil {
-		return Result{}, err
+		return nil, err
 	}
-	client, err := dial(ctx, s, &ssh.ClientConfig{User: s.User, Auth: auth, HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
+	return dial(ctx, s, &ssh.ClientConfig{User: s.User, Auth: auth, HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
 		if ssh.FingerprintSHA256(key) != s.Fingerprint {
 			return errors.New("отпечаток SSH сервера изменился. Проверьте ключ через консоль VPS")
 		}
 		return nil
 	}})
+}
+
+func Run(ctx context.Context, s Server, action Action) (Result, error) {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Minute)
+	defer cancel()
+	switch action {
+	case InstallHTTPS, ExportHTTPS, InstallTCP, ExportTCP:
+		if !clientID.MatchString(s.ClientID) {
+			return Result{}, errors.New("не задан идентификатор VPN-клиента")
+		}
+	case StartHTTPS, StopHTTPS, HTTPSStatus, Status, InstallSOCKS, StopSOCKS, StopTCP, TCPStatus:
+		s.ClientID = strings.Repeat("0", 32)
+	default:
+		return Result{}, errors.New("неизвестная операция сервера")
+	}
+	client, err := verifiedSSH(ctx, s)
 	if err != nil {
 		return Result{}, err
 	}
@@ -216,7 +221,7 @@ func Run(ctx context.Context, s Server, action Action) (Result, error) {
 	if s.User != "root" {
 		prefix += "sudo -n "
 	}
-	if err = session.Run(prefix + "sh -s -- " + string(action) + " " + s.ClientID); err != nil {
+	if err = session.Run(prefix + "sh -s -- " + string(action) + " " + s.ClientID + " " + s.Host); err != nil {
 		if ctx.Err() != nil {
 			return Result{}, ctx.Err()
 		}
@@ -233,14 +238,6 @@ func Run(ctx context.Context, s Server, action Action) (Result, error) {
 	return parseResult(s.Host, action, stdout.String())
 }
 
-func privateIPv4(value string) bool {
-	ip, err := netip.ParseAddr(value)
-	return err == nil && ip.Is4() && ip.IsPrivate()
-}
-func wgKey(value string) bool {
-	b, err := base64.StdEncoding.DecodeString(value)
-	return err == nil && len(b) == 32 && base64.StdEncoding.EncodeToString(b) == value
-}
 func parseResult(host string, action Action, out string) (Result, error) {
 	bad := errors.New("неверный ответ службы SorryRKN")
 	fields := strings.Split(strings.TrimSpace(out), "\t")
@@ -248,18 +245,39 @@ func parseResult(host string, action Action, out string) (Result, error) {
 		return Result{}, bad
 	}
 	switch action {
-	case InstallVPN, ExportVPN:
-		if len(fields) != 7 || fields[1] != "VPN" || !wgKey(fields[2]) || !wgKey(fields[3]) || !wgKey(fields[4]) || !privateIPv4(fields[5]) || fields[6] != "51823" {
+	case InstallHTTPS, ExportHTTPS:
+		if len(fields) != 3 || fields[1] != "HTTPS" {
 			return Result{}, bad
 		}
-		config := fmt.Sprintf("[Interface]\nPrivateKey = %s\nAddress = %s/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = %s\nPresharedKey = %s\nEndpoint = %s\nAllowedIPs = 0.0.0.0/0, ::/0\nPersistentKeepalive = 25\n", fields[2], fields[5], fields[3], fields[4], net.JoinHostPort(host, fields[6]))
-		return Result{Status: "Профиль WireGuard готов", VPNConfig: config}, nil
+		u, err := url.Parse(fields[2])
+		if err != nil || u.Scheme != "naive+https" || u.Host != "sorryrkn.invalid:443" || u.User == nil || !regexp.MustCompile(`^u[0-9a-f]{32}$`).MatchString(u.User.Username()) {
+			return Result{}, bad
+		}
+		if pw, ok := u.User.Password(); !ok || !passwordToken.MatchString(pw) {
+			return Result{}, bad
+		}
+		q := u.Query()
+		if net.ParseIP(q.Get("sni")) == nil && !hostname.MatchString(q.Get("sni")) {
+			return Result{}, bad
+		}
+		if raw := q.Get("ca"); raw != "" {
+			der, e := base64.RawURLEncoding.DecodeString(raw)
+			if e != nil {
+				return Result{}, bad
+			}
+			cert, e := x509.ParseCertificate(der)
+			if e != nil || !cert.IsCA || cert.CheckSignatureFrom(cert) != nil {
+				return Result{}, bad
+			}
+		}
+		u.Host = net.JoinHostPort(host, "443")
+		return Result{Status: "Профиль NaïveProxy готов", NodeURL: u.String()}, nil
 	case InstallSOCKS:
-		if len(fields) != 6 || fields[1] != "SOCKS" || !privateIPv4(fields[2]) || fields[3] != "11080" || fields[4] != "sorryrkn" || !passwordToken.MatchString(fields[5]) {
+		if len(fields) != 6 || fields[1] != "SOCKS" || fields[2] != "127.0.0.1" || fields[3] != "11080" || fields[4] != "sorryrkn" || !passwordToken.MatchString(fields[5]) {
 			return Result{}, bad
 		}
 		u := url.URL{Scheme: "socks5", User: url.UserPassword(fields[4], fields[5]), Host: net.JoinHostPort(fields[2], fields[3])}
-		return Result{Status: "SOCKS5 доступен внутри VPN", SOCKSURL: u.String()}, nil
+		return Result{Status: "SOCKS5 готов для подключения через SSH", SOCKSURL: u.String()}, nil
 	case InstallTCP, ExportTCP:
 		if len(fields) != 3 || fields[1] != "REALITY" {
 			return Result{}, bad
@@ -269,7 +287,7 @@ func parseResult(host string, action Action, out string) (Result, error) {
 			return Result{}, bad
 		}
 		port, err := strconv.Atoi(u.Port())
-		if err != nil || port < 1 || port > 65535 {
+		if err != nil || port != 8443 {
 			return Result{}, bad
 		}
 		query := u.Query()

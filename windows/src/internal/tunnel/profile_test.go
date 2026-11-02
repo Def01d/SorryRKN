@@ -21,10 +21,6 @@ func samples() []string {
 		"ss://" + ss + "@127.0.0.1:12345#Example", "hy2://pass@127.0.0.1:12345?sni=example.org",
 	}
 }
-func sampleWG() string {
-	key := base64.StdEncoding.EncodeToString([]byte(strings.Repeat("A", 32)))
-	return "[Interface]\nAddress = 10.55.0.2/32\nPrivateKey = " + key + "\nDNS = 1.1.1.1\n[Peer]\nPublicKey = " + key + "\nPresharedKey = " + key + "\nEndpoint = 127.0.0.1:12345\nAllowedIPs = 0.0.0.0/0, ::/0\nPersistentKeepalive = 25\n"
-}
 func TestMixedSubscription(t *testing.T) {
 	input := append(samples(), "vless://"+fakeUUID+"@127.0.0.1:443?type=xhttp", "ss://invalid", "trojan://test@127.0.0.1:12345?allowInsecure=1", samples()[0])
 	encoded := base64.RawURLEncoding.EncodeToString([]byte(strings.Join(input, "\n")))
@@ -35,13 +31,6 @@ func TestMixedSubscription(t *testing.T) {
 	for _, p := range result.Profiles {
 		if _, err := engineConfig(context.Background(), p); err != nil {
 			t.Fatal(err)
-		}
-	}
-}
-func TestRejectsCommandsAndInvalidKeys(t *testing.T) {
-	for _, cfg := range []string{strings.Replace(sampleWG(), "Address =", "PostUp = touch foo\nAddress =", 1), strings.Replace(sampleWG(), "PrivateKey = ", "PrivateKey = !", 1)} {
-		if _, err := WireGuard(cfg); err == nil {
-			t.Fatal("expected refusal")
 		}
 	}
 }

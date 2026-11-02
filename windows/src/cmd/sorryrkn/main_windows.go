@@ -43,6 +43,7 @@ const TRAY = WM_APP + 1
 const REFRESH = WM_APP + 2
 const UPDATE = WM_APP + 3
 const EXIT = WM_APP + 4
+const launchCheckMessage = WM_APP + 45
 const BG = 0x0c0b0b
 const PANEL = 0x171515
 const WHITE = 0xeeeeee
@@ -151,6 +152,7 @@ func main() {
 		if old != 0 {
 			call(user, "ShowWindow", old, SW_SHOW)
 			call(user, "SetForegroundWindow", old)
+			call(user, "PostMessageW", old, launchCheckMessage, 0, 0)
 		}
 		return
 	}
@@ -283,6 +285,11 @@ func windowProc(window uintptr, messageID uint32, w, l uintptr) uintptr {
 		return 0
 	}
 	switch messageID {
+	case launchCheckMessage:
+		if !quitting {
+			go checkUpdates(false)
+		}
+		return 0
 	case vpnDoneMessage:
 		finishVPNWork()
 		return 0

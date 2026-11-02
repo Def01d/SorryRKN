@@ -15,6 +15,7 @@ import (
 	"sorryrkn/internal/tunnel"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -46,17 +47,42 @@ type serverAction struct {
 }
 
 var sshActionsList = []serverAction{
-	{"Установить WireGuard и добавить узел", selfhost.InstallVPN},
-	{"Состояние WireGuard и SOCKS5", selfhost.Status},
-	{"Запустить VPN на сервере", selfhost.StartVPN},
-	{"Остановить VPN на сервере", selfhost.StopVPN},
-	{"Добавить узел с настроенного сервера", selfhost.ExportVPN},
-	{"Включить SOCKS5 внутри VPN", selfhost.InstallSOCKS},
+	{"Установить HTTPS и добавить узел", selfhost.InstallHTTPS},
+	{"Состояние HTTPS и SOCKS5", selfhost.Status},
+	{"Запустить HTTPS на сервере", selfhost.StartHTTPS},
+	{"Получить узел HTTPS", selfhost.ExportHTTPS},
+	{"Остановить HTTPS на сервере", selfhost.StopHTTPS},
+	{"Включить SOCKS5 через SSH", selfhost.InstallSOCKS},
 	{"Остановить SOCKS5", selfhost.StopSOCKS},
-	{"Установить TCP · VLESS REALITY", selfhost.InstallTCP},
-	{"Получить узел TCP", selfhost.ExportTCP},
-	{"Состояние TCP", selfhost.TCPStatus},
-	{"Остановить TCP", selfhost.StopTCP},
+	{"Установить резервный TCP · REALITY", selfhost.InstallTCP},
+	{"Получить резервный узел", selfhost.ExportTCP},
+	{"Состояние резервного узла", selfhost.TCPStatus},
+	{"Остановить резервный узел", selfhost.StopTCP},
+}
+
+var forwardMu sync.Mutex
+var activeForward *selfhost.SOCKSForward
+var forwardHost string
+var forwardLifetime, endForwardLifetime = context.WithCancel(context.Background())
+
+func replaceForward(address string, f *selfhost.SOCKSForward) {
+	forwardMu.Lock()
+	defer forwardMu.Unlock()
+	if f == nil && address != "" && address != forwardHost {
+		return
+	}
+	if activeForward != nil {
+		activeForward.Close()
+	}
+	activeForward, forwardHost = f, address
+}
+func currentForwardLabel() string {
+	forwardMu.Lock()
+	defer forwardMu.Unlock()
+	if activeForward == nil {
+		return ""
+	}
+	return "SOCKS5 через " + forwardHost + "\r\n" + activeForward.URL
 }
 
 func serverPrefsPath() string { return filepath.Join(data, "ssh-servers.json") }
@@ -93,9 +119,12 @@ func createServerPage() {
 	comboSelect(h, 0)
 	button(sshRun, "Выполнить", 430, 292, 147)
 	caption("Результат", 20, 344, 400)
-	field("EDIT", "Debian или Ubuntu с systemd. WireGuard использует UDP 51823, резервный TCP — порт 443.", sshOutput, 20, 368, 557, 84, 0x00810844)
+	field("EDIT", "Debian или Ubuntu с systemd. HTTPS использует TCP 443, запасной маршрут — TCP 8443.", sshOutput, 20, 368, 557, 84, 0x00810844)
 	button(sshForget, "Забыть ключ сервера", 20, 475, 210)
 	button(2, "Закрыть", 447, 475, 130)
+	if details := currentForwardLabel(); details != "" {
+		setLabel(fields[sshOutput], details)
+	}
 	if prefsError != nil {
 		setLabel(fields[sshOutput], "Не удалось прочитать настройки SSH. "+prefsError.Error())
 		call(user, "EnableWindow", fields[sshRun], 0)
@@ -142,11 +171,11 @@ func serverCommand(n int) {
 		return
 	}
 	action := sshActionsList[i].action
-	if (action == selfhost.InstallVPN || action == selfhost.ExportVPN || action == selfhost.InstallTCP || action == selfhost.ExportTCP) && libraryError != nil {
+	if (action == selfhost.InstallHTTPS || action == selfhost.ExportHTTPS || action == selfhost.InstallTCP || action == selfhost.ExportTCP) && libraryError != nil {
 		errorMessage(libraryError.Error())
 		return
 	}
-	if (action == selfhost.StopVPN || action == selfhost.StopSOCKS || action == selfhost.StopTCP) && !confirm("Свой сервер", "Выполнить «"+sshActionsList[i].label+"» на "+address+"?") {
+	if (action == selfhost.StopHTTPS || action == selfhost.StopSOCKS || action == selfhost.StopTCP) && !confirm("Свой сервер", "Выполнить «"+sshActionsList[i].label+"» на "+address+"?") {
 		return
 	}
 	if sshPrefs.ClientID == "" {
@@ -176,19 +205,35 @@ func serverCommand(n int) {
 			}
 			var p tunnel.Profile
 			label := ""
-			if result.VPNConfig != "" {
-				p, e = tunnel.WireGuard(result.VPNConfig)
-				label = "WireGuard"
-			} else if result.NodeURL != "" {
+			if result.NodeURL != "" {
 				var profiles []tunnel.Profile
 				profiles, e = tunnel.Import(ctx, result.NodeURL)
 				if e == nil {
 					p = profiles[0]
 				}
-				label = "TCP · REALITY"
+				label = "HTTPS"
+				if action == selfhost.InstallTCP || action == selfhost.ExportTCP {
+					label = "TCP · REALITY"
+				}
 			}
 			if e != nil {
 				return nil, e
+			}
+			var localURL string
+			if result.SOCKSURL != "" {
+				c, stop := context.WithCancel(forwardLifetime)
+				detach := context.AfterFunc(ctx, stop)
+				forward, err := selfhost.OpenSOCKS(c, server, result.SOCKSURL)
+				detach()
+				if err != nil {
+					stop()
+					return nil, err
+				}
+				replaceForward(address, forward)
+				localURL = forward.URL
+			}
+			if action == selfhost.StopSOCKS {
+				replaceForward(address, nil)
 			}
 			return func() {
 				msg := result.Status
@@ -202,8 +247,8 @@ func serverCommand(n int) {
 					}
 					msg += "\r\nУзел выбран. Закройте окно и включите VPN."
 				}
-				if result.SOCKSURL != "" {
-					msg += "\r\n" + result.SOCKSURL
+				if localURL != "" {
+					msg += "\r\n" + localURL
 				}
 				setLabel(fields[sshOutput], strings.TrimSpace(msg))
 			}, nil

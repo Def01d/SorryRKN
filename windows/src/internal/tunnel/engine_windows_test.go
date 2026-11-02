@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"golang.org/x/net/proxy"
+	"golang.org/x/sys/windows"
 )
 
 func runtimeDir(t *testing.T) string {
@@ -36,11 +37,7 @@ func runtimeDir(t *testing.T) string {
 }
 func TestPinnedEngineAcceptsSupportedProfiles(t *testing.T) {
 	root := runtimeDir(t)
-	wg, err := WireGuard(sampleWG())
-	if err != nil {
-		t.Fatal(err)
-	}
-	profiles := []Profile{wg}
+	var profiles []Profile
 	for _, link := range samples() {
 		p, _, err := parseNode(link)
 		if err != nil {
@@ -103,26 +100,51 @@ func startFixture(t *testing.T, s *Session, root string, cfg object) {
 
 // The baseline test changes no routes and binds both fixture listeners to loopback.
 // Only a disposable GitHub runner gets the explicit opt-in to exercise native TUN.
-func TestLocalRelay(t *testing.T) { testRelay(t, false) }
+func TestLocalRelay(t *testing.T) {
+	for _, protocol := range []string{"naive", "naive-ip", "vless"} {
+		t.Run(protocol, func(t *testing.T) { testRelay(t, protocol, false, "") })
+	}
+}
+
+func TestNaiveRejectsUntrustedPeer(t *testing.T) {
+	for _, damage := range []string{"other-root", "wrong-name"} {
+		t.Run(damage, func(t *testing.T) { testRelay(t, "naive", false, damage) })
+	}
+}
 func TestIsolatedTUNRelay(t *testing.T) {
 	if os.Getenv("SORRYRKN_ISOLATED_TUN_TEST") != "1" || os.Getenv("GITHUB_ACTIONS") != "true" {
 		t.Skip("requires isolated hosted runner")
 	}
-	testRelay(t, true)
+	for _, protocol := range []string{"naive", "vless"} {
+		t.Run(protocol, func(t *testing.T) { testRelay(t, protocol, true, "") })
+	}
 }
-func testRelay(t *testing.T, useTUN bool) {
+func testRelay(t *testing.T, protocol string, useTUN bool, badPeer string) {
 	root := runtimeDir(t)
 	port := freePort(t)
-	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "vless fixture reached") }))
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "relay fixture reached") }))
 	defer origin.Close()
 	var remote Session
+	inbound := object{"type": "vless", "listen": "127.0.0.1", "listen_port": port, "users": []object{{"uuid": fakeUUID}}}
+	link := fmt.Sprintf("vless://%s@127.0.0.1:%d?encryption=none", fakeUUID, port)
+	if strings.HasPrefix(protocol, "naive") {
+		inbound, link = naiveFixture(t, port)
+		if protocol == "naive-ip" {
+			link = strings.Replace(link, "connect.sorry.test", "127.0.0.1", 1)
+		}
+		switch badPeer {
+		case "other-root":
+			_, link = naiveFixture(t, port)
+		case "wrong-name":
+			link = strings.Replace(link, "connect.sorry.test", "wrong.sorry.test", 1)
+		}
+	}
 	startFixture(t, &remote, root, object{
 		"log":       object{"level": "info"},
-		"inbounds":  []object{{"type": "vless", "listen": "127.0.0.1", "listen_port": port, "users": []object{{"uuid": fakeUUID}}}},
+		"inbounds":  []object{inbound},
 		"outbounds": []object{{"type": "direct", "tag": "exit"}},
-		"route":     object{"rules": []object{{"ip_cidr": "198.18.78.2/32", "action": "route", "outbound": "exit", "override_address": "127.0.0.1"}}},
+		"route":     object{"rules": []object{{"ip_cidr": "198.18.78.2/32", "action": "route", "outbound": "exit", "override_address": "127.0.0.1"}, {"action": "reject"}}},
 	})
-	link := fmt.Sprintf("vless://%s@127.0.0.1:%d?encryption=none", fakeUUID, port)
 	p, _, err := parseNode(link)
 	if err != nil {
 		t.Fatal(err)
@@ -133,15 +155,15 @@ func testRelay(t *testing.T, useTUN bool) {
 	}
 	transport := &http.Transport{}
 	defer transport.CloseIdleConnections()
-	if useTUN {
-		// Leave the runner's SSH/GitHub and DNS connectivity alone. Only the
-		// otherwise unreachable fixture address is added to the native route table.
+	if useTUN && protocol == "vless" {
+		// A separate route-scoped test covers subscription nodes. The primary
+		// HTTPS test uses the exact production config briefly on the isolated VM.
 		tun := cfg["inbounds"].([]object)[0]
 		tun["route_address"] = []string{"198.18.78.2/32"}
 		tun["dns_mode"] = "disabled"
 		tun["strict_route"] = false
 		delete(tun, "route_exclude_address")
-	} else {
+	} else if !useTUN {
 		mixed := freePort(t)
 		cfg["inbounds"] = []object{{"type": "socks", "listen": "127.0.0.1", "listen_port": mixed}}
 		d, err := proxy.SOCKS5("tcp", "127.0.0.1:"+strconv.Itoa(mixed), nil, &net.Dialer{Timeout: 5 * time.Second})
@@ -155,14 +177,33 @@ func testRelay(t *testing.T, useTUN bool) {
 	if !client.Active() {
 		t.Fatal("client exited during start")
 	}
+	if useTUN && protocol == "naive" {
+		iface, err := net.InterfaceByName("SorryRKN-Tunnel")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, dst := range []windows.Sockaddr{&windows.SockaddrInet4{Addr: [4]byte{8, 8, 4, 4}}, &windows.SockaddrInet6{Addr: [16]byte{0x26, 0x06, 0x47, 0, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11}}} {
+			var index uint32
+			if err := windows.GetBestInterfaceEx(dst, &index); err != nil || int(index) != iface.Index {
+				t.Fatalf("public route did not use production tunnel: interface=%d expected=%d error=%v", index, iface.Index, err)
+			}
+		}
+	}
 	hc := http.Client{Transport: transport, Timeout: 6 * time.Second}
 	resp, err := hc.Get(strings.Replace(origin.URL, "127.0.0.1", "198.18.78.2", 1))
+	if badPeer != "" {
+		if err == nil {
+			resp.Body.Close()
+			t.Fatal("client accepted mismatched TLS identity")
+		}
+		return
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if err != nil || string(body) != "vless fixture reached" {
+	if err != nil || string(body) != "relay fixture reached" {
 		t.Fatalf("relay failed: %s, %v", body, err)
 	}
 	client.Stop()

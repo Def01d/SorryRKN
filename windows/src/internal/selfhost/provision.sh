@@ -1,227 +1,211 @@
 #!/bin/sh
-# SorryRKN server protocol 1. Sent over pinned SSH, never executed locally.
+# SorryRKN server protocol 1. Run over pinned SSH on a Debian/Ubuntu VPS.
 set -eu
 umask 077
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C
-dir=/etc/wireguard/sorryrkn-selfhost
+dir=/etc/sorryrkn-https
 units=/etc/systemd/system
-vpn=sorryrkn-vpn.service
-socks=sorryrkn-socks.service
+vpn=sorryrkn-https.service
+socks=sorryrkn-proxy.service
+runtime=/usr/local/lib/sorryrkn-https
 die() { printf 'SRKN_ERROR: %s\n' "$1" >&2; exit 1; }
 
 check_unit() {
     path=$units/$1
     [ ! -L "$path" ] || die "A conflicting systemd unit already exists."
     if [ -f "$path" ]; then
-        grep -qxF '# Managed by SorryRKN v1' "$path" || die "Refusing to change a foreign systemd unit."
+        grep -qxF '# Managed by SorryRKN HTTPS v1' "$path" || die "Refusing to change a foreign systemd unit."
     elif [ "$(systemctl show "$1" -p LoadState --value)" != not-found ]; then
         die "A conflicting systemd unit already exists."
     fi
 }
-
 unit_state() {
     if [ ! -f "$units/$1" ]; then echo missing
     elif systemctl is-active --quiet "$1"; then echo running
     else echo stopped
     fi
 }
+report() { printf 'SRKN1\tSTATUS\tvpn:%s\tsocks:%s\n' "$(unit_state "$vpn")" "$(unit_state "$socks")"; }
 
-report() {
-    printf 'SRKN1\tSTATUS\tvpn:%s\tsocks:%s\n' "$(unit_state "$vpn")" "$(unit_state "$socks")"
-}
-
-init_state() {
-    [ ! -L /etc/wireguard ] || die "The WireGuard configuration directory is a symbolic link."
-    if [ ! -d /etc/wireguard ]; then mkdir -m 700 /etc/wireguard; fi
-    if [ ! -e "$dir" ] && [ ! -L "$dir" ]; then
-        stage=$(mktemp -d /etc/wireguard/.sorryrkn-selfhost-XXXXXX)
-        printf '1\n' > "$stage/version"
-        mv -T "$stage" "$dir"
+owned() {
+    if [ ! -e "$1" ] && [ ! -L "$1" ]; then
+        stage=$(mktemp -d "$(dirname "$1")/.srkn-https-XXXXXX")
+        printf '1\n' > "$stage/managed-v1"
+        chmod "$2" "$stage"
+        mv -T "$stage" "$1"
     fi
-    [ ! -L "$dir" ] && [ "$(cat "$dir/version" 2>/dev/null)" = 1 ] && [ "$(stat -c '%u:%a' "$dir")" = 0:700 ] || die "The SorryRKN state directory is occupied or unsafe."
+    [ ! -L "$1" ] && [ "$(cat "$1/managed-v1" 2>/dev/null)" = 1 ] && [ "$(stat -c '%u:%a' "$1")" = "0:$2" ] || die "A managed path is occupied or unsafe."
 }
-
-dependencies() {
-    [ -r /etc/os-release ] && grep -Eq '^ID="?((debian)|(ubuntu))"?$' /etc/os-release || die "Supported systems are Debian and Ubuntu with systemd."
-    if ! command -v wg >/dev/null || ! command -v iptables >/dev/null || ! command -v python3 >/dev/null || ! command -v ip >/dev/null; then
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get -o DPkg::Lock::Timeout=90 update >&2 </dev/null || die "Cannot refresh apt repositories. Check DNS, package mirrors and the dpkg lock."
-        apt-get -y --no-install-recommends -o DPkg::Lock::Timeout=90 install wireguard-tools iproute2 iptables python3 >&2 </dev/null || die "Cannot install wireguard-tools, iproute2, iptables and python3. Check apt on the VPS."
-    fi
-}
-
-init_network() {
-    if [ ! -s "$dir/subnet" ]; then
-        ip -j -4 route show table all > "$tmp/routes"
-        python3 - "$tmp/routes" > "$tmp/subnet" <<'PY'
-import ipaddress
-import json
-import sys
-with open(sys.argv[1]) as stream:
-    nets = [ipaddress.ip_network(r['dst'], strict=False) for r in json.load(stream)
-            if r.get('dst') and r['dst'] != 'default']
-for subnet in range(73, 256):
-    prefix = f'10.197.{subnet}'
-    if all(not net.overlaps(ipaddress.ip_network(prefix+'.0/24')) for net in nets):
-        print(prefix)
-        break
-else:
-    sys.exit('SRKN_ERROR: No unused SorryRKN private subnet.')
-PY
-        mv "$tmp/subnet" "$dir/subnet"
-    fi
-    subnet=$(cat "$dir/subnet")
-    if [ ! -s "$dir/server.key" ]; then
-        wg genkey > "$tmp/server.key"
-        mv "$tmp/server.key" "$dir/server.key"
-    fi
-    mkdir -p "$dir/peers"
-}
-
-peer() {
-    peer_dir=$dir/peers/$id
-    if [ ! -d "$peer_dir" ]; then
-        slot=2
-        while grep -l -x -F "$slot" "$dir"/peers/*/slot >/dev/null 2>&1; do
-            slot=$((slot+1))
-        done
-        [ "$slot" -le 254 ] || die "No available VPN client addresses."
-        mkdir "$tmp/peer"
-        printf '%s\n' "$slot" > "$tmp/peer/slot"
-        wg genkey > "$tmp/peer/key"
-        wg genpsk > "$tmp/peer/psk"
-        mv "$tmp/peer" "$peer_dir"
-    fi
-}
-
-firewall_script() {
-    cat > "$tmp/firewall" <<'SH'
-#!/bin/sh
-set -eu
-export PATH=/usr/sbin:/usr/bin:/sbin:/bin
-dir=/etc/wireguard/sorryrkn-selfhost
-subnet=$(cat "$dir/subnet")
-out=$(cat "$dir/egress")
-op=$1
-rule() {
-    table=$1; shift
-    if [ "$op" = up ]; then
-        iptables -w 10 -t "$table" -C "$@" 2>/dev/null || iptables -w 10 -t "$table" -I "$@"
-    elif iptables -w 10 -t "$table" -C "$@" 2>/dev/null; then
-        iptables -w 10 -t "$table" -D "$@"
-    fi
-}
-if [ "$op" = up ]; then
-    sysctl -q -w net.ipv4.ip_forward=1
-    trap '"$0" down || true' EXIT
-fi
-rule filter INPUT -i "$out" -p udp --dport 51823 -m comment --comment sorryrkn-vpn -j ACCEPT
-rule filter INPUT -i srkn0 -s "$subnet.0/24" -d "$subnet.1" -p tcp --dport 11080 -m comment --comment sorryrkn-socks -j ACCEPT
-rule filter FORWARD -i srkn0 -o "$out" -s "$subnet.0/24" -m comment --comment sorryrkn-vpn -j ACCEPT
-rule filter FORWARD -i "$out" -o srkn0 -d "$subnet.0/24" -m conntrack --ctstate RELATED,ESTABLISHED -m comment --comment sorryrkn-vpn -j ACCEPT
-rule nat POSTROUTING -s "$subnet.0/24" -o "$out" -m comment --comment sorryrkn-vpn -j MASQUERADE
-trap - EXIT
-SH
-    chmod 700 "$tmp/firewall"
-    mv "$tmp/firewall" "$dir/firewall"
-}
-
-write_config() {
-    egress=$(ip -4 route get 1.1.1.1 | awk 'NR==1 {for (i=1;i<NF;i++) if ($i=="dev") {print $(i+1);exit}}')
-    case "$egress" in ''|*[!a-zA-Z0-9_.:-]*) die "No usable IPv4 default route.";; esac
-    # A running interface still uses its recorded egress for rule cleanup.
-    if ! systemctl is-active --quiet "$vpn" || [ ! -f "$dir/egress" ]; then
-        printf '%s\n' "$egress" > "$tmp/egress"
-        mv "$tmp/egress" "$dir/egress"
-    fi
-    {
-        printf '[Interface]\nListenPort = 51823\nPrivateKey = %s\n' "$(cat "$dir/server.key")"
-        for p in "$dir"/peers/*; do
-            [ -d "$p" ] || continue
-            printf '\n[Peer]\nPublicKey = %s\nPresharedKey = %s\nAllowedIPs = %s.%s/32\n' "$(wg pubkey < "$p/key")" "$(cat "$p/psk")" "$subnet" "$(cat "$p/slot")"
-        done
-    } > "$tmp/srkn0.conf"
-    mv "$tmp/srkn0.conf" "$dir/srkn0.conf"
-    if systemctl is-active --quiet "$vpn"; then wg syncconf srkn0 "$dir/srkn0.conf"; fi
-    cat > "$tmp/interface" <<'SH'
-#!/bin/sh
-set -eu
-export PATH=/usr/sbin:/usr/bin:/sbin:/bin
-dir=/etc/wireguard/sorryrkn-selfhost
-case "$1" in
-up)
-    ip link add srkn0 type wireguard
-    trap 'ip link del srkn0' EXIT
-    ip link set srkn0 alias sorryrkn-selfhost-v1
-    wg setconf srkn0 "$dir/srkn0.conf"
-    ip addr add "$(cat "$dir/subnet").1/24" dev srkn0
-    ip link set srkn0 mtu 1420 up
-    "$dir/firewall" up
-    trap - EXIT;;
-down)
-    [ "$(cat /sys/class/net/srkn0/ifalias 2>/dev/null)" = sorryrkn-selfhost-v1 ] || exit 1
-    "$dir/firewall" down
-    ip link del srkn0;;
-*) exit 2;;
-esac
-SH
-    chmod 700 "$tmp/interface"
-    mv "$tmp/interface" "$dir/interface"
-}
-
 write_unit() {
-    # Create the temporary file next to its destination for atomic replacement.
     dest=$(mktemp "$units/.sorryrkn-unit-XXXXXX")
     cat > "$dest"
     chmod 644 "$dest"
     mv "$dest" "$units/$1"
 }
+deps() {
+    [ -r /etc/os-release ] && grep -Eq '^ID="?((debian)|(ubuntu))"?$' /etc/os-release || die "Supported systems are Debian and Ubuntu."
+    for tool in curl openssl xz python3 ss iptables; do
+        if ! command -v "$tool" >/dev/null; then
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get -o DPkg::Lock::Timeout=90 update >&2 </dev/null &&
+            apt-get -y --no-install-recommends -o DPkg::Lock::Timeout=90 install ca-certificates curl openssl python3 iproute2 xz-utils iptables >&2 </dev/null || die "Cannot install packages. Check apt repositories, DNS and the package lock."
+            break
+        fi
+    done
+}
 
-install_vpn() {
-    dependencies
-    if ! systemctl is-active --quiet "$vpn"; then
-        if ip link show srkn0 >/dev/null 2>&1; then die "Interface srkn0 is already in use."; fi
-        if ss -Hlun 'sport = :51823' | grep -q .; then die "UDP port 51823 is already in use."; fi
+install_engine() {
+    [ "$(uname -m)" = x86_64 ] || die "This verified Caddy Naive binary requires an x86-64 VPS."
+    # Upstream release v2.11.7-naive2. Check the full archive before extracting
+    # only its expected executable. Keep the verified engine on repeated setup.
+    digest=c273dc07dd79c5919f97639cbdcb559d40ce90475dbd8aac80641b0a8c8065ff
+    if [ ! -x "$runtime/caddy" ] || [ ! -s "$runtime/caddy.sha256" ] || ! (cd "$runtime" && sha256sum -c --status caddy.sha256); then
+        curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --retry 2 --max-time 120 https://github.com/klzgrad/forwardproxy/releases/download/v2.11.7-naive2/caddy-forwardproxy-naive.tar.xz -o "$tmp/caddy.xz" || die "Cannot download the verified Caddy server from GitHub."
+        printf '%s  %s\n' "$digest" "$tmp/caddy.xz" | sha256sum -c --status || die "Caddy archive digest mismatch."
+        dest=$(mktemp "$runtime/.caddy-XXXXXX")
+        tar xJOf "$tmp/caddy.xz" caddy-forwardproxy-naive/caddy > "$dest"
+        chmod 755 "$dest"
+        mv "$dest" "$runtime/caddy"
+        (cd "$runtime" && sha256sum caddy > caddy.sha256)
     fi
-    init_network
-    peer
-    firewall_script
-    write_config
-    write_unit "$vpn" <<'UNIT'
-# Managed by SorryRKN v1
+}
+
+init_identity(){
+    if [ ! -s "$dir/identity" ]; then
+        python3 - "$host" > "$tmp/identity" <<'PY'
+import ipaddress,sys
+host=sys.argv[1].lower()
+try: ipaddress.ip_address(host); is_ip=True
+except ValueError: is_ip=False
+public_name=not is_ip and '.' in host and not host.endswith(('.local','.test','.localhost','.invalid','.internal'))
+if public_name:
+    print('public',host)
+else:
+    print('private',host)
+PY
+        mv "$tmp/identity" "$dir/identity"
+    fi
+    read -r mode sni < "$dir/identity"
+    mkdir -p "$dir/clients"
+    if [ ! -f "$dir/clients/$id" ]; then
+        python3 -c 'import secrets;print(secrets.token_hex(24))' > "$tmp/credential"
+        mv "$tmp/credential" "$dir/clients/$id"
+    fi
+}
+
+configure_https(){
+    {
+        printf '{\n admin unix//run/sorryrkn-https/admin.sock\n auto_https disable_redirects\n skip_install_trust\n order forward_proxy before file_server\n servers {\n  protocols h1 h2\n }\n'
+        if [ "$mode" = private ]; then printf ' default_sni %s\n' "$sni"; fi
+        printf ' log {\n  level ERROR\n  exclude http.log.error\n }\n}\n'
+        case "$sni" in *:*) site_host="[$sni]";; *) site_host=$sni;; esac
+        printf ':443, https://%s {\n' "$site_host"
+        if [ "$mode" = private ]; then printf ' tls internal\n'
+        else printf ' tls {\n  issuer acme {\n   disable_http_challenge\n  }\n }\n'; fi
+        printf ' forward_proxy {\n'
+        for peer in "$dir"/clients/*; do
+            printf '  basic_auth u%s %s\n' "$(basename "$peer")" "$(cat "$peer")"
+        done
+        printf '  hide_ip\n  hide_via\n  probe_resistance\n  acl {\n   deny 0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 224.0.0.0/4 ::/128 ::1/128 fc00::/7 fe80::/10 ff00::/8\n   allow all\n  }\n }\n'
+        printf ' root * %s/site\n file_server\n}\n' "$runtime"
+    } > "$tmp/Caddyfile"
+    "$runtime/caddy" adapt --config "$tmp/Caddyfile" --adapter caddyfile >/dev/null || die "Cannot validate the generated HTTPS configuration."
+    changed=1
+    cmp -s "$tmp/Caddyfile" "$dir/Caddyfile" && changed=0
+    mv "$tmp/Caddyfile" "$dir/Caddyfile"
+}
+
+profile(){
+    [ -f "$dir/clients/$id" ] || die "Set up HTTPS for this device first."
+    python3 - "$dir" "$id" <<'PY'
+import base64,pathlib,ssl,sys,urllib.parse
+d=pathlib.Path(sys.argv[1]); peer=sys.argv[2]
+mode,sni=(d/'identity').read_text().split()
+query=dict(sni=sni)
+if mode=='private':
+    cert=pathlib.Path('/var/lib/sorryrkn-https/caddy/pki/authorities/local/root.crt')
+    if not cert.exists(): sys.exit('SRKN_ERROR: The private certificate is not ready.')
+    query['ca']=base64.urlsafe_b64encode(ssl.PEM_cert_to_DER_cert(cert.read_text())).decode().rstrip('=')
+pw=(d/'clients'/peer).read_text().strip()
+print('SRKN1\tHTTPS\tnaive+https://u'+peer+':'+pw+'@sorryrkn.invalid:443/?'+urllib.parse.urlencode(query)+'#SorryRKN')
+PY
+}
+
+install_https(){
+    deps
+    if ! systemctl is-active --quiet "$vpn" && ss -Hlt 'sport = :443' | grep -q .; then die "TCP port 443 is already in use by another service."; fi
+    install_engine
+    init_identity
+    mkdir -p -m 755 "$runtime/site"
+    if [ ! -f "$runtime/site/index.html" ]; then
+    cat > "$tmp/index.html" <<'HTML'
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Field Notes</title>
+<style>body{font:18px/1.65 system-ui,sans-serif;color:#304034;margin:12vh auto;max-width:42rem;padding:1rem}h1{font:normal 2.4rem Georgia,serif}hr{border:0;border-top:1px solid #d5dcd5}</style>
+<h1>Field Notes</h1><hr><p>A place for short observations from the garden.</p><p>On a clear morning the first light reaches the tops of the trees before it reaches the path.</p></html>
+HTML
+    install -m 644 "$tmp/index.html" "$runtime/site/index.html"
+    fi
+    configure_https
+    write_unit "$vpn" <<UNIT
+# Managed by SorryRKN HTTPS v1
 [Unit]
-Description=SorryRKN WireGuard
-Wants=network-online.target
+Description=SorryRKN HTTPS
 After=network-online.target
+Wants=network-online.target
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/etc/wireguard/sorryrkn-selfhost/interface up
-ExecStop=/etc/wireguard/sorryrkn-selfhost/interface down
+DynamicUser=yes
+RuntimeDirectory=sorryrkn-https
+RuntimeDirectoryMode=0700
+StateDirectory=sorryrkn-https
+StateDirectoryMode=0700
+Environment=XDG_DATA_HOME=/var/lib/sorryrkn-https
+Environment=XDG_CONFIG_HOME=/var/lib/sorryrkn-https
+LoadCredential=Caddyfile:$dir/Caddyfile
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ExecStartPre=+/bin/sh -c '/usr/sbin/iptables -w 10 -C INPUT -p tcp --dport 443 -m comment --comment sorryrkn-https -j ACCEPT 2>/dev/null || /usr/sbin/iptables -w 10 -I INPUT -p tcp --dport 443 -m comment --comment sorryrkn-https -j ACCEPT'
+ExecStart=$runtime/caddy run --config %d/Caddyfile --adapter caddyfile
+ExecStopPost=+/bin/sh -c '/usr/sbin/iptables -w 10 -D INPUT -p tcp --dport 443 -m comment --comment sorryrkn-https -j ACCEPT 2>/dev/null || true'
+Restart=on-failure
+RestartSec=3
 [Install]
 WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
-    systemctl enable --now "$vpn" >&2 || die "WireGuard did not start. Check journalctl -u sorryrkn-vpn and kernel WireGuard support."
-    systemctl is-active --quiet "$vpn" && wg show srkn0 >/dev/null || die "WireGuard did not start. Check the server kernel and unit log."
-    export_vpn
-}
-
-export_vpn() {
-    p=$dir/peers/$id
-    [ -s "$p/key" ] && [ -s "$p/psk" ] && [ -s "$p/slot" ] || die "Install a VPN peer for this device first."
-    printf 'SRKN1\tVPN\t%s\t%s\t%s\t%s.%s\t51823\n' "$(cat "$p/key")" "$(wg pubkey < "$dir/server.key")" "$(cat "$p/psk")" "$(cat "$dir/subnet")" "$(cat "$p/slot")"
+    systemctl enable --now "$vpn" >&2 || die "HTTPS did not start. Check journalctl -u sorryrkn-https and TCP 443."
+    if [ "$changed" -eq 1 ]; then
+        ready=0
+        for n in $(seq 1 20); do
+            if [ -S /run/sorryrkn-https/admin.sock ]; then ready=1; break; fi
+            sleep .25
+        done
+        [ "$ready" = 1 ] && "$runtime/caddy" reload --address unix//run/sorryrkn-https/admin.sock --config "$dir/Caddyfile" --adapter caddyfile >&2 || die "Cannot activate the authenticated HTTPS configuration."
+    fi
+    ready=0
+    for n in $(seq 1 30); do
+        if [ "$mode" = private ]; then
+            ca=/var/lib/sorryrkn-https/caddy/pki/authorities/local/root.crt
+            if [ -s "$ca" ] && curl --noproxy '*' -fsS --max-time 3 --cacert "$ca" --connect-to "$site_host:443:127.0.0.1:443" "https://$site_host/" 2>/dev/null | cmp -s "$runtime/site/index.html" -; then ready=1; break; fi
+        elif curl --noproxy '*' -fsS --max-time 3 --connect-to "$site_host:443:127.0.0.1:443" "https://$site_host/" 2>/dev/null | cmp -s "$runtime/site/index.html" -; then ready=1; break; fi
+        sleep 2
+    done
+    [ "$ready" = 1 ] || die "Cannot verify the HTTPS certificate and cover page. For a public hostname check DNS and inbound TCP 443, then retry."
+    profile
 }
 
 install_socks() {
-    systemctl is-active --quiet "$vpn" || die "Start the SorryRKN VPN before installing SOCKS5."
-    head=$(cat "$dir/subnet").1
+    head=127.0.0.1
+    if ! systemctl is-active --quiet "$socks" && ss -Hlt 'sport = :11080' | grep -q .; then die "SOCKS port 11080 is occupied."; fi
     if [ ! -s "$dir/socks.credential" ]; then
         python3 -c 'import secrets;print(secrets.token_hex(24))' > "$tmp/credential"
         mv "$tmp/credential" "$dir/socks.credential"
     fi
     cat > "$tmp/socks.py" <<'PY'
-"""Authenticated SOCKS5 CONNECT listener restricted to the WireGuard address."""
+"""Authenticated SOCKS5 CONNECT listener restricted to server loopback."""
 import asyncio
 import hmac
 import os
@@ -315,21 +299,14 @@ async def main():
 asyncio.run(main())
 PY
     # DynamicUser needs access to the executable, but not the private state tree.
-    lib=/usr/local/lib/sorryrkn-selfhost
-    if [ ! -e "$lib" ]; then
-        mkdir -m 755 "$lib"
-        printf '1\n' > "$lib/managed-v1"
-    fi
-    [ ! -L "$lib" ] && [ "$(cat "$lib/managed-v1" 2>/dev/null)" = 1 ] && [ "$(stat -c '%u:%a' "$lib")" = 0:755 ] || die "The SOCKS runtime directory is occupied or unsafe."
+    lib=$runtime
     bin_tmp=$(mktemp "$lib/.socks-XXXXXX")
     install -m 644 "$tmp/socks.py" "$bin_tmp"
     mv "$bin_tmp" "$lib/socks.py"
     write_unit "$socks" <<UNIT
-# Managed by SorryRKN v1
+# Managed by SorryRKN HTTPS v1
 [Unit]
-Description=SorryRKN authenticated SOCKS5 inside WireGuard
-After=$vpn
-BindsTo=$vpn
+Description=SorryRKN loopback SOCKS5 for SSH forwarding
 [Service]
 DynamicUser=yes
 NoNewPrivileges=yes
@@ -341,7 +318,7 @@ ExecStart=/usr/bin/python3 -I $lib/socks.py $head
 Restart=on-failure
 RestartSec=2
 [Install]
-WantedBy=$vpn
+WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
     systemctl enable --now "$socks" >&2 || die "SOCKS5 did not start. Check journalctl -u sorryrkn-socks and systemd credential support."
@@ -368,35 +345,31 @@ PY
     printf 'SRKN1\tSOCKS\t%s\t11080\tsorryrkn\t%s\n' "$head" "$(cat "$dir/socks.credential")"
 }
 
-main() {
-    [ "$(id -u)" = 0 ] || die "Root or passwordless sudo is required."
-    [ -d /run/systemd/system ] || die "This server must run systemd."
-    action=$1
-    id=$2
-    case "$id" in *[!0-9a-f]*|'') die "Invalid client ID.";; esac
-    [ "$(printf '%s' "$id" | wc -c)" -eq 32 ] || die "Invalid client ID."
-    exec 9>/run/lock/sorryrkn-selfhost.lock
-    flock -w 90 9 || die "Another SorryRKN server operation is in progress."
-    check_unit "$vpn"
-    check_unit "$socks"
-    # Stage state and keys on the same filesystem so rename is atomic.
+main(){
+    [ "$(id -u)" = 0 ] && [ -d /run/systemd/system ] || die "Root or passwordless sudo on systemd Linux is required."
+    action=$1; id=$2; host=$3
+    case "$id" in ''|*[!0-9a-f]*) die "Invalid device ID.";; esac
+    [ "$(printf %s "$id" | wc -c)" -eq 32 ] || die "Invalid device ID."
+    case "$host" in ''|*[!a-zA-Z0-9_.:-]*) die "Invalid server hostname.";; esac
+    [ "$(printf %s "$host" | wc -c)" -le 253 ] || die "Invalid server hostname."
+    exec 9>/run/lock/sorryrkn-https.lock
+    flock -w 90 9 || die "Another server operation is in progress."
+    check_unit "$vpn"; check_unit "$socks"
     case "$action" in
-        install-vpn|install-socks)
-            init_state
-            tmp=$(mktemp -d "$dir/.stage-XXXXXX");;
-        *) tmp=$(mktemp -d /run/sorryrkn-selfhost-XXXXXX);;
+        https-on|install-socks)
+            owned "$dir" 700; owned "$runtime" 755
+            tmp=$(mktemp -d "$dir/.stage-XXXXXX")
+            trap 'rm -rf -- "$tmp"' EXIT;;
     esac
-    trap 'rm -rf -- "$tmp"' EXIT
     case "$action" in
-        install-vpn) install_vpn;;
-        export-vpn) export_vpn;;
-        start-vpn) [ -f "$units/$vpn" ] || die "Install the VPN first."; systemctl enable --now "$vpn" >&2; report;;
-        stop-vpn) if [ -f "$units/$vpn" ]; then systemctl disable --now "$vpn" >&2; fi; report;;
-        install-socks) install_socks;;
+        https-on) install_https;;
+        https-profile) profile;;
+        https-start) [ -f "$units/$vpn" ] || die "Install HTTPS first."; systemctl enable --now "$vpn" >&2; report;;
+        https-off) if [ -f "$units/$vpn" ]; then systemctl disable --now "$vpn" >&2; fi; report;;
+        install-socks) deps; install_socks;;
         stop-socks) if [ -f "$units/$socks" ]; then systemctl disable --now "$socks" >&2; fi; report;;
-        status) report;;
-        *) die "Unsupported action.";;
+        status|https-status) report;;
+        *) die "Unknown server operation.";;
     esac
 }
-
 main "$@"

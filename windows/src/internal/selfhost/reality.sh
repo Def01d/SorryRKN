@@ -65,7 +65,7 @@ if not peer or peer['uuid'] not in {u['uuid'] for u in config['inbounds'][0]['us
 query = urllib.parse.urlencode(dict(type='tcp', security='reality', encryption='none',
     flow='xtls-rprx-vision', fp='chrome', sni=identity['sni'], pbk=identity['public'],
     sid=peer['sid']))
-print('SRKN1\tREALITY\tvless://'+peer['uuid']+'@sorryrkn.invalid:443?'+query+'#SorryRKN-REALITY')
+print('SRKN1\tREALITY\tvless://'+peer['uuid']+'@sorryrkn.invalid:8443?'+query+'#SorryRKN-REALITY')
 PY
 }
 
@@ -85,7 +85,7 @@ if ! command -v python3 >/dev/null || ! command -v curl >/dev/null || ! command 
 fi
 active=0
 if systemctl is-active --quiet "$unit"; then active=1
-elif ss -Hlt 'sport = :443' | grep -q .; then die "TCP port 443 is occupied. Select a VPS with a free HTTPS port."; fi
+elif ss -Hlt 'sport = :8443' | grep -q .; then die "TCP port 8443 is occupied. Select a VPS with a free fallback port."; fi
 
 create_owned "$state" 700
 create_owned "$lib" 755
@@ -148,7 +148,7 @@ if device not in identity['devices']:
     if len(identity['devices']) >= 256: sys.exit('SRKN_ERROR: REALITY device limit reached.')
     identity['devices'][device] = dict(uuid=str(uuid.uuid4()),sid=secrets.token_hex(8))
 devices = list(identity['devices'].values())
-inbound = dict(type='vless',listen='::',listen_port=443, users=[dict(uuid=u['uuid'],flow='xtls-rprx-vision') for u in devices],
+inbound = dict(type='vless',listen='::',listen_port=8443, users=[dict(uuid=u['uuid'],flow='xtls-rprx-vision') for u in devices],
     tls=dict(enabled=True,server_name=identity['sni'],reality=dict(enabled=True,
     handshake=dict(server=identity['host'],server_port=identity['port']),
     private_key=identity['private'],short_id=[u['sid'] for u in devices])))
@@ -168,7 +168,7 @@ op=$1
 for fw in iptables ip6tables; do
     command -v "$fw" >/dev/null || continue
     "$fw" -w 5 -S INPUT >/dev/null 2>&1 || continue
-    set -- INPUT -p tcp --dport 443 -m comment --comment sorryrkn-reality -j ACCEPT
+    set -- INPUT -p tcp --dport 8443 -m comment --comment sorryrkn-reality -j ACCEPT
     if [ "$op" = up ]; then "$fw" -w 10 -C "$@" 2>/dev/null || "$fw" -w 10 -I "$@"
     elif "$fw" -w 10 -C "$@" 2>/dev/null; then "$fw" -w 10 -D "$@"; fi
 done
@@ -220,7 +220,7 @@ fi
 # actual listener to avoid attributing an unrelated process to SorryRKN.
 for delay in 1 2 3 4 5 6 7 8 9 10; do
     pid=$(systemctl show "$unit" -p MainPID --value)
-    if [ "$pid" -gt 1 ] && ss -Hltnp 'sport = :443' | grep -Fq "pid=$pid," &&
+    if [ "$pid" -gt 1 ] && ss -Hltnp 'sport = :8443' | grep -Fq "pid=$pid," &&
         systemctl is-active --quiet "$unit"; then profile; exit; fi
     sleep .4
 done
@@ -230,4 +230,4 @@ if [ "$active" = 1 ] && [ -f "$tmp/previous.json" ]; then
 else
     systemctl disable --now "$unit" >&2 || true
 fi
-die "REALITY did not bind TCP 443. Check journalctl -u sorryrkn-reality and the VPS firewall."
+die "REALITY did not bind TCP 8443. Check journalctl -u sorryrkn-reality and the VPS firewall."

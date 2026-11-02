@@ -146,7 +146,7 @@ func ImportWithReport(ctx context.Context, input string) (ImportResult, error) {
 		seen[line] = true
 	}
 	if len(result.Profiles) == 0 {
-		return result, errors.New("нет поддерживаемых узлов VLESS, VMess, Trojan, Shadowsocks или Hysteria2")
+		return result, errors.New("нет поддерживаемых узлов HTTPS CONNECT, VLESS, VMess, Trojan, Shadowsocks или Hysteria2")
 	}
 	return result, nil
 }
@@ -190,6 +190,9 @@ func parseNode(line string) (Profile, object, error) {
 	}
 	if scheme == "ss" {
 		return parseSS(line)
+	}
+	if scheme == "naive+https" {
+		return parseNaive(line)
 	}
 	if scheme != "vless" && scheme != "trojan" && scheme != "hy2" && scheme != "hysteria2" {
 		return empty, nil, errors.New("неподдерживаемый тип узла")

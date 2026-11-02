@@ -6,8 +6,10 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"sorryrkn/internal/tunnel"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,6 +21,7 @@ const (
 	subRefresh
 	subDelete
 	subUse
+	subProbe
 )
 
 func createSourcePage() {
@@ -31,6 +34,7 @@ func createSourcePage() {
 	field("COMBOBOX", "", nodeList, 20, 250, 557, 250, 0x00210003)
 	button(subRefresh, "Обновить", 20, 310, 126)
 	button(subDelete, "Удалить", 156, 310, 126)
+	button(subProbe, "Проверить", 292, 310, 123)
 	button(subUse, "Выбрать узел", 425, 310, 152)
 	caption("Подключение включается кнопкой на главном экране.", 20, 380, 558)
 	rebuildSources()
@@ -65,6 +69,7 @@ func rebuildNodes() {
 	call(user, "EnableWindow", fields[subRefresh], boolInt(canRefresh))
 	call(user, "EnableWindow", fields[subDelete], boolInt(valid))
 	call(user, "EnableWindow", fields[subUse], boolInt(valid))
+	call(user, "EnableWindow", fields[subProbe], boolInt(valid))
 }
 func replaceSource(lib *tunnel.Library, src tunnel.Source, index int) {
 	if index < 0 {
@@ -100,6 +105,10 @@ func sourceCommand(id, notification int) {
 	idx := comboIndex(fields[subList])
 	valid := idx >= 0 && idx < len(vpnLibrary.Sources)
 	switch id {
+	case subProbe:
+		if valid {
+			probeSources(idx, comboIndex(fields[nodeList]))
+		}
 	case subList:
 		if notification == 1 {
 			rebuildNodes()
@@ -174,4 +183,43 @@ func sourceCommand(id, notification int) {
 			}, nil
 		})
 	}
+}
+
+func probeSources(sourceIndex, nodeIndex int) {
+	source := vpnLibrary.Sources[sourceIndex]
+	if nodeIndex < 0 || nodeIndex >= len(source.Profiles) {
+		return
+	}
+	profiles := []tunnel.Profile{source.Profiles[nodeIndex]}
+	if _, host, owned := strings.Cut(source.ManagedID, "/"); owned {
+		for i, s := range vpnLibrary.Sources {
+			_, other, managed := strings.Cut(s.ManagedID, "/")
+			if i != sourceIndex && managed && other == host && len(s.Profiles) > 0 {
+				profiles = append(profiles, s.Profiles[0])
+			}
+		}
+	}
+	startWork("Проверка соединения", 35*time.Second, func(ctx context.Context) (func(), error) {
+		lines := make([]string, len(profiles))
+		var waits sync.WaitGroup
+		for i, profile := range profiles {
+			waits.Add(1)
+			go func(i int, p tunnel.Profile) {
+				defer waits.Done()
+				elapsed, e := tunnel.Probe(ctx, filepath.Dir(root), p)
+				if e != nil {
+					lines[i] = p.Name + " — " + e.Error()
+				} else {
+					lines[i] = fmt.Sprintf("%s — HTTPS доступен, %d мс", p.Name, elapsed.Milliseconds())
+				}
+			}(i, profile)
+		}
+		waits.Wait()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return func() {
+			message("Проверка маршрута", strings.Join(lines, "\n")+"\n\nРезультат относится к публичному HTTPS-запросу из вашей сети. Выбор узла меняется кнопкой «Выбрать узел».")
+		}, nil
+	})
 }

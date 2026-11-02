@@ -144,7 +144,7 @@ func drawVPNButton(d *drawitem, w, h int) bool {
 		text(dc, label, 0, 6, w, h, 12, GRAY, 600, false)
 	case vpnServerID, vpnSourcesID:
 		fill(dc, d.Rect, PANEL)
-		label, note := "Свой сервер", "WireGuard, резервный TCP и SOCKS5"
+		label, note := "Свой сервер", "HTTPS, резервный TCP и SOCKS5"
 		if d.ID == vpnSourcesID {
 			label, note = "Подписки и узлы", "Импорт, обновление и выбор подключения"
 		}
@@ -259,6 +259,8 @@ func closeTunnelForUpdate() {
 	vpnSession.Stop()
 }
 func stopVPNForExit() {
+	endForwardLifetime()
+	replaceForward("", nil)
 	if cancelWork != nil {
 		cancelWork()
 	}

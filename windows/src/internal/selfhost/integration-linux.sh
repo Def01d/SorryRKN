@@ -1,102 +1,91 @@
-#!/usr/bin/env bash
-# Run only on a disposable root-access VM. Uses real systemd, kernel WireGuard,
-# forwarding, SOCKS credentials and an isolated client network namespace.
+#!/bin/bash
+# Full server integration. Run only on a fresh disposable Linux VM.
 set -euo pipefail
-[[ $1 == --isolated-vm && $EUID == 0 ]] || { echo 'A disposable root VM is required.' >&2; exit 2; }
-[[ ! -e /etc/wireguard/sorryrkn-selfhost && ! -e /etc/systemd/system/sorryrkn-vpn.service && ! -e /etc/systemd/system/sorryrkn-socks.service ]] || { echo 'VM is not clean.' >&2; exit 2; }
+[[ $1 == --isolated-vm && $EUID == 0 ]] || exit 2
+dir=$(dirname "$(realpath "$0")"); script=$dir/provision.sh
+[[ ! -e /etc/sorryrkn-https && ! -e /usr/local/lib/sorryrkn-https && ! -e /etc/systemd/system/sorryrkn-https.service ]] || { echo 'Requires a fresh VM'; exit 1; }
 umask 077
-dir=$(cd "$(dirname "$0")" && pwd)
-mkdir -p -m 700 /etc/wireguard
-work=$(mktemp -d /etc/wireguard/srkn-integration-XXXXXX)
-ns=srkn-test-client
-peer=01010101010101010101010101010101
-other=02020202020202020202020202020202
-run() { sh "$dir/provision.sh" "$1" "$2"; }
-cleanup() {
+work=$(mktemp -d)
+unit=sorryrkn-https.service
+id=01010101010101010101010101010101
+id2=02020202020202020202020202020202
+run(){ sh "$script" "$1" "$2" 127.0.0.1; }
+cleanup(){
     rc=$?
     if [[ $rc != 0 ]]; then
-        journalctl --no-pager -n 40 -o cat -u sorryrkn-vpn.service -u sorryrkn-socks.service | sed -E 's#[A-Za-z0-9+/=]{32,}#[redacted]#g'
+        journalctl --no-pager -n 30 -o cat -u "$unit" -u sorryrkn-proxy.service | sed -E 's#[A-Za-z0-9+/=]{28,}#[redacted]#g'
     fi
-    if [[ -n $http_pid ]]; then kill "$http_pid" 2>/dev/null || true; fi
-    ip netns del "$ns" 2>/dev/null || true
-    systemctl stop sorryrkn-vpn.service 2>/dev/null || true
+    systemctl disable --now "$unit" sorryrkn-proxy.service 2>/dev/null || true
     rm -rf -- "$work"
 }
-http_pid=
 trap cleanup EXIT
-
-run status "$peer" > "$work/status"
-grep -qx $'SRKN1\tSTATUS\tvpn:missing\tsocks:missing' "$work/status"
-run install-vpn "$peer" > "$work/peer"
-run install-vpn "$other" > "$work/other"
-run install-vpn "$peer" > "$work/reinstall"
-cmp "$work/peer" "$work/reinstall"
-run export-vpn "$peer" > "$work/export"
-cmp "$work/peer" "$work/export"
-[[ $(cut -f6 "$work/peer") != "$(cut -f6 "$work/other")" ]]
-[[ $(cut -f3 "$work/peer") != "$(cut -f3 "$work/other")" ]]
-[[ $(wg show srkn0 peers | wc -l) == 2 ]]
-
-# Birth namespace owns the UDP socket; the client namespace owns cleartext.
-ip netns add "$ns"
-ip link add srkn-client type wireguard
-ip link set srkn-client netns "$ns"
-cut -f3 "$work/peer" > "$work/key"
-cut -f5 "$work/peer" > "$work/psk"
-client_ip=$(cut -f6 "$work/peer")
-vpn_ip=$(cat /etc/wireguard/sorryrkn-selfhost/subnet).1
-ip netns exec "$ns" wg set srkn-client private-key "$work/key" peer "$(cut -f4 "$work/peer")" preshared-key "$work/psk" endpoint 127.0.0.1:51823 allowed-ips 0.0.0.0/0
-ip -n "$ns" addr add "$client_ip/32" dev srkn-client
-ip -n "$ns" link set srkn-client up
-ip -n "$ns" route add default dev srkn-client
-ip netns exec "$ns" ping -c 2 -W 3 "$vpn_ip" >/dev/null
-wg show srkn0 latest-handshakes | awk '$2>0 {found=1} END {exit !found}'
-echo 'Two independent peers, idempotent provisioning and actual WireGuard handshake passed.'
-
-# This test leaves the root namespace via the server forwarding/NAT rules.
-api_ip=$(getent ahostsv4 api.github.com | awk 'NR==1{v=$1} END{print v}')
-ip netns exec "$ns" curl -4 -fsS --noproxy '*' --retry 2 --connect-timeout 8 --max-time 25 --resolve "api.github.com:443:$api_ip" https://api.github.com/zen -o /dev/null
-echo 'IPv4 HTTPS through the full tunnel passed.'
-
-run install-socks "$peer" > "$work/socks"
-printf 'selfhost-proxy-check' > "$work/fixture"
-# Only expose the single test file to this disposable loopback test origin.
-mkdir "$work/public"
-mv "$work/fixture" "$work/public/fixture"
-python3 -m http.server 18664 --bind 127.0.0.1 --directory "$work/public" >/dev/null 2>&1 &
-http_pid=$!
-for ((i=0; i<20; i++)); do
-    if curl -fsS --noproxy '*' http://127.0.0.1:18664/fixture -o /dev/null 2>/dev/null; then break; fi
-    sleep .1
-done
-ip netns exec "$ns" python3 - "$work/socks" <<'PY'
-from pathlib import Path
-import socket, struct, sys
-_, kind, host, port, user, password = Path(sys.argv[1]).read_text().strip().split('\t')
-assert kind == 'SOCKS'
-def check(password, expected):
-    with socket.create_connection((host,int(port)),timeout=5) as sock:
-        stream = sock.makefile('rb')
-        sock.sendall(b'\x05\x01\x02')
-        assert stream.read(2) == b'\x05\x02'
-        u,p = user.encode(),password.encode()
-        sock.sendall(b'\x01'+bytes([len(u)])+u+bytes([len(p)])+p)
-        assert stream.read(2) == b'\x01'+bytes([expected])
-        if expected: return
-        sock.sendall(b'\x05\x01\x00\x01'+socket.inet_aton('127.0.0.1')+struct.pack('!H',18664))
-        assert stream.read(10) == b'\x05\x00\x00\x01'+bytes(6)
-        sock.sendall(b'GET /fixture HTTP/1.0\r\n\r\n')
-        assert stream.read().endswith(b'selfhost-proxy-check')
-check('incorrect',1)
-check(password,0)
+run status "$id" | grep -q $'vpn:missing\tsocks:missing'
+run https-on "$id" > "$work/first"
+run https-on "$id2" > "$work/second"
+run https-profile "$id" > "$work/export"
+run https-on "$id" > "$work/reinstall"
+cmp "$work/first" "$work/export"; cmp "$work/first" "$work/reinstall"
+! cmp -s "$work/first" "$work/second" || { echo 'Duplicate per-device credential'; exit 1; }
+python3 - "$work" <<'PY'
+import base64,pathlib,ssl,sys,urllib.parse
+w=pathlib.Path(sys.argv[1]); record=(w/'first').read_text().strip().split('\t')
+assert record[:2]==['SRKN1','HTTPS']
+u=urllib.parse.urlsplit(record[2]); q=urllib.parse.parse_qs(u.query)
+assert u.hostname=='sorryrkn.invalid' and u.port==443 and q['sni']==['127.0.0.1']
+der=base64.urlsafe_b64decode(q['ca'][0]+'===')
+(w/'ca.pem').write_text(ssl.DER_cert_to_PEM_cert(der))
+(w/'curl.conf').write_text('proxy = "https://127.0.0.1:443"\nproxy-user = "'+u.username+':'+u.password+'"\n')
 PY
-run stop-socks "$peer" | grep -q 'socks:stopped'
-run install-socks "$peer" > "$work/retry-socks"
-cmp "$work/socks" "$work/retry-socks"
-run stop-vpn "$peer" | grep -q 'vpn:stopped'
-run start-vpn "$peer" | grep -q 'vpn:running'
-# Reconnect the client rather than waiting for its stale session to rekey.
-ip netns exec "$ns" wg set srkn-client peer "$(cut -f4 "$work/peer")" remove
-ip netns exec "$ns" wg set srkn-client peer "$(cut -f4 "$work/peer")" preshared-key "$work/psk" endpoint 127.0.0.1:51823 allowed-ips 0.0.0.0/0
-ip netns exec "$ns" ping -c 2 -W 3 "$vpn_ip" >/dev/null
-echo 'Authenticated SOCKS relay, credential preservation and service stop/start passed.'
+# Validate the genuine IP SAN without sending any TLS SNI.
+openssl s_client -noservername -connect 127.0.0.1:443 -CAfile "$work/ca.pem" -verify_ip 127.0.0.1 -verify_return_error </dev/null >/dev/null 2>&1
+curl -fsS --cacert "$work/ca.pem" https://127.0.0.1/ > "$work/cover"
+cmp "$work/cover" /usr/local/lib/sorryrkn-https/site/index.html
+python3 - "$work" <<'PY'
+from pathlib import Path
+import socket, ssl, sys
+w=Path(sys.argv[1]); tls=ssl.create_default_context(cafile=str(w/'ca.pem'))
+for auth in (b'',b'Proxy-Authorization: Basic d3Jvbmc6d3Jvbmc=\r\n'):
+    with socket.create_connection(('127.0.0.1',443),timeout=5) as raw:
+        with tls.wrap_socket(raw,server_hostname='127.0.0.1') as s:
+            s.sendall(b'CONNECT example.org:443 HTTP/1.1\r\nHost: example.org:443\r\n'+auth+b'Connection: close\r\n\r\n')
+            out=b''
+            while len(out)<65536:
+                data=s.recv(65536)
+                if not data: break
+                out+=data
+    assert b'proxy-authenticate:' not in out.lower() and not out.startswith(b'HTTP/1.1 407'), 'proxy challenge on unauthorized probe'
+    assert b' 404 ' in out.partition(b'\r\n')[0] or (w/'cover').read_bytes() in out or b' 405 ' in out.partition(b'\r\n')[0], 'unexpected response to unauthenticated CONNECT'
+PY
+# libcurl negotiates HTTP/2 with the HTTPS proxy, authenticates CONNECT, and
+# validates the public origin's TLS certificate through the tunnel.
+result=$(curl --config "$work/curl.conf" --proxy-http2 --proxy-cacert "$work/ca.pem" --noproxy '' --fail --silent --show-error --max-time 25 --retry 2 -o "$work/response" -w '%{http_connect}:%{http_code}' https://api.github.com/zen)
+[[ "$result" == 200:200 && -s "$work/response" ]]
+if curl --config "$work/curl.conf" --proxy-http2 --noproxy '' --fail --silent --max-time 5 https://api.github.com/zen >/dev/null 2>&1; then echo 'Untrusted private CA was accepted'; exit 1; fi
+# Preserve owner content on reinstall and observe it on the actual TLS site.
+printf '<html><title>Owner site</title></html>\n' >/usr/local/lib/sorryrkn-https/site/index.html
+run https-on "$id" >/dev/null
+curl -fsS --cacert "$work/ca.pem" https://127.0.0.1/ | grep -q 'Owner site'
+echo 'HTTPS: private CA/IP SAN without SNI, ordinary cover, wrong and missing auth, authenticated HTTP2 relay and idempotent peers passed.'
+run https-off "$id" | grep -q 'vpn:stopped'
+run install-socks "$id" > "$work/socks"
+grep -q $'SRKN1\tSOCKS\t127.0.0.1\t11080\t' "$work/socks"
+python3 - "$work/socks" <<'PY'
+from pathlib import Path
+import socket,sys
+_,_,host,port,user,password=Path(sys.argv[1]).read_text().strip().split('\t')
+for passwd,expected in (('wrong',1),(password,0)):
+    with socket.create_connection((host,int(port)),timeout=5) as s:
+        r=s.makefile('rb'); s.sendall(b'\x05\x01\x02'); assert r.read(2)==b'\x05\x02'
+        u,p=user.encode(),passwd.encode()
+        s.sendall(b'\x01'+bytes([len(u)])+u+bytes([len(p)])+p);assert r.read(2)==b'\x01'+bytes([expected])
+        if not expected:
+            domain=b'api.github.com'
+            s.sendall(b'\x05\x01\x00\x03'+bytes([len(domain)])+domain+b'\x01\xbb')
+            assert r.read(10)==b'\x05\x00\x00\x01'+bytes(6)
+PY
+run stop-socks "$id" | grep -q 'socks:stopped'
+run install-socks "$id" > "$work/socks2"; cmp "$work/socks" "$work/socks2"
+run https-start "$id" | grep -q 'vpn:running'
+for n in {1..20}; do curl -fsS --cacert "$work/ca.pem" https://127.0.0.1/ 2>/dev/null | grep -q 'Owner site' && break; sleep .3; done
+curl -fsS --cacert "$work/ca.pem" https://127.0.0.1/ | grep -q 'Owner site'
+echo 'Independent loopback SOCKS authentication/connect, credential preservation, HTTPS stop/start passed.'
