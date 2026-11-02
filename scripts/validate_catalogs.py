@@ -38,3 +38,10 @@ fixture=(ROOT/'testdata/signed-update.json').read_bytes()
 for name in ('windows/src/internal/core/testdata/signed-update.json','android/src/app/src/androidTest/assets/signed-update.json'):
     assert (ROOT/name).read_bytes()==fixture,name
 print('Public update trust and signature fixtures synchronized.')
+
+for name in ('provision.sh', 'reality.sh'):
+    script = (ROOT / 'windows/src/internal/selfhost' / name).read_bytes()
+    android = (ROOT / 'android/src/app/src/main/assets' / name).read_bytes()
+    if android != script or b'\r' in script:
+        raise SystemExit(f'{name}: expected identical POSIX scripts on both platforms')
+print('SSH provisioning scripts synchronized.')

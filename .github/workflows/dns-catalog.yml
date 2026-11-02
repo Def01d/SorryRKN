@@ -7,6 +7,8 @@ on:
       - services.json
       - update-trust.json
       - scripts/validate_catalogs.py
+      - windows/src/internal/selfhost/*.sh
+      - android/src/app/src/main/assets/*.sh
       - testdata/**
       - android/src/app/src/main/python/services.json
       - windows/src/internal/core/services.json
@@ -22,6 +24,8 @@ on:
       - services.json
       - update-trust.json
       - scripts/validate_catalogs.py
+      - windows/src/internal/selfhost/*.sh
+      - android/src/app/src/main/assets/*.sh
       - testdata/**
       - android/src/app/src/main/python/services.json
       - windows/src/internal/core/services.json

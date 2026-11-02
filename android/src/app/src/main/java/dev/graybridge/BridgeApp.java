@@ -7,6 +7,7 @@ public class BridgeApp extends Application {
         super.onCreate();
         // A persisted UI status never proves the previous process is still running.
         Settings.prefs(this).edit().putString("state", "off").putString("error", "").apply();
+        RemoteVpnService.state(this,"off","");
         DataUpdates.schedule(this);
     }
 }

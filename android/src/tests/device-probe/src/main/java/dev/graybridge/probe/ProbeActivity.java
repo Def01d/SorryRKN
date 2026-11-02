@@ -17,6 +17,24 @@ public class ProbeActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         TextView text=new TextView(this); text.setText("Checking VPN TCP / UDP…"); setContentView(text);
+        if(getIntent().getBooleanExtra("remoteHttps",false)) {
+            new Thread(()-> {
+                String result;
+                try {
+                    ConnectivityManager cm=getSystemService(ConnectivityManager.class);
+                    NetworkCapabilities caps=cm.getNetworkCapabilities(cm.getActiveNetwork());
+                    if(caps==null||!caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN))throw new IOException("Probe UID outside VPN");
+                    HttpsURLConnection conn=(HttpsURLConnection)new URL("https://www.gstatic.com/generate_204").openConnection();
+                    conn.setConnectTimeout(12000);conn.setReadTimeout(12000);conn.setUseCaches(false);conn.setInstanceFollowRedirects(false);
+                    try {if(conn.getResponseCode()!=204)throw new IOException("HTTP status "+conn.getResponseCode());}finally{conn.disconnect();}
+                    result="PASS";
+                }catch(Exception e){result="FAIL: "+e.getClass().getSimpleName()+" "+e.getMessage();}
+                sendBroadcast(new Intent("dev.graybridge.probe.RESULT").setPackage(getIntent().getStringExtra("callbackPackage"))
+                    .putExtra("result",result).putExtra("probeToken",getIntent().getStringExtra("probeToken")));
+                runOnUiThread(this::finish);
+            },"https-tunnel-probe").start();
+            return;
+        }
         if(getIntent().getBooleanExtra("publicServiceChecks",false)) {
             text.setText("Checking public services through VPN…");
             new Thread(()-> {

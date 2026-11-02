@@ -17,6 +17,9 @@ app/src/androidTest/assets/telegram_verified_check.py
 app/src/androidTest/assets/telegram_wire_check.py
 app/src/androidTest/java/dev/graybridge/DeviceChecks.java
 app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java
+app/src/androidTest/java/dev/graybridge/NegativeTrustProbe.java
+app/src/androidTest/java/dev/graybridge/RemoteDeviceChecks.java
+app/src/androidTest/java/dev/graybridge/RemoteGuestChecks.java
 app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java
 app/src/main/AndroidManifest.xml
 app/src/main/assets/bundled-data.json
@@ -37,6 +40,7 @@ app/src/main/assets/licenses/httpcore.txt
 app/src/main/assets/licenses/httpx.txt
 app/src/main/assets/licenses/hyperframe.txt
 app/src/main/assets/licenses/idna.txt
+app/src/main/assets/licenses/jsch-BSD.txt
 app/src/main/assets/licenses/libyaml.txt
 app/src/main/assets/licenses/lwip.txt
 app/src/main/assets/licenses/musl.txt
@@ -45,6 +49,8 @@ app/src/main/assets/licenses/socksio.txt
 app/src/main/assets/licenses/tg-ws-proxy.txt
 app/src/main/assets/licenses/typing_extensions.txt
 app/src/main/assets/licenses/zapret.txt
+app/src/main/assets/provision.sh
+app/src/main/assets/reality.sh
 app/src/main/java/dev/graybridge/AppUpdates.java
 app/src/main/java/dev/graybridge/BridgeApp.java
 app/src/main/java/dev/graybridge/BridgeService.java
@@ -53,10 +59,17 @@ app/src/main/java/dev/graybridge/DataUpdateJob.java
 app/src/main/java/dev/graybridge/DataUpdates.java
 app/src/main/java/dev/graybridge/DnsProfiles.java
 app/src/main/java/dev/graybridge/MainActivity.java
+app/src/main/java/dev/graybridge/NaiveEngine.java
 app/src/main/java/dev/graybridge/NativeTunnel.java
+app/src/main/java/dev/graybridge/RemoteActivity.java
+app/src/main/java/dev/graybridge/RemoteSubscriptions.java
+app/src/main/java/dev/graybridge/RemoteVault.java
+app/src/main/java/dev/graybridge/RemoteVpnService.java
 app/src/main/java/dev/graybridge/RouteSummary.java
+app/src/main/java/dev/graybridge/ServerSSH.java
 app/src/main/java/dev/graybridge/ServiceRoutes.java
 app/src/main/java/dev/graybridge/Settings.java
+app/src/main/java/dev/graybridge/SshForward.java
 app/src/main/java/dev/graybridge/Strategies.java
 app/src/main/java/dev/graybridge/StrategyMemory.java
 app/src/main/java/dev/graybridge/UpdateProvider.java
@@ -92,6 +105,7 @@ app/src/main/python/proxy/telegram_endpoints.py
 app/src/main/python/proxy/tg_ws_proxy.py
 app/src/main/python/proxy/utils.py
 app/src/main/python/proxy/verified_routes.py
+app/src/main/python/remote_nodes.py
 app/src/main/python/service_catalog.py
 app/src/main/python/service_probe.py
 app/src/main/python/service_routing.py
@@ -128,6 +142,8 @@ native/Application.mk
 native/bridge.c
 requirements-dev.txt
 scripts/build-native.sh
+scripts/prepare-naive.sh
+scripts/prepare-xray.sh
 scripts/test-network.sh
 settings.gradle
 tests/device-probe/build.gradle
@@ -150,6 +166,7 @@ tests/test_geo_route.py
 tests/test_media_health.py
 tests/test_own_ip.py
 tests/test_recovery.py
+tests/test_remote_nodes.py
 tests/test_service_observation.py
 tests/test_service_probe.py
 tests/test_service_routing.py

@@ -27,10 +27,14 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
     private PowerView power;
     private boolean binding;
     private boolean connecting;
+    private boolean visible;
     private TextView updateSummary, extraSubtitle, telegramSubtitle;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        if (dev.graybridge.Settings.prefs(this).getBoolean("remote_home",false) && !dev.graybridge.Settings.busy(this)) {
+            startActivity(new Intent(this,RemoteActivity.class)); finish(); return;
+        }
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         LinearLayout root = new LinearLayout(this);
@@ -73,6 +77,17 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         header.addView(menu, new LinearLayout.LayoutParams(dp(48), dp(48)));
         menu.setOnClickListener(v -> showMenu(menu));
         page.addView(header);
+        TextView mode=label("Локальный обход   ·   Сменить режим  ›",14,WHITE);
+        mode.setPadding(dp(14),dp(12),dp(14),dp(12));mode.setBackground(shape(PANEL,dp(12),BORDER));
+        LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,-2);mp.topMargin=dp(12);page.addView(mode,mp);
+        mode.setOnClickListener(v->{
+            if(dev.graybridge.Settings.busy(this)) { toast("Сначала отключите локальный обход");return; }
+            new AlertDialog.Builder(this).setTitle("Режим подключения").setItems(new String[]{"Локальный обход","Свой сервер","Подписки"},(d,i)->{
+                if(i==0)return;
+                dev.graybridge.Settings.prefs(this).edit().putBoolean("remote_home",true).putString("remote_mode",i==1?"server":"subscriptions").apply();
+                startActivity(new Intent(this,RemoteActivity.class));finish();
+            }).show();
+        });
 
         LinearLayout center = new LinearLayout(this);
         center.setOrientation(LinearLayout.VERTICAL);
@@ -286,11 +301,12 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
     }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent);
-        AppUpdates.check(this,false);
+        if(visible && !isFinishing()) AppUpdates.check(this,false);
         if (intent.getBooleanExtra("connect",false)) { intent.removeExtra("connect"); connect(); }
     }
-    @Override protected void onStart() { super.onStart(); AppUpdates.check(this,false); }
-    @Override protected void onResume() { super.onResume(); AppUpdates.resume(this); dev.graybridge.Settings.prefs(this).registerOnSharedPreferenceChangeListener(this); refresh(); DnsProfiles.check(this,false); }
+    @Override protected void onStart() { super.onStart(); visible=true; if(!isFinishing())AppUpdates.check(this,false); }
+    @Override protected void onStop() { visible=false;super.onStop(); }
+    @Override protected void onResume() { super.onResume(); if(isFinishing())return;AppUpdates.resume(this); dev.graybridge.Settings.prefs(this).registerOnSharedPreferenceChangeListener(this); refresh(); DnsProfiles.check(this,false); }
     @Override protected void onPause() { dev.graybridge.Settings.prefs(this).unregisterOnSharedPreferenceChangeListener(this); super.onPause(); }
     @Override public void onSharedPreferenceChanged(SharedPreferences prefs,String key) { handler.post(this::refresh); }
 

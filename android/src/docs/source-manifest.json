@@ -1,5 +1,5 @@
 {
-  "version": "0.13.0",
+  "version": "0.14.0",
   "scope": "Android source export; excludes generated build outputs and private local configuration",
   "manifest_self_excluded": true,
   "files": [
@@ -10,8 +10,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "size": 3877,
-      "sha256": "c2c04062a7048178226bc4bc011b4b86ea7c37de727d85a0446322ae978163d7"
+      "size": 4710,
+      "sha256": "5292fb9a33f21edd5811cdc8eb24c14c0b6a29645ed13b5422b2fd1c2d0043c5"
     },
     {
       "path": "LICENSE",
@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "size": 14652,
-      "sha256": "dc093e75190e3bc830d8b46e15cccab50ad7730fe93c27f998eed575b46b3f5f"
+      "size": 16026,
+      "sha256": "041a1fecc1084f5c3cbf25f22948e3124bfbad765b30b1197d3c771df213aa26"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -35,8 +35,8 @@
     },
     {
       "path": "app/build.gradle",
-      "size": 1459,
-      "sha256": "cbdd981079258ec5341a4c33f340ad6f48f039677ab9587804faec413aa8f394"
+      "size": 2959,
+      "sha256": "177ce4e02f00c193ddf48fe1b24a70eb31a18ef6716518680bd00459a97483da"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -90,8 +90,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 58718,
-      "sha256": "dabeb297b3c41610c5c4ec5478428f666ce4f5667373414046ed7ee9092eeb02"
+      "size": 59195,
+      "sha256": "d7c7eb0eb41a8e9d4413c0b1e79b833d3810a1c5a76800430d2879501ca0d2bd"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
@@ -99,14 +99,29 @@
       "sha256": "d0526b2759f639dc9fcb6ed7a63db6a06a2ae51945a58de5c105b2bf3f1b4e57"
     },
     {
+      "path": "app/src/androidTest/java/dev/graybridge/NegativeTrustProbe.java",
+      "size": 3436,
+      "sha256": "7130a4487aed8a22ce57fb0e68061c19cb6bd2444e049163f1b97012c35dc917"
+    },
+    {
+      "path": "app/src/androidTest/java/dev/graybridge/RemoteDeviceChecks.java",
+      "size": 4676,
+      "sha256": "33e36b47c8d25face5e467668fce3a8f3cdd0ac9cb9e2e7a104520116509e070"
+    },
+    {
+      "path": "app/src/androidTest/java/dev/graybridge/RemoteGuestChecks.java",
+      "size": 5299,
+      "sha256": "df4d5f76cae8c75ab1fa29d274b211f23696e5140e92adfc5e2a53d2c1ea3f80"
+    },
+    {
       "path": "app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java",
-      "size": 6711,
-      "sha256": "9e35af671a6600e3d9476038d7d71c1805b7e61bf70c9d1a50f24722db3ffe21"
+      "size": 6803,
+      "sha256": "9789211c89576207504cd1d2d4e4c4112f56a0e556910aa3e715769bd37d48c9"
     },
     {
       "path": "app/src/main/AndroidManifest.xml",
-      "size": 2675,
-      "sha256": "a7e94413bbda20123d2c93d27e32ca08b821c88cb7f64ad334acc92933e39a47"
+      "size": 3580,
+      "sha256": "0d0aca768e52c6f4c2c3d6da0dfa1f18a457760c4ab1e0c3d6b33d9715f009db"
     },
     {
       "path": "app/src/main/assets/bundled-data.json",
@@ -199,6 +214,11 @@
       "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04"
     },
     {
+      "path": "app/src/main/assets/licenses/jsch-BSD.txt",
+      "size": 1651,
+      "sha256": "9c3537ab0b485b391b887b95fdff761de3dd3273a6931e8a1942dde4d2093cc5"
+    },
+    {
       "path": "app/src/main/assets/licenses/libyaml.txt",
       "size": 1047,
       "sha256": "3cca1a91ca82e9b9c41852945ef15858f932828ceeb765b86bc1fe3f39127514"
@@ -239,14 +259,24 @@
       "sha256": "dcf5abd3e5d876c1065982871c0cec7368c0e61fc795c541798729516bb6b54f"
     },
     {
+      "path": "app/src/main/assets/provision.sh",
+      "size": 15848,
+      "sha256": "597854b001212653b7d69dc62243bb36145bd36865db97d2b39a374c57cac70f"
+    },
+    {
+      "path": "app/src/main/assets/reality.sh",
+      "size": 10283,
+      "sha256": "f11cbb5dc2ce4024052adb05ecae25766bfa3f2b2a36d6cf16d8b11c0e46309b"
+    },
+    {
       "path": "app/src/main/java/dev/graybridge/AppUpdates.java",
       "size": 12627,
       "sha256": "a3911bf594fd08f5ababd58ccea6076d99d9f783b3e9c7001a6493124e21e2ce"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeApp.java",
-      "size": 391,
-      "sha256": "5c51676fbf70a257ef57416d846301a44ec342df215d2cadaedafdd08cdfd494"
+      "size": 438,
+      "sha256": "99117a237ff8db7806a48ff48348231a6879d311aa8778c5dcbc6cc55e9270ef"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeService.java",
@@ -255,8 +285,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeTile.java",
-      "size": 1857,
-      "sha256": "7723e553dcd5a5f20908fab66ed8af979055503b602d7b7efbb49a773e5e022c"
+      "size": 2375,
+      "sha256": "f953f5a7c7a8b134f6a084cdd8908b5f36d3d5e094e51abb5d0055f92deb6b72"
     },
     {
       "path": "app/src/main/java/dev/graybridge/DataUpdateJob.java",
@@ -275,8 +305,13 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/MainActivity.java",
-      "size": 46009,
-      "sha256": "7da26b893d8fd5aa511e15f9e0bbe36891ab790a5cc68b0b7748217767294234"
+      "size": 47423,
+      "sha256": "957802acf89623ed286050d566c172ee53ba3bc07f0d7c48a2d6e938a4ffeb1e"
+    },
+    {
+      "path": "app/src/main/java/dev/graybridge/NaiveEngine.java",
+      "size": 4024,
+      "sha256": "3f05898b925563909d38ee234a1b1cb97e7b6671898e96894bdd6ba1181d55a9"
     },
     {
       "path": "app/src/main/java/dev/graybridge/NativeTunnel.java",
@@ -284,9 +319,34 @@
       "sha256": "78b6013c2a9c1e6930410fb32e3a20b54788a876a66010b02ed8c1588e159021"
     },
     {
+      "path": "app/src/main/java/dev/graybridge/RemoteActivity.java",
+      "size": 16436,
+      "sha256": "fea1840bbfe8dd0db8edf2759e1f4ba9903de7d4b137a94679e8dc1882e87b7a"
+    },
+    {
+      "path": "app/src/main/java/dev/graybridge/RemoteSubscriptions.java",
+      "size": 5008,
+      "sha256": "36b35f5308a3c03023e02e05826fcb2afcabc67464e822f79b839f2162b925b7"
+    },
+    {
+      "path": "app/src/main/java/dev/graybridge/RemoteVault.java",
+      "size": 2492,
+      "sha256": "79d1cfef64c8f7d21da89af8eb114958bcf0d71faf9687e5623a0cf5bd582120"
+    },
+    {
+      "path": "app/src/main/java/dev/graybridge/RemoteVpnService.java",
+      "size": 8356,
+      "sha256": "6b3f10cec3a85bba450e02a7e7b55ba12664f2cd94c6a2086e9053a5272f3c79"
+    },
+    {
       "path": "app/src/main/java/dev/graybridge/RouteSummary.java",
       "size": 5299,
       "sha256": "c8e50b7d3ac6ab5bb977b1a9d1b6ed5c57d15fbc01b97f85216c37ae44b9f44c"
+    },
+    {
+      "path": "app/src/main/java/dev/graybridge/ServerSSH.java",
+      "size": 8436,
+      "sha256": "e73abd2afe4cec0237bdff8ddd6d865b8dc48b3c32b6852971d08d650c5d0b03"
     },
     {
       "path": "app/src/main/java/dev/graybridge/ServiceRoutes.java",
@@ -297,6 +357,11 @@
       "path": "app/src/main/java/dev/graybridge/Settings.java",
       "size": 1620,
       "sha256": "901bd2a78ce53e83c3bcbdc5bee3f358bc2c0e906d85f225bf54a1b5029431da"
+    },
+    {
+      "path": "app/src/main/java/dev/graybridge/SshForward.java",
+      "size": 1950,
+      "sha256": "6c1270132c59ee1845deb4111e1c0705d3569f1a1d383b882dd136918c464e6e"
     },
     {
       "path": "app/src/main/java/dev/graybridge/Strategies.java",
@@ -474,6 +539,11 @@
       "sha256": "fd7c6d81c4d8ae5c5ce2d012e103a5a9b47ee717a53811652b7d21ecb8996879"
     },
     {
+      "path": "app/src/main/python/remote_nodes.py",
+      "size": 6055,
+      "sha256": "7c8733883f0edd38537d3f95471ffc8b1b4c0bd29bd9c7811e8cf0383ae96696"
+    },
+    {
       "path": "app/src/main/python/service_catalog.py",
       "size": 727,
       "sha256": "ab4c445dd7f81400d9e4c6f5b1a6f209dc867a08e799078d73c1f038f6a253e1"
@@ -575,8 +645,8 @@
     },
     {
       "path": "docs/source-files.txt",
-      "size": 47482,
-      "sha256": "57412c226e0291152342fcf875c785ec66b2bcb784d50d821d3ae19388292383"
+      "size": 48254,
+      "sha256": "d21b0efbd3783f725fb63ee10c57f202c894edacc12b0fad68a7f03c2f790de2"
     },
     {
       "path": "docs/upstream-lock.json",
@@ -649,6 +719,16 @@
       "sha256": "f37653b725d9b7d2cd412f894f4cc0857dd3aa7b62d112da6e35a2fc7e7f50df"
     },
     {
+      "path": "scripts/prepare-naive.sh",
+      "size": 1410,
+      "sha256": "3da60edfad28a264d46905c8afa26c1f21581dab8d38f89328ad7b0789e39c4d"
+    },
+    {
+      "path": "scripts/prepare-xray.sh",
+      "size": 1213,
+      "sha256": "10d2430bab0557539a13fcd177872a5600d881f7df6a53b70897e33cdedfae99"
+    },
+    {
       "path": "scripts/test-network.sh",
       "size": 1499,
       "sha256": "ac59a7e87da0592cd42446284087e820e76d2e614dee7c6a9edcddba2b8ba80f"
@@ -670,8 +750,8 @@
     },
     {
       "path": "tests/device-probe/src/main/java/dev/graybridge/probe/ProbeActivity.java",
-      "size": 11269,
-      "sha256": "9bb5a8ed653f116034cec27b1da14ac19f7953e7ffc95ac5a1d0414abeb4205c"
+      "size": 12653,
+      "sha256": "b9fecfeaa4c41d8171273b37118dbdc2298ae67193268feb025455aeb29a59c3"
     },
     {
       "path": "tests/device-probe/src/main/java/dev/graybridge/probe/PublicServiceChecks.java",
@@ -757,6 +837,11 @@
       "path": "tests/test_recovery.py",
       "size": 8275,
       "sha256": "3f1a7aac9933dfc153242235844ec6570235a071cbfbc56cd7f859d049ab90b0"
+    },
+    {
+      "path": "tests/test_remote_nodes.py",
+      "size": 2267,
+      "sha256": "28b6e116b9833dc4c91d28c13c914505526c9955de37009454ad5671fc468f5e"
     },
     {
       "path": "tests/test_service_observation.py",

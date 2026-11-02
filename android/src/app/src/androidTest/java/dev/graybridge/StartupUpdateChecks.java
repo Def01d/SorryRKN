@@ -18,10 +18,9 @@ final class StartupUpdateChecks {
     static void run(Instrumentation test,Context context,Bundle report) throws Exception {
         AtomicInteger requests=new AtomicInteger();
         CountDownLatch pending=new CountDownLatch(1),release=new CountDownLatch(1);
-        byte[] manifest=new org.json.JSONObject().put("versionCode",BuildConfig.VERSION_CODE+1)
-            .put("versionName","next-test").put("url","https://update-check.test/app.apk")
-            .put("size",20000000).put("sha256",new String(new char[64]).replace('\0','a'))
-            .put("notes","Test-only update offer").toString().getBytes("UTF-8");
+        byte[] manifest=java.nio.file.Files.readAllBytes(new File(context.getFilesDir(),"startup-update.json").toPath());
+        AppUpdates.Release expected=new AppUpdates.Release(new org.json.JSONObject(new String(manifest,java.nio.charset.StandardCharsets.UTF_8)));
+        if(expected.code<=BuildConfig.VERSION_CODE) throw new AssertionError("Build isolated debug APK with -PstartupUpdateProbe");
         URL.setURLStreamHandlerFactory(protocol->!protocol.equals("https")?null:new URLStreamHandler(){
             @Override protected URLConnection openConnection(URL url) throws IOException {
                 if(!url.toString().equals("https://update-check.test/update.json"))throw new IOException("Unexpected test HTTPS request");
@@ -54,7 +53,7 @@ final class StartupUpdateChecks {
             prefs.edit().putString("apk_update_url","https://update-check.test/update.json")
                 .putBoolean("auto_updates",false).putLong("apk_update_checked",System.currentTimeMillis()).commit();
             first=test.startActivitySync(new Intent(context,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            offer(test,requests,1);
+            offer(test,requests,1,expected.name);
             dismiss(test);
             // Reuse the launcher task after HOME, well inside the former six-hour interval.
             try(android.os.ParcelFileDescriptor descriptor=test.getUiAutomation().executeShellCommand("input keyevent 3")) {
@@ -62,14 +61,14 @@ final class StartupUpdateChecks {
             }
             context.startActivity(new Intent(context,MainActivity.class).setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            offer(test,requests,2);dismiss(test);
+            offer(test,requests,2,expected.name);dismiss(test);
             Activity original=first;test.runOnMainSync(original::finish);test.waitForIdleSync();
             first=test.startActivitySync(new Intent(context,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             if(!pending.await(5,TimeUnit.SECONDS))throw new AssertionError("Third check did not start");
             Activity replaced=first;test.runOnMainSync(replaced::finish);test.waitForIdleSync();
             second=test.startActivitySync(new Intent(context,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             test.waitForIdleSync();release.countDown();
-            offer(test,requests,3);dismiss(test);
+            offer(test,requests,3,expected.name);dismiss(test);
             if(requests.get()!=3)throw new AssertionError("Concurrent opening duplicated HTTP request");
             report.putString("startup_updates","PASS: recent check does not suppress launch; HOME/reopen checks again; in-flight check delivers to replacement Activity without duplicate HTTP; manifest bypasses cache; update dialog shown");
         } finally {
@@ -86,10 +85,10 @@ final class StartupUpdateChecks {
         java.util.List<AccessibilityNodeInfo> nodes=root.findAccessibilityNodeInfosByText(text);
         return nodes.isEmpty()?null:nodes.get(0);
     }
-    private static void offer(Instrumentation test,AtomicInteger requests,int count)throws Exception {
+    private static void offer(Instrumentation test,AtomicInteger requests,int count,String name)throws Exception {
         long deadline=System.currentTimeMillis()+8000;
         while(System.currentTimeMillis()<deadline){
-            if(requests.get()==count&&node(test,"SorryRKN next-test")!=null)return;
+            if(requests.get()==count&&node(test,"SorryRKN "+name)!=null)return;
             Thread.sleep(100);
         }
         throw new AssertionError("Missing update offer "+count+"; requests="+requests.get());

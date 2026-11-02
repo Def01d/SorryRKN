@@ -8,18 +8,33 @@ android {
         applicationId 'dev.graybridge'
         minSdk 26
         targetSdk 35
-        versionCode 20
-        versionName '0.13.0'
+        versionCode 21
+        versionName '0.14.0'
         ndk { abiFilters 'arm64-v8a', 'x86_64' }
         testInstrumentationRunner 'dev.graybridge.DeviceChecks'
     }
     buildFeatures { buildConfig true }
     buildTypes {
-        debug { applicationIdSuffix '.dev'; versionNameSuffix '-test'; manifestPlaceholders = [appLabel: 'SorryRKN Test'] }
+        debug { applicationIdSuffix providers.gradleProperty('startupUpdateProbe').isPresent() ? '.updateprobe' : '.dev'; versionNameSuffix '-test'; manifestPlaceholders = [appLabel: 'SorryRKN Test'] }
         release { minifyEnabled false; manifestPlaceholders = [appLabel: 'SorryRKN'] }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-    packaging { jniLibs { useLegacyPackaging true } }
+    packaging { jniLibs { useLegacyPackaging true; keepDebugSymbols += ['**/libxray.so','**/libnaive.so'] } }
+    sourceSets.main.jniLibs.srcDir layout.buildDirectory.dir('generated/xray/jni')
+    sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/xray/assets')
+    sourceSets.main.jniLibs.srcDir layout.buildDirectory.dir('generated/naive/jni')
+    sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/naive/assets')
+}
+
+// Exercise the real signed production feed and offer UI from an older, isolated test APK.
+androidComponents.onVariants(androidComponents.selector().withBuildType('debug')) { variant ->
+    if (providers.gradleProperty('startupUpdateProbe').isPresent()) {
+        variant.outputs.each { output -> output.versionCode.set(1) }
+    }
+}
+
+dependencies {
+    implementation 'com.github.mwiede:jsch:2.28.8'
 }
 
 chaquopy {
@@ -39,3 +54,17 @@ tasks.register('buildNative', Exec) {
     outputs.dir file('src/main/jniLibs')
 }
 tasks.named('preBuild').configure { dependsOn 'buildNative' }
+tasks.register('prepareXray', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'bash', 'scripts/prepare-xray.sh'
+    inputs.file rootProject.file('scripts/prepare-xray.sh')
+    outputs.dir layout.buildDirectory.dir('generated/xray')
+}
+tasks.named('preBuild').configure { dependsOn 'prepareXray' }
+tasks.register('prepareNaive', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'bash', 'scripts/prepare-naive.sh'
+    inputs.file rootProject.file('scripts/prepare-naive.sh')
+    outputs.dir layout.buildDirectory.dir('generated/naive')
+}
+tasks.named('preBuild').configure { dependsOn 'prepareNaive' }

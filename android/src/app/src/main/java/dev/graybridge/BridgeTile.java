@@ -10,7 +10,8 @@ public class BridgeTile extends TileService {
     @Override public void onStartListening() {
         Tile tile = getQsTile();
         if (tile == null) return;
-        String state = Settings.state(this);
+        boolean remote=Settings.prefs(this).getBoolean("remote_home",false);
+        String state = remote?RemoteVpnService.status(this):Settings.state(this);
         tile.setState(state.equals("on") || state.equals("partial") ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
         tile.setLabel("SorryRKN");
         if (Build.VERSION.SDK_INT >= 29) tile.setSubtitle(switch(state) {
@@ -23,7 +24,11 @@ public class BridgeTile extends TileService {
     @Override public void onClick() {
         super.onClick();
         unlockAndRun(() -> {
-            if (Settings.busy(this)) BridgeService.stop(this);
+            if (Settings.prefs(this).getBoolean("remote_home",false)) {
+                Intent i=new Intent(this,RemoteActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                if(Build.VERSION.SDK_INT>=34)startActivityAndCollapse(PendingIntent.getActivity(this,3,i,PendingIntent.FLAG_IMMUTABLE|PendingIntent.FLAG_UPDATE_CURRENT));
+                else startActivityAndCollapse(i);
+            } else if (Settings.busy(this)) BridgeService.stop(this);
             else if ((Settings.vpn(this) && VpnService.prepare(this) != null) ||
                      (!Settings.vpn(this) && !Settings.telegram(this))) {
                 Intent intent = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("connect", true);
