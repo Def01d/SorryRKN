@@ -40,6 +40,8 @@ $configPath = Join-Path $settings 'config.json'
 $c = Get-Content $configPath -Raw | ConvertFrom-Json
 $c.dpi = $false; $c.telegram = $true; $c.extra_sites = $false; $c.auto_data = $false
 $c | ConvertTo-Json | Set-Content -Encoding utf8 $configPath
+$updateRecord = Join-Path $settings 'update-check.json'
+@{ time = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() } | ConvertTo-Json | Set-Content -Encoding utf8 $updateRecord
 $p = Start-Process $exe -PassThru
 try {
     $hwnd = [IntPtr]::Zero
@@ -152,9 +154,42 @@ try {
     if ($saved.protected_secret -ne $secretBefore) {throw 'Route editor changed Telegram secret'}
     $results.service_routes_ui=$true;$results.service_routes_persistence=$true;$results.route_editor_preserves_secret=$true
     [NativeUI]::SendMessage($dnsWindow,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
+    # Exercise the same mode selector and import action used by the desktop application.
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]1102,[IntPtr]::Zero)|Out-Null
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]1103,[IntPtr]::Zero)|Out-Null
+    $server=[NativeUI]::FindWindow('SorryRKNVPN','Свой сервер')
+    if ($server -eq [IntPtr]::Zero -or [NativeUI]::GetDlgItem($server,1213) -eq [IntPtr]::Zero) {throw 'SSH setup page missing'}
+    [NativeUI]::SendMessage($server,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]1104,[IntPtr]::Zero)|Out-Null
+    $subs=[NativeUI]::FindWindow('SorryRKNVPN','Подписки и узлы')
+    if ($subs -eq [IntPtr]::Zero) {throw 'Subscriptions page missing'}
+    $fake='vless://5f2eacf1-3fc2-49af-a852-4422eeb63a2a@127.0.0.1:14443?encryption=none#Isolated-test'
+    [NativeUI]::SendText([NativeUI]::GetDlgItem($subs,1320),0xc,[IntPtr]::Zero,$fake)|Out-Null
+    [NativeUI]::SendMessage($subs,0x111,[IntPtr]1321,[IntPtr]::Zero)|Out-Null
+    $nodePicker=[NativeUI]::GetDlgItem($subs,1323)
+    for ($i=0;$i -lt 100 -and [NativeUI]::SendMessage($nodePicker,0x146,[IntPtr]::Zero,[IntPtr]::Zero).ToInt64() -lt 1;$i++){Start-Sleep -Milliseconds 100}
+    if ([NativeUI]::SendMessage($nodePicker,0x146,[IntPtr]::Zero,[IntPtr]::Zero).ToInt64() -lt 1) {throw 'VPN node import failed'}
+    [NativeUI]::SendMessage($subs,0x111,[IntPtr]1326,[IntPtr]::Zero)|Out-Null
+    if (-not (Test-Path (Join-Path $settings 'vpn-library.bin'))) {throw 'VPN library missing'}
+    $saved=Get-Content $configPath -Raw|ConvertFrom-Json
+    if (-not $saved.vpn_mode -or $saved.protected_secret -ne $secretBefore) {throw 'Mode or Telegram settings lost'}
+    $results.ssh_setup_ui=$true;$results.subscription_import_ui=$true
     [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]206,[IntPtr]::Zero) | Out-Null
     if (-not $p.WaitForExit(20000)) {throw 'Exit did not stop the application'}
     $results.gui_exit = $true
+    $first=(Get-Content $updateRecord -Raw|ConvertFrom-Json).checked_at
+    if (-not $first) {throw 'Startup skipped the update check after a recent legacy timestamp'}
+    $p=Start-Process $exe -PassThru
+    $second=$first
+    for ($i=0;$i -lt 200 -and $second -eq $first;$i++){
+        Start-Sleep -Milliseconds 100
+        $second=(Get-Content $updateRecord -Raw|ConvertFrom-Json).checked_at
+    }
+    if (-not $second -or $second -eq $first) {throw 'Second launch skipped the update check'}
+    $hwnd=[NativeUI]::FindWindow('SorryRKNWindow','SorryRKN')
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]206,[IntPtr]::Zero)|Out-Null
+    if (-not $p.WaitForExit(20000)) {throw 'Second launch did not exit'}
+    $results.checked_updates_on_both_launches=$true
 } finally {
     if (-not $p.HasExited) {$p.Kill()}
     $results | ConvertTo-Json -Depth 20 | Set-Content 'validation-results.json'

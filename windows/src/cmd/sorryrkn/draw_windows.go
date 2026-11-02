@@ -81,8 +81,11 @@ func paint(window uintptr) {
 	var bounds rect
 	call(user, "GetClientRect", window, uintptr(unsafe.Pointer(&bounds)))
 	fill(dc, bounds, BG)
-	text(dc, "ЛОКАЛЬНОЕ СОЕДИНЕНИЕ", 28, 26, 350, 20, 10, GRAY, 400, false)
 	text(dc, "SorryRKN", 28, 50, 345, 44, 31, WHITE, 600, false)
+	if currentConfig().VPNMode {
+		paintVPN(dc)
+		return
+	}
 	status, detail := "Выключено", "Нажмите, чтобы подключиться"
 	if engine != nil {
 		s := engine.Snapshot()
@@ -144,6 +147,12 @@ func drawButton(d *drawitem) {
 	state := "off"
 	if engine != nil {
 		state = engine.Snapshot().Status
+	}
+	if drawVPNButton(d, width, height) {
+		return
+	}
+	if c.VPNMode && vpnSession.Active() {
+		state = "on"
 	}
 	switch int(d.ID) {
 	case PowerID:

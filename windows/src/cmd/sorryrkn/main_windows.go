@@ -121,6 +121,7 @@ var latest core.Release
 var latestMu sync.Mutex
 var updateBusy bool
 var updateMu sync.Mutex
+var checkMu sync.Mutex
 var trayAvailable bool
 var taskbarMessage uint32
 var quitting bool
@@ -246,13 +247,19 @@ func main() {
 	createButton(LinkID, "Подключить Telegram", 28, 585, 404, 46)
 	createButton(MenuID, "Настройки", 389, 22, 44, 44)
 	createButton(ProfileID, "Выбрать метод обхода", 44, 390, 286, 53)
+	createModeControls()
 	addTray()
 	call(user, "ShowWindow", hwnd, SW_SHOW)
 	call(user, "UpdateWindow", hwnd)
 	go updateStartup()
-	checkDNSProfiles(false)
+	if !currentConfig().VPNMode {
+		checkDNSProfiles(false)
+	}
 	var m msg
 	for call(user, "GetMessageW", uintptr(unsafe.Pointer(&m)), 0, 0, 0) != 0 {
+		if vpnWindow != 0 && call(user, "IsDialogMessageW", vpnWindow, uintptr(unsafe.Pointer(&m))) != 0 {
+			continue
+		}
 		if dnsWindow != 0 && call(user, "IsDialogMessageW", dnsWindow, uintptr(unsafe.Pointer(&m))) != 0 {
 			continue
 		}
@@ -275,6 +282,14 @@ func windowProc(window uintptr, messageID uint32, w, l uintptr) uintptr {
 		return 0
 	}
 	switch messageID {
+	case vpnDoneMessage:
+		finishVPNWork()
+		return 0
+	case 0x0113:
+		if w == vpnTimer {
+			watchTunnel()
+		}
+		return 0
 	case dnsDoneMessage:
 		refreshDNSWindow()
 		return 0
@@ -316,6 +331,7 @@ func windowProc(window uintptr, messageID uint32, w, l uintptr) uintptr {
 		}
 		return 0
 	case 0x0011:
+		stopVPNForExit()
 		if engine != nil {
 			engine.Stop()
 		}
@@ -344,7 +360,7 @@ func refresh() {
 	}
 	call(user, "EnableWindow", controls[LinkID], boolInt(s.Telegram && (s.Status == "on" || s.Status == "partial")))
 	label := "Включить соединение"
-	if busy {
+	if busy || (currentConfig().VPNMode && vpnSession.Active()) {
 		label = "Выключить соединение"
 	}
 	call(user, "SetWindowTextW", controls[PowerID], uintptr(unsafe.Pointer(u(label))))
@@ -361,6 +377,10 @@ func boolInt(b bool) uintptr {
 	return 0
 }
 func toggle(extended bool) {
+	if currentConfig().VPNMode {
+		toggleVPN()
+		return
+	}
 	if engine == nil {
 		return
 	}
@@ -374,6 +394,9 @@ func toggle(extended bool) {
 	}
 }
 func retest(extended bool) {
+	if currentConfig().VPNMode {
+		return
+	}
 	go func() {
 		engine.Stop()
 		saveConfig(func(c *core.Config) { c.Method = "auto"; c.SavedProfile = "" })
@@ -381,6 +404,9 @@ func retest(extended bool) {
 	}()
 }
 func command(id int) {
+	if modeCommand(id) {
+		return
+	}
 	switch id {
 	case DNSProfilesID:
 		showDNSProfiles()
@@ -430,7 +456,7 @@ func command(id int) {
 	case ExitID:
 		shutdown()
 	default:
-		if id >= 300 && id < 400 && !engine.Busy() {
+		if id >= 300 && id < 400 && !currentConfig().VPNMode && !engine.Busy() {
 			catalog, _ := core.LoadCatalog(core.ActiveData(data, filepath.Join(root, "zapret")))
 			method := "auto"
 			if id > 300 && id-301 < len(catalog.Profiles) {
@@ -446,6 +472,7 @@ func shutdown() {
 		return
 	}
 	quitting = true
+	stopVPNForExit()
 	dnsCheckMu.Lock()
 	if dnsCheckCancel != nil {
 		dnsCheckCancel()
@@ -488,15 +515,21 @@ func menu(tray bool) {
 		addItem(m, OpenID, "Открыть SorryRKN", false, false)
 	}
 	label := "Включить"
-	if engine.Busy() {
+	if engine.Busy() || vpnSession.Active() {
 		label = "Выключить"
 	}
 	addItem(m, PowerID, label, false, false)
 	call(user, "AppendMenuW", m, 0x800, 0, 0)
-	addItem(m, RetestID, "Подобрать заново", false, false)
-	addItem(m, ExtendedID, "Расширенный подбор", false, false)
-	addItem(m, RulesID, "Мои ресурсы", false, false)
-	addItem(m, DNSProfilesID, "DNS и нейросети", false, false)
+	if !currentConfig().VPNMode {
+		addItem(m, RetestID, "Подобрать заново", false, false)
+		addItem(m, ExtendedID, "Расширенный подбор", false, false)
+		addItem(m, RulesID, "Мои ресурсы", false, false)
+		addItem(m, DNSProfilesID, "DNS и нейросети", false, false)
+	} else {
+		addItem(m, vpnServerID, "Свой сервер", false, false)
+		addItem(m, vpnSourcesID, "Подписки и узлы", false, false)
+	}
+	addItem(m, vpnModeID, "Режим работы…", false, false)
 	addItem(m, UpdatesID, "Обновить приложение", false, false)
 	addItem(m, DataID, "Обновить данные GitHub", false, false)
 	addItem(m, AutoDataID, "Обновлять данные автоматически", currentConfig().AutoData, false)
@@ -540,6 +573,12 @@ func trayData() notifyicon {
 			text = "SorryRKN · Ошибка"
 		}
 	}
+	if currentConfig().VPNMode {
+		text = "SorryRKN · VPN выключен"
+		if vpnSession.Active() {
+			text = "SorryRKN · VPN включён"
+		}
+	}
 	t, _ := windows.UTF16FromString(text)
 	copy(n.Tip[:], t)
 	return n
@@ -564,19 +603,12 @@ func deleteTray() {
 	trayAvailable = false
 }
 func updateStartup() {
-	var stamp struct {
-		Time int64 `json:"time"`
-	}
-	b, _ := os.ReadFile(filepath.Join(data, "update-check.json"))
-	json.Unmarshal(b, &stamp)
-	if time.Now().Unix()-stamp.Time > 6*3600 {
-		checkUpdates(false)
-	}
+	checkUpdates(false)
 	if currentConfig().AutoData {
 		var s struct {
 			Time int64 `json:"time"`
 		}
-		b, _ = os.ReadFile(filepath.Join(data, "data-check.json"))
+		b, _ := os.ReadFile(filepath.Join(data, "data-check.json"))
 		json.Unmarshal(b, &s)
 		if time.Now().Unix()-s.Time > 24*3600 {
 			dataUpdates(false)
@@ -584,16 +616,24 @@ func updateStartup() {
 	}
 }
 func checkUpdates(force bool) {
+	if !checkMu.TryLock() {
+		return
+	}
+	defer checkMu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	r, e := core.CheckUpdate(ctx)
+	// This record is diagnostic only. A new launch always contacts the feed.
+	_ = core.SaveJSON(filepath.Join(data, "update-check.json"), map[string]any{
+		"checked_at": time.Now().UTC().Format(time.RFC3339Nano),
+		"feed_ok":    e == nil, "offered": e == nil && r.Code > core.VersionCode,
+	})
 	if e != nil {
 		if force {
 			message("Обновление SorryRKN", "Не удалось проверить обновления. Попробуйте позже.")
 		}
 		return
 	}
-	core.SaveJSON(filepath.Join(data, "update-check.json"), map[string]int64{"time": time.Now().Unix()})
 	if r.Code <= core.VersionCode {
 		if force {
 			message("Обновление SorryRKN", "Установлена последняя версия")
@@ -632,8 +672,12 @@ func showUpdate(force bool) {
 			return
 		}
 		engine.Stop()
+		closeTunnelForUpdate()
 		result := call(shell, "ShellExecuteW", hwnd, uintptr(unsafe.Pointer(u("open"))), uintptr(unsafe.Pointer(u(path))), 0, 0, SW_SHOW)
 		if result <= 32 {
+			linkMu.Lock()
+			tunnelClosing = false
+			linkMu.Unlock()
 			errorMessage("Не удалось открыть установщик")
 			return
 		}

@@ -13,6 +13,7 @@ try {
         New-Item -ItemType Directory -Force runtime|Out-Null
         foreach ($name in @('python','zapret')) {Copy-Item "$baseline/SorryRKN/runtime/$name" runtime -Recurse -Force}
     }
+    & (Join-Path $PSScriptRoot 'setup-tunnel.ps1')
     if ($RuntimeOnly) {return}
     & (Join-Path $PSScriptRoot 'resources.ps1')
     $env:GOOS='windows';$env:GOARCH='amd64'
@@ -33,7 +34,7 @@ try {
         if (-not $cachePath.StartsWith($packageRoot,[StringComparison]::OrdinalIgnoreCase)) {throw 'Unexpected cache path'}
         Remove-Item -LiteralPath $cachePath -Recurse -Force
     }
-    Compress-Archive $package 'dist/SorryRKN-Windows-1.4.0.zip' -Force
+    Compress-Archive $package 'dist/SorryRKN-Windows-1.5.0.zip' -Force
     if (Get-Command makensis -ErrorAction SilentlyContinue) {
         makensis /NOCONFIG /INPUTCHARSET UTF8 scripts/installer.nsi
         if ($LASTEXITCODE -ne 0) {throw 'NSIS build failed'}

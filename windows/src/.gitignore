@@ -1,6 +1,7 @@
 /dist/
 /runtime/python/
 /runtime/zapret/
+/runtime/tunnel/
 __pycache__/
 *.pyc
 *.syso

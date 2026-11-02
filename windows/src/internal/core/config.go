@@ -10,11 +10,12 @@ import (
 	"path/filepath"
 )
 
-const Version = "1.4.0"
-const VersionCode = 10400
+const Version = "1.5.0"
+const VersionCode = 10500
 const UpdateURL = "https://raw.githubusercontent.com/Def01d/SorryRKN/main/windows-update.json"
 
 type Config struct {
+	VPNMode         bool              `json:"vpn_mode,omitempty"`
 	DPI             bool              `json:"dpi"`
 	Telegram        bool              `json:"telegram"`
 	Extras          bool              `json:"extra_sites"`

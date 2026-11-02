@@ -11,6 +11,7 @@
 | Cygwin | [Cygwin](https://cygwin.com/), неизменённая DLL из закреплённого runtime | `licenses/Cygwin-License.txt` |
 | CPython | [Python 3.12.10](https://www.python.org/downloads/release/python-31210/), Windows embeddable x64 | `licenses/Python.txt` |
 | Go | [Go](https://go.dev/) | `licenses/Go-BSD.txt` |
+| sing-box | [v1.14.4](https://github.com/SagerNet/sing-box/releases/tag/v1.14.4), официальный Windows x64 CLI и libcronet.dll | GPL-3.0-or-later. Уведомление upstream в `runtime/tunnel/LICENSE`, полный текст в `licenses/sing-box-GPL-3.0.txt`. Архив исходников тега, содержащий сценарии сборки и закреплённые Go-зависимости, включён в пакет как `runtime/tunnel/sing-box-1.14.4-source.zip`. |
 | golang.org/x/sys, x/net, x/text | Версии и хеши закреплены в `go.mod` / `go.sum` | `licenses/golang-x-*-BSD.txt` |
 | Генератор ресурсов | [go-winres v0.3.3](https://github.com/tc-hib/go-winres/tree/v0.3.3), используется при сборке | Лицензия upstream; бинарник в исходники не включён |
 
