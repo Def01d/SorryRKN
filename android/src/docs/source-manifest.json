@@ -260,13 +260,13 @@
     },
     {
       "path": "app/src/main/assets/provision.sh",
-      "size": 15848,
-      "sha256": "597854b001212653b7d69dc62243bb36145bd36865db97d2b39a374c57cac70f"
+      "size": 16578,
+      "sha256": "98bdb6b3c65be26edc2aada57441d1ab6bfb0a5342295c70e11c205f10b72a95"
     },
     {
       "path": "app/src/main/assets/reality.sh",
-      "size": 10283,
-      "sha256": "f11cbb5dc2ce4024052adb05ecae25766bfa3f2b2a36d6cf16d8b11c0e46309b"
+      "size": 10486,
+      "sha256": "19c2154647c7fe3ba5abbfcc632fb11849a063f1397ca21413688f66d5048f08"
     },
     {
       "path": "app/src/main/java/dev/graybridge/AppUpdates.java",

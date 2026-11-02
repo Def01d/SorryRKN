@@ -14,10 +14,22 @@ check_unit() {
     path=$units/$1
     [ ! -L "$path" ] || die "A conflicting systemd unit already exists."
     if [ -f "$path" ]; then
-        grep -qxF '# Managed by SorryRKN HTTPS v1' "$path" || die "Refusing to change a foreign systemd unit."
+        [ "$(head -n 1 "$path")" = '# Managed by SorryRKN HTTPS v1' ] &&
+        [ "$(stat -c '%u:%a' "$path")" = 0:644 ] &&
+        [ "$(systemctl show "$1" -p FragmentPath --value)" = "$path" ] &&
+        [ -z "$(systemctl show "$1" -p DropInPaths --value)" ] || die "Refusing to change a foreign systemd unit or drop-in."
     elif [ "$(systemctl show "$1" -p LoadState --value)" != not-found ]; then
         die "A conflicting systemd unit already exists."
     fi
+}
+check_new_unit_paths() {
+    [ -f "$units/$1" ] && return 0
+    shift
+    for slot do
+        if [ -e "$slot" ] || [ -L "$slot" ]; then
+            die "A service state or runtime path already exists. Refusing to take it over: $slot"
+        fi
+    done
 }
 unit_state() {
     if [ ! -f "$units/$1" ]; then echo missing
@@ -354,6 +366,10 @@ main(){
     exec 9>/run/lock/sorryrkn-https.lock
     flock -w 90 9 || die "Another server operation is in progress."
     check_unit "$vpn"; check_unit "$socks"
+    case "$action" in
+        https-on) check_new_unit_paths "$vpn" /var/lib/sorryrkn-https /var/lib/private/sorryrkn-https /run/sorryrkn-https "/run/credentials/$vpn";;
+        install-socks) check_new_unit_paths "$socks" "/run/credentials/$socks";;
+    esac
     case "$action" in
         https-on|install-socks)
             owned "$dir" 700; owned "$runtime" 755

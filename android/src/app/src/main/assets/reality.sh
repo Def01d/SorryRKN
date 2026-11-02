@@ -26,6 +26,9 @@ if [ -e "$unitfile" ]; then
         [ -z "$(systemctl show "$unit" -p DropInPaths --value)" ] || die "Refusing to modify a foreign systemd service."
 else
     [ "$(systemctl show "$unit" -p LoadState --value)" = not-found ] || die "Conflicting REALITY service."
+    if [ "$action" = reality-on ] && { [ -e "/run/credentials/$unit" ] || [ -L "/run/credentials/$unit" ]; }; then
+        die "Refusing to take over an existing REALITY credential runtime path."
+    fi
 fi
 
 status() {
