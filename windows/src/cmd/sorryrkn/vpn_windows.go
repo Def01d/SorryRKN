@@ -315,6 +315,7 @@ func openVPNPage(id int) {
 	}
 	call(user, "EnableWindow", hwnd, 0)
 	call(user, "ShowWindow", vpnWindow, SW_SHOW)
+	call(user, "RedrawWindow", vpnWindow, 0, 0, 0x181) // invalidate and paint the window and its children now
 }
 func field(class, label string, id, x, y, w, h int, style uintptr) uintptr {
 	handle := call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u(class))), uintptr(unsafe.Pointer(u(label))), 0x50000000|style, uintptr(dp(x)), uintptr(dp(y)), uintptr(dp(w)), uintptr(dp(h)), vpnWindow, uintptr(id), instance, 0)
@@ -329,20 +330,26 @@ func input(id int, value string, x, y, w int, style uintptr) {
 	field("EDIT", value, id, x, y, w, 28, 0x00810080|style)
 }
 func button(id int, label string, x, y, w int) { field("BUTTON", label, id, x, y, w, 34, 0x10000) }
+func paintVPNPage(window, dc uintptr) {
+	var bounds rect
+	call(user, "GetClientRect", window, uintptr(unsafe.Pointer(&bounds)))
+	fill(dc, bounds, BG)
+	title := "Свой сервер"
+	if vpnPage == vpnSourcesID {
+		title = "Подписки и узлы"
+	}
+	text(dc, title, 20, 12, 560, 40, 24, WHITE, 600, false)
+}
 func vpnProc(window uintptr, id uint32, w, l uintptr) uintptr {
 	switch id {
 	case WM_PAINT:
 		var ps paintstruct
 		dc := call(user, "BeginPaint", window, uintptr(unsafe.Pointer(&ps)))
-		var bounds rect
-		call(user, "GetClientRect", window, uintptr(unsafe.Pointer(&bounds)))
-		fill(dc, bounds, BG)
-		title := "Свой сервер"
-		if vpnPage == vpnSourcesID {
-			title = "Подписки и узлы"
-		}
-		text(dc, title, 20, 12, 560, 40, 24, WHITE, 600, false)
+		paintVPNPage(window, dc)
 		call(user, "EndPaint", window, uintptr(unsafe.Pointer(&ps)))
+		return 0
+	case 0x0318: // WM_PRINTCLIENT
+		paintVPNPage(window, w)
 		return 0
 	case 0x0138:
 		call(gdi, "SetTextColor", w, WHITE)

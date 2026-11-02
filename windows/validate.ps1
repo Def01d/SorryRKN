@@ -165,7 +165,7 @@ try {
         $drawing=[System.Drawing.Graphics]::FromImage($image)
         try {
             $dc=$drawing.GetHdc()
-            try { [NativeUI]::PrintWindow($server,$dc,2)|Out-Null } finally { $drawing.ReleaseHdc($dc) }
+            try { [NativeUI]::PrintWindow($server,$dc,0)|Out-Null } finally { $drawing.ReleaseHdc($dc) }
             $image.Save("$PWD/windows-vpn-server.png")
         } finally { $drawing.Dispose();$image.Dispose() }
     }

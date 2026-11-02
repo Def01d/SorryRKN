@@ -1,6 +1,7 @@
 #!/bin/bash
 # Full server integration. Run only on a fresh disposable Linux VM.
-set -euo pipefail
+set -Eeuo pipefail
+trap 'echo "Fixture failed at line $LINENO (status $?)" >&2' ERR
 [[ $1 == --isolated-vm && $EUID == 0 ]] || exit 2
 dir=$(dirname "$(realpath "$0")"); script=$dir/provision.sh
 [[ ! -e /etc/sorryrkn-https && ! -e /usr/local/lib/sorryrkn-https && ! -e /etc/systemd/system/sorryrkn-https.service ]] || { echo 'Requires a fresh VM'; exit 1; }
@@ -15,11 +16,25 @@ cleanup(){
     if [[ $rc != 0 ]]; then
         journalctl --no-pager -n 30 -o cat -u "$unit" -u sorryrkn-proxy.service | sed -E 's#[A-Za-z0-9+/=]{28,}#[redacted]#g'
     fi
-    systemctl disable --now "$unit" sorryrkn-proxy.service 2>/dev/null || true
+    systemctl disable --now "$unit" 2>/dev/null || true
+    systemctl disable --now sorryrkn-proxy.service 2>/dev/null || true
     rm -rf -- "$work"
 }
 trap cleanup EXIT
 run status "$id" | grep -q $'vpn:missing\tsocks:missing'
+# Refuse both existing directories and broken symlinks *before* creating a
+# managed unit or allowing systemd to change ownership, permissions or content.
+mkdir -m 751 /var/lib/sorryrkn-https
+printf 'owner sentinel\n' > /var/lib/sorryrkn-https/sentinel
+if run https-on "$id" >"$work/foreign-out" 2>"$work/foreign-err"; then exit 1; fi
+grep -q 'Refusing to take it over' "$work/foreign-err"
+[[ $(stat -c '%u:%a' /var/lib/sorryrkn-https) == 0:751 && $(cat /var/lib/sorryrkn-https/sentinel) == 'owner sentinel' ]]
+rm -- /var/lib/sorryrkn-https/sentinel; rmdir /var/lib/sorryrkn-https
+ln -s "$work/absent" /run/sorryrkn-https
+if run https-on "$id" >"$work/foreign-out" 2>"$work/foreign-err"; then exit 1; fi
+grep -q 'Refusing to take it over' "$work/foreign-err"
+[[ $(readlink /run/sorryrkn-https) == "$work/absent" && ! -e /etc/systemd/system/sorryrkn-https.service ]]
+rm -- /run/sorryrkn-https
 run https-on "$id" > "$work/first"
 run https-on "$id2" > "$work/second"
 run https-profile "$id" > "$work/export"
@@ -60,8 +75,14 @@ for auth in (b'',b'Proxy-Authorization: Basic d3Jvbmc6d3Jvbmc=\r\n'):
 PY
 # libcurl negotiates HTTP/2 with the HTTPS proxy, authenticates CONNECT, and
 # validates the public origin's TLS certificate through the tunnel.
-result=$(curl --config "$work/curl.conf" --proxy-http2 --proxy-cacert "$work/ca.pem" --noproxy '' --fail --silent --show-error --max-time 25 --retry 2 -o "$work/response" -w '%{http_connect}:%{http_code}' https://api.github.com/zen)
-[[ "$result" == 200:200 && -s "$work/response" ]]
+result=$(curl --config "$work/curl.conf" --proxy-http2 --proxy-cacert "$work/ca.pem" --noproxy '' --fail --silent --verbose --max-time 25 --retry 2 -o "$work/response" -w '%{http_code}' https://api.github.com/zen 2>"$work/private-trace")
+# %{http_connect} reports 000 for a successful HTTP/2 CONNECT in libcurl.
+# Verify the negotiated HTTP/2 CONNECT and origin independently. Never emit
+# verbose traffic or Proxy-Authorization from the private temporary trace.
+if [[ "$result" != 200 || ! -s "$work/response" ]] || ! grep -Eiq '(Establish HTTP/2 proxy tunnel|\[:method: CONNECT\]|^> CONNECT [^[:space:]]+ HTTP/2)' "$work/private-trace"; then
+    echo "Authenticated HTTP2 CONNECT or HTTPS origin check failed (origin $result)" >&2
+    exit 1
+fi
 if curl --config "$work/curl.conf" --proxy-http2 --noproxy '' --fail --silent --max-time 5 https://api.github.com/zen >/dev/null 2>&1; then echo 'Untrusted private CA was accepted'; exit 1; fi
 # Preserve owner content on reinstall and observe it on the actual TLS site.
 printf '<html><title>Owner site</title></html>\n' >/usr/local/lib/sorryrkn-https/site/index.html
