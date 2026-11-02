@@ -138,12 +138,11 @@ install_https(){
     init_identity
     mkdir -p -m 755 "$runtime/site"
     if [ ! -f "$runtime/site/index.html" ]; then
-    cat > "$tmp/index.html" <<'HTML'
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Field Notes</title>
-<style>body{font:18px/1.65 system-ui,sans-serif;color:#304034;margin:12vh auto;max-width:42rem;padding:1rem}h1{font:normal 2.4rem Georgia,serif}hr{border:0;border-top:1px solid #d5dcd5}</style>
-<h1>Field Notes</h1><hr><p>A place for short observations from the garden.</p><p>On a clear morning the first light reaches the tops of the trees before it reaches the path.</p></html>
-HTML
-    install -m 644 "$tmp/index.html" "$runtime/site/index.html"
+        # Use the same welcome page as an ordinary Caddy distribution. Keep
+        # any site the owner has subsequently installed here.
+        curl -fsSL --proto '=https' --proto-redir '=https' --retry 2 --max-time 30 https://raw.githubusercontent.com/caddyserver/dist/33ae08ff08d168572df2956ed14fbc4949880d94/welcome/index.html -o "$tmp/index.html" || die "Cannot download the standard Caddy welcome page."
+        printf '%s  %s\n' 70a45d667679109cd6b25502554597f21536ee995ada0549251167bd171533b9 "$tmp/index.html" | sha256sum -c --status || die "Caddy welcome page digest mismatch."
+        install -m 644 "$tmp/index.html" "$runtime/site/index.html"
     fi
     configure_https
     write_unit "$vpn" <<UNIT

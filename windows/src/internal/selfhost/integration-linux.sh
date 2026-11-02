@@ -54,7 +54,9 @@ for auth in (b'',b'Proxy-Authorization: Basic d3Jvbmc6d3Jvbmc=\r\n'):
                 if not data: break
                 out+=data
     assert b'proxy-authenticate:' not in out.lower() and not out.startswith(b'HTTP/1.1 407'), 'proxy challenge on unauthorized probe'
-    assert b' 404 ' in out.partition(b'\r\n')[0] or (w/'cover').read_bytes() in out or b' 405 ' in out.partition(b'\r\n')[0], 'unexpected response to unauthenticated CONNECT'
+    # The stock file_server canonicalizes this empty-path CONNECT request to
+    # "/", exactly as it does without forward_proxy. It cannot relay traffic.
+    assert out.startswith(b'HTTP/1.1 308 ') and b'\r\nLocation: /\r\n' in out, 'unexpected response to unauthenticated CONNECT'
 PY
 # libcurl negotiates HTTP/2 with the HTTPS proxy, authenticates CONNECT, and
 # validates the public origin's TLS certificate through the tunnel.

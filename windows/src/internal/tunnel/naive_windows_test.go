@@ -1,14 +1,17 @@
 package tunnel
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -16,6 +19,49 @@ import (
 	"testing"
 	"time"
 )
+
+// Capture the actual Cronet ClientHello when the VPS has only an IP address.
+func TestNaiveIPClientHelloOmitsSNI(t *testing.T) {
+	root := runtimeDir(t)
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	sni := make(chan string, 1)
+	go func() {
+		c, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		c.SetDeadline(time.Now().Add(4 * time.Second))
+		tls.Server(c, &tls.Config{GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+			sni <- hello.ServerName
+			cancel()
+			return nil, errors.New("fixture captured hello")
+		}}).Handshake()
+	}()
+	link := fmt.Sprintf("naive+https://fixture:test@%s/?sni=127.0.0.1", listener.Addr())
+	p, _, err := parseNode(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = probeHTTPS(ctx, root, p, "https://example.org/", nil)
+	if err == nil {
+		t.Fatal("unauthenticated fixture unexpectedly accepted")
+	}
+	select {
+	case name := <-sni:
+		if name != "" {
+			t.Fatal("client sent SNI for literal IP")
+		}
+	default:
+		t.Fatal("Cronet ClientHello was not captured")
+	}
+}
 
 func naiveFixture(t *testing.T, port int) (object, string) {
 	t.Helper()
