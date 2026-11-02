@@ -4,7 +4,9 @@
 
 ## Текущие версии
 
-[**Android 0.13.0 + Windows 1.4.0 — исходники ZIP**](https://github.com/Def01d/SorryRKN/releases/download/windows-v1.4.0/SorryRKN-Android-0.13.0-Windows-1.4.0-source.zip). Исходники в основной ветке: [Android](../android/src), [Windows](../windows/src). Результаты проверки: [DNS и нейросети](../docs/VALIDATION-RESILIENCE.md). Исторические отчёты: [Android 0.11.0](../android/src/VALIDATION.md), [Windows 1.2.0](../windows/src/VALIDATION.md). Android 0.13.0 пока ожидает подпись APK; текущий Android-релиз — [0.11.0](https://github.com/Def01d/SorryRKN/releases/tag/v0.11.0). Архив исходников и контрольные суммы приложены к [Windows-релизу](https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.4.0).
+[**Android 0.14.0 + Windows 1.5.0 — исходники ZIP**](https://github.com/Def01d/SorryRKN/releases/download/windows-v1.5.0/SorryRKN-Android-0.14.0-Windows-1.5.0-source.zip). [Android](../android/src) · [Windows](../windows/src) · [Настройка VPN и подписок](../docs/VPN.md). Обычный APK с совместимой подписью доступен в [релизе Android 0.11.0](https://github.com/Def01d/SorryRKN/releases/tag/v0.11.0).
+
+Предыдущий [архив исходников 0.13.0 / 1.4.0](https://github.com/Def01d/SorryRKN/releases/download/windows-v1.4.0/SorryRKN-Android-0.13.0-Windows-1.4.0-source.zip).
 
 ## Архив исходников 0.10.3 / 1.1.0
 
