@@ -32,18 +32,19 @@ report() {
 
 init_state() {
     if [ ! -e "$dir" ] && [ ! -L "$dir" ]; then
-        mkdir -m 700 "$dir"
-        printf '1\n' > "$dir/version"
+        stage=$(mktemp -d /etc/.sorryrkn-selfhost-XXXXXX)
+        printf '1\n' > "$stage/version"
+        mv -T "$stage" "$dir"
     fi
     [ ! -L "$dir" ] && [ "$(cat "$dir/version" 2>/dev/null)" = 1 ] && [ "$(stat -c '%u:%a' "$dir")" = 0:700 ] || die "The SorryRKN state directory is occupied or unsafe."
 }
 
 dependencies() {
     [ -r /etc/os-release ] && grep -Eq '^ID="?((debian)|(ubuntu))"?$' /etc/os-release || die "Supported systems are Debian and Ubuntu with systemd."
-    if ! command -v wg-quick >/dev/null || ! command -v iptables >/dev/null || ! command -v python3 >/dev/null || ! command -v ip >/dev/null; then
+    if ! command -v wg >/dev/null || ! command -v iptables >/dev/null || ! command -v python3 >/dev/null || ! command -v ip >/dev/null; then
         export DEBIAN_FRONTEND=noninteractive
-        apt-get -o DPkg::Lock::Timeout=90 update >&2 </dev/null
-        apt-get -y --no-install-recommends -o DPkg::Lock::Timeout=90 install wireguard-tools iproute2 iptables python3 >&2 </dev/null
+        apt-get -o DPkg::Lock::Timeout=90 update >&2 </dev/null || die "Cannot refresh apt repositories. Check DNS, package mirrors and the dpkg lock."
+        apt-get -y --no-install-recommends -o DPkg::Lock::Timeout=90 install wireguard-tools iproute2 iptables python3 >&2 </dev/null || die "Cannot install wireguard-tools, iproute2, iptables and python3. Check apt on the VPS."
     fi
 }
 
@@ -132,16 +133,38 @@ write_config() {
         mv "$tmp/egress" "$dir/egress"
     fi
     {
-        printf '[Interface]\nAddress = %s.1/24\nListenPort = 51823\nPrivateKey = %s\n' "$subnet" "$(cat "$dir/server.key")"
-        printf 'PostUp = %s/firewall up\nPreDown = %s/firewall down\n' "$dir" "$dir"
+        printf '[Interface]\nListenPort = 51823\nPrivateKey = %s\n' "$(cat "$dir/server.key")"
         for p in "$dir"/peers/*; do
             [ -d "$p" ] || continue
             printf '\n[Peer]\nPublicKey = %s\nPresharedKey = %s\nAllowedIPs = %s.%s/32\n' "$(wg pubkey < "$p/key")" "$(cat "$p/psk")" "$subnet" "$(cat "$p/slot")"
         done
     } > "$tmp/srkn0.conf"
-    wg-quick strip "$tmp/srkn0.conf" > "$tmp/sync.conf"
     mv "$tmp/srkn0.conf" "$dir/srkn0.conf"
-    if systemctl is-active --quiet "$vpn"; then wg syncconf srkn0 "$tmp/sync.conf"; fi
+    if systemctl is-active --quiet "$vpn"; then wg syncconf srkn0 /dev/stdin < "$dir/srkn0.conf"; fi
+    cat > "$tmp/interface" <<'SH'
+#!/bin/sh
+set -eu
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+dir=/etc/sorryrkn-selfhost
+case "$1" in
+up)
+    ip link add srkn0 type wireguard
+    trap 'ip link del srkn0' EXIT
+    ip link set srkn0 alias sorryrkn-selfhost-v1
+    wg setconf srkn0 /dev/stdin < "$dir/srkn0.conf"
+    ip addr add "$(cat "$dir/subnet").1/24" dev srkn0
+    ip link set srkn0 mtu 1420 up
+    "$dir/firewall" up
+    trap - EXIT;;
+down)
+    [ "$(cat /sys/class/net/srkn0/ifalias 2>/dev/null)" = sorryrkn-selfhost-v1 ] || exit 1
+    "$dir/firewall" down
+    ip link del srkn0;;
+*) exit 2;;
+esac
+SH
+    chmod 700 "$tmp/interface"
+    mv "$tmp/interface" "$dir/interface"
 }
 
 write_unit() {
@@ -153,7 +176,6 @@ write_unit() {
 }
 
 install_vpn() {
-    init_state
     dependencies
     if ! systemctl is-active --quiet "$vpn"; then
         if ip link show srkn0 >/dev/null 2>&1; then die "Interface srkn0 is already in use."; fi
@@ -172,13 +194,13 @@ After=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/wg-quick up /etc/sorryrkn-selfhost/srkn0.conf
-ExecStop=/usr/bin/wg-quick down /etc/sorryrkn-selfhost/srkn0.conf
+ExecStart=/etc/sorryrkn-selfhost/interface up
+ExecStop=/etc/sorryrkn-selfhost/interface down
 [Install]
 WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
-    systemctl enable --now "$vpn" >&2
+    systemctl enable --now "$vpn" >&2 || die "WireGuard did not start. Check journalctl -u sorryrkn-vpn and kernel WireGuard support."
     systemctl is-active --quiet "$vpn" && wg show srkn0 >/dev/null || die "WireGuard did not start. Check the server kernel and unit log."
     export_vpn
 }
@@ -320,7 +342,7 @@ RestartSec=2
 WantedBy=$vpn
 UNIT
     systemctl daemon-reload
-    systemctl enable --now "$socks" >&2
+    systemctl enable --now "$socks" >&2 || die "SOCKS5 did not start. Check journalctl -u sorryrkn-socks and systemd credential support."
     # Validate the actual listener and auth round trip before returning credentials.
     python3 - "$head" "$dir/socks.credential" <<'PY'
 import socket, sys, time
@@ -355,7 +377,13 @@ main() {
     flock -w 90 9 || die "Another SorryRKN server operation is in progress."
     check_unit "$vpn"
     check_unit "$socks"
-    tmp=$(mktemp -d /run/sorryrkn-selfhost-XXXXXX)
+    # Stage state and keys on the same filesystem so rename is atomic.
+    case "$action" in
+        install-vpn|install-socks)
+            init_state
+            tmp=$(mktemp -d "$dir/.stage-XXXXXX");;
+        *) tmp=$(mktemp -d /run/sorryrkn-selfhost-XXXXXX);;
+    esac
     trap 'rm -rf -- "$tmp"' EXIT
     case "$action" in
         install-vpn) install_vpn;;

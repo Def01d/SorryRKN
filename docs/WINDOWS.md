@@ -1,12 +1,14 @@
 # SorryRKN на Windows
 
+Выберите **«VPN и подписки»** в верхней части главного окна для подключения своего сервера или узла провайдера. При каждом запуске программа проверяет обновления. [Настройка VPN, SSH и SOCKS5](VPN.md).
+
 [← Главная](../README.md) · [Android](ANDROID.md) · [Помощь](FAQ.md)
 
-В версии 1.4.0 добавлен экран [«DNS и нейросети»](DNS-PROFILES.md): семь профилей, проверки восьми сервисов и сохранение собственного выбора. Обновление предлагается при проверке новых версий приложения.
+В версии 1.5.0 добавлен экран [«DNS и нейросети»](DNS-PROFILES.md): семь профилей, проверки восьми сервисов и сохранение собственного выбора. Обновление предлагается при проверке новых версий приложения.
 
 ## Скачать
 
-[**Установщик 1.4.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.4.0/windows/SorryRKN-Windows-1.4.0-Setup.exe) · [**Переносной ZIP 1.4.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.4.0/windows/SorryRKN-Windows-1.4.0.zip)
+[**Установщик 1.5.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.5.0/windows/SorryRKN-Windows-1.5.0-Setup.exe) · [**Переносной ZIP 1.5.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.5.0/windows/SorryRKN-Windows-1.5.0.zip)
 
 Требования: Windows 10/11 x64, Intel/AMD, права администратора для WinDivert. ARM64 и 32-битная Windows этой сборкой не поддерживаются. Python и сетевые компоненты включены в пакет.
 

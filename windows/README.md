@@ -1,5 +1,7 @@
 # SorryRKN для Windows
 
+Выберите **«VPN и подписки»** в верхней части главного окна для подключения своего сервера или узла провайдера. При каждом запуске программа проверяет обновления. [Настройка VPN, SSH и SOCKS5](../docs/VPN.md).
+
 Локальный обход DPI и Telegram-прокси, минималистичный интерфейс и управление через системный трей.
 
 [**Скачать установщик 1.1.0**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0-Setup.exe) · [**Переносной ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.1.0/windows/SorryRKN-Windows-1.1.0.zip)

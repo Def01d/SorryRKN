@@ -145,12 +145,14 @@ func methods(s Server) ([]ssh.AuthMethod, error) {
 	return auth, nil
 }
 
-type limitedBuffer struct{ bytes.Buffer }
+type limitedBuffer struct{ data bytes.Buffer }
+
+func (b *limitedBuffer) String() string { return b.data.String() }
 
 func (b *limitedBuffer) Write(p []byte) (int, error) {
 	count := len(p)
-	if left := 32*1024 - b.Len(); left > 0 {
-		b.Buffer.Write(p[:min(left, count)])
+	if left := 32*1024 - b.data.Len(); left > 0 {
+		b.data.Write(p[:min(left, count)])
 	}
 	return count, nil
 }
@@ -210,6 +212,9 @@ func Run(ctx context.Context, s Server, action Action) (Result, error) {
 			if msg, ok := strings.CutPrefix(line, "SRKN_ERROR: "); ok {
 				return Result{}, errors.New(msg)
 			}
+		}
+		if strings.Contains(stderr.String(), "sudo:") {
+			return Result{}, errors.New("SSH-пользователь должен иметь sudo без запроса пароля. Можно войти под root")
 		}
 		return Result{}, fmt.Errorf("сервер не завершил операцию. Нужны Debian/Ubuntu с systemd, root или sudo без запроса пароля и доступ к репозиториям пакетов (%v)", err)
 	}
