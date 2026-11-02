@@ -46,13 +46,17 @@ type serverAction struct {
 }
 
 var sshActionsList = []serverAction{
-	{"Установить VPN и добавить узел", selfhost.InstallVPN},
-	{"Проверить состояние", selfhost.Status},
+	{"Установить WireGuard и добавить узел", selfhost.InstallVPN},
+	{"Состояние WireGuard и SOCKS5", selfhost.Status},
 	{"Запустить VPN на сервере", selfhost.StartVPN},
 	{"Остановить VPN на сервере", selfhost.StopVPN},
 	{"Добавить узел с настроенного сервера", selfhost.ExportVPN},
 	{"Включить SOCKS5 внутри VPN", selfhost.InstallSOCKS},
 	{"Остановить SOCKS5", selfhost.StopSOCKS},
+	{"Установить TCP · VLESS REALITY", selfhost.InstallTCP},
+	{"Получить узел TCP", selfhost.ExportTCP},
+	{"Состояние TCP", selfhost.TCPStatus},
+	{"Остановить TCP", selfhost.StopTCP},
 }
 
 func serverPrefsPath() string { return filepath.Join(data, "ssh-servers.json") }
@@ -89,7 +93,7 @@ func createServerPage() {
 	comboSelect(h, 0)
 	button(sshRun, "Выполнить", 430, 292, 147)
 	caption("Результат", 20, 344, 400)
-	field("EDIT", "Debian или Ubuntu с systemd. Для VPN откройте UDP 51823 на стороне хостинга.", sshOutput, 20, 368, 557, 84, 0x00810844)
+	field("EDIT", "Debian или Ubuntu с systemd. WireGuard использует UDP 51823, резервный TCP — порт 443.", sshOutput, 20, 368, 557, 84, 0x00810844)
 	button(sshForget, "Забыть ключ сервера", 20, 475, 210)
 	button(2, "Закрыть", 447, 475, 130)
 	if prefsError != nil {
@@ -138,11 +142,11 @@ func serverCommand(n int) {
 		return
 	}
 	action := sshActionsList[i].action
-	if (action == selfhost.InstallVPN || action == selfhost.ExportVPN) && libraryError != nil {
+	if (action == selfhost.InstallVPN || action == selfhost.ExportVPN || action == selfhost.InstallTCP || action == selfhost.ExportTCP) && libraryError != nil {
 		errorMessage(libraryError.Error())
 		return
 	}
-	if (action == selfhost.StopVPN || action == selfhost.StopSOCKS) && !confirm("Свой сервер", "Выполнить «"+sshActionsList[i].label+"» на "+address+"?") {
+	if (action == selfhost.StopVPN || action == selfhost.StopSOCKS || action == selfhost.StopTCP) && !confirm("Свой сервер", "Выполнить «"+sshActionsList[i].label+"» на "+address+"?") {
 		return
 	}
 	if sshPrefs.ClientID == "" {
@@ -170,18 +174,29 @@ func serverCommand(n int) {
 			if e != nil {
 				return nil, e
 			}
+			var p tunnel.Profile
+			label := ""
+			if result.VPNConfig != "" {
+				p, e = tunnel.WireGuard(result.VPNConfig)
+				label = "WireGuard"
+			} else if result.NodeURL != "" {
+				var profiles []tunnel.Profile
+				profiles, e = tunnel.Import(ctx, result.NodeURL)
+				if e == nil {
+					p = profiles[0]
+				}
+				label = "TCP · REALITY"
+			}
+			if e != nil {
+				return nil, e
+			}
 			return func() {
 				msg := result.Status
-				if result.VPNConfig != "" {
-					p, e := tunnel.WireGuard(result.VPNConfig)
-					if e != nil {
-						errorMessage(e.Error())
-						return
-					}
-					name := "Свой сервер · " + address
-					p.Name = name
+				if label != "" {
+					p.Name = label + " · " + host
+					source := tunnel.Source{Name: p.Name, ManagedID: p.Protocol + "/" + address, Profiles: []tunnel.Profile{p}}
 					next := copyLibrary()
-					replaceSource(&next, tunnel.Source{Name: name, Profiles: []tunnel.Profile{p}}, -1)
+					replaceSource(&next, source, -1)
 					if !commitLibrary(next) {
 						return
 					}

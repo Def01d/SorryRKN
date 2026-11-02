@@ -26,6 +26,9 @@ import (
 //go:embed provision.sh
 var script string
 
+//go:embed reality.sh
+var realityScript string
+
 type Action string
 
 const (
@@ -36,6 +39,10 @@ const (
 	Status       Action = "status"
 	InstallSOCKS Action = "install-socks"
 	StopSOCKS    Action = "stop-socks"
+	InstallTCP   Action = "reality-on"
+	StopTCP      Action = "reality-off"
+	ExportTCP    Action = "reality-profile"
+	TCPStatus    Action = "reality-status"
 )
 
 type Server struct {
@@ -44,7 +51,7 @@ type Server struct {
 }
 
 type Result struct {
-	Status, VPNConfig, SOCKSURL string
+	Status, VPNConfig, SOCKSURL, NodeURL string
 }
 
 var (
@@ -161,11 +168,11 @@ func Run(ctx context.Context, s Server, action Action) (Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Minute)
 	defer cancel()
 	switch action {
-	case InstallVPN, ExportVPN:
+	case InstallVPN, ExportVPN, InstallTCP, ExportTCP:
 		if !clientID.MatchString(s.ClientID) {
 			return Result{}, errors.New("не задан идентификатор VPN-клиента")
 		}
-	case StartVPN, StopVPN, Status, InstallSOCKS, StopSOCKS:
+	case StartVPN, StopVPN, Status, InstallSOCKS, StopSOCKS, StopTCP, TCPStatus:
 		s.ClientID = strings.Repeat("0", 32)
 	default:
 		return Result{}, errors.New("неизвестная операция сервера")
@@ -199,7 +206,12 @@ func Run(ctx context.Context, s Server, action Action) (Result, error) {
 	var stdout, stderr limitedBuffer
 	session.Stdout = &stdout
 	session.Stderr = &stderr
-	session.Stdin = strings.NewReader(strings.ReplaceAll(script, "\r\n", "\n"))
+	program := script
+	switch action {
+	case InstallTCP, ExportTCP, StopTCP, TCPStatus:
+		program = realityScript
+	}
+	session.Stdin = strings.NewReader(strings.ReplaceAll(program, "\r\n", "\n"))
 	prefix := "exec "
 	if s.User != "root" {
 		prefix += "sudo -n "
@@ -248,6 +260,33 @@ func parseResult(host string, action Action, out string) (Result, error) {
 		}
 		u := url.URL{Scheme: "socks5", User: url.UserPassword(fields[4], fields[5]), Host: net.JoinHostPort(fields[2], fields[3])}
 		return Result{Status: "SOCKS5 доступен внутри VPN", SOCKSURL: u.String()}, nil
+	case InstallTCP, ExportTCP:
+		if len(fields) != 3 || fields[1] != "REALITY" {
+			return Result{}, bad
+		}
+		u, err := url.Parse(fields[2])
+		if err != nil || u.Scheme != "vless" || u.Hostname() != "sorryrkn.invalid" || u.User == nil {
+			return Result{}, bad
+		}
+		port, err := strconv.Atoi(u.Port())
+		if err != nil || port < 1 || port > 65535 {
+			return Result{}, bad
+		}
+		query := u.Query()
+		if query.Get("security") != "reality" || query.Get("type") != "tcp" || query.Get("pbk") == "" || query.Get("sni") == "" {
+			return Result{}, bad
+		}
+		u.Host = net.JoinHostPort(host, u.Port())
+		return Result{Status: "Профиль VLESS REALITY готов", NodeURL: u.String()}, nil
+	case StopTCP, TCPStatus:
+		if len(fields) != 3 || fields[1] != "REALITY-STATUS" {
+			return Result{}, bad
+		}
+		label := map[string]string{"running": "работает", "stopped": "остановлен", "missing": "не установлен"}[fields[2]]
+		if label == "" {
+			return Result{}, bad
+		}
+		return Result{Status: "VLESS REALITY: " + label}, nil
 	default:
 		if len(fields) != 4 || fields[1] != "STATUS" {
 			return Result{}, bad

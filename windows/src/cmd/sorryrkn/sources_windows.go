@@ -69,7 +69,8 @@ func rebuildNodes() {
 func replaceSource(lib *tunnel.Library, src tunnel.Source, index int) {
 	if index < 0 {
 		for i, other := range lib.Sources {
-			if (src.URL != "" && other.URL == src.URL) || (src.URL == "" && other.URL == "" && other.Name == src.Name) {
+			sameLink := src.ManagedID == "" && src.URL == "" && other.ManagedID == "" && other.URL == "" && len(src.Profiles) == 1 && len(other.Profiles) == 1 && src.Profiles[0].Link == other.Profiles[0].Link
+			if sameLink || (src.URL != "" && other.URL == src.URL) || (src.ManagedID != "" && other.ManagedID == src.ManagedID) {
 				index = i
 				break
 			}

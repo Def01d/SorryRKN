@@ -18,6 +18,15 @@ permissions:
   contents: read
 
 jobs:
+  selfhost-tcp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify TCP fallback using a disposable TLS destination and test origin
+        run: sudo bash windows/src/internal/selfhost/integration-reality.sh --isolated-vm
+
   selfhost-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 12

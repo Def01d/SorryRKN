@@ -12,6 +12,10 @@ peer=01010101010101010101010101010101
 other=02020202020202020202020202020202
 run() { sh "$dir/provision.sh" "$1" "$2"; }
 cleanup() {
+    rc=$?
+    if [[ $rc != 0 ]]; then
+        journalctl --no-pager -n 40 -o cat -u sorryrkn-vpn.service -u sorryrkn-socks.service | sed -E 's#[A-Za-z0-9+/=]{32,}#[redacted]#g'
+    fi
     if [[ -n $http_pid ]]; then kill "$http_pid" 2>/dev/null || true; fi
     ip netns del "$ns" 2>/dev/null || true
     systemctl stop sorryrkn-vpn.service 2>/dev/null || true

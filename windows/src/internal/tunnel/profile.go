@@ -27,9 +27,10 @@ type Profile struct {
 	Link     string
 }
 type Source struct {
-	Name     string
-	URL      string
-	Profiles []Profile
+	ManagedID string
+	Name      string
+	URL       string
+	Profiles  []Profile
 }
 type Library struct {
 	Sources        []Source
