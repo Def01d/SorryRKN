@@ -27,7 +27,9 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;28.2.13676358"
       - name: Build unsigned package and verify both VPN engines for each ABI
         run: |
-          bash gradlew --no-daemon :app:assembleRelease
+          bash scripts/fetch-pinned.sh https://github.com/gradle/gradle-distributions/releases/download/v8.13.0/gradle-8.13-bin.zip 20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78 "$RUNNER_TEMP/gradle-8.13.zip"
+          unzip -q "$RUNNER_TEMP/gradle-8.13.zip" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/gradle-8.13/bin/gradle" --no-daemon :app:assembleRelease
           python - <<'PY'
           import pathlib, zipfile
           apk = pathlib.Path("app/build/outputs/apk/release/app-release-unsigned.apk")
