@@ -1,0 +1,17 @@
+{
+  "platform": "android",
+  "applicationId": "io.github.def01d.sorryrkn",
+  "versionCode": 10000,
+  "versionName": "1.0.0",
+  "minSdk": 26,
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.0/android/SorryRKN-Android-1.0.0.apk",
+  "size": 54531317,
+  "sha256": "cce64774edab00584155a753b7b6c6d761cae5b9747c8340d2f942eab30f4f28",
+  "certificateSha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
+  "notes": "Новое приложение SorryRKN с постоянной производственной подписью. Следующие обновления предлагаются при запуске и сохраняют настройки. Доступны локальный обход, Telegram, DNS по сервисам, собственный HTTPS VPN с TCP/UDP, управление Linux по SSH и подписки. Для перехода со старого пакета требуется одна ручная установка и повторная настройка.",
+  "signed": "eyJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJhcHBsaWNhdGlvbklkIjoiaW8uZ2l0aHViLmRlZjAxZC5zb3JyeXJrbiIsInZlcnNpb25Db2RlIjoxMDAwMCwidmVyc2lvbk5hbWUiOiIxLjAuMCIsIm1pblNkayI6MjYsInVybCI6Imh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9EZWYwMWQvU29ycnlSS04vYW5kcm9pZC12MS4wLjAvYW5kcm9pZC9Tb3JyeVJLTi1BbmRyb2lkLTEuMC4wLmFwayIsInNpemUiOjU0NTMxMzE3LCJzaGEyNTYiOiJjY2U2NDc3NGVkYWIwMDU4NDE1NWE3NTNiN2I2YzZkNzYxY2FlNWI5NzQ3YzgzNDBkMmY5NDJlYWIzMGY0ZjI4IiwiY2VydGlmaWNhdGVTaGEyNTYiOiI2MmQwNjc1M2VhYjk3YWExOTMwNGQ4YWRjZGNkY2Y2YmY1ZmU0ZTcyZTU4MzM2ZGQ3MDg1ZGU0MjM2ODgwZjFmIiwibm90ZXMiOiLQndC+0LLQvtC1INC/0YDQuNC70L7QttC10L3QuNC1IFNvcnJ5UktOINGBINC/0L7RgdGC0L7Rj9C90L3QvtC5INC/0YDQvtC40LfQstC+0LTRgdGC0LLQtdC90L3QvtC5INC/0L7QtNC/0LjRgdGM0Y4uINCh0LvQtdC00YPRjtGJ0LjQtSDQvtCx0L3QvtCy0LvQtdC90LjRjyDQv9GA0LXQtNC70LDQs9Cw0Y7RgtGB0Y8g0L/RgNC4INC30LDQv9GD0YHQutC1INC4INGB0L7RhdGA0LDQvdGP0Y7RgiDQvdCw0YHRgtGA0L7QudC60LguINCU0L7RgdGC0YPQv9C90Ysg0LvQvtC60LDQu9GM0L3Ri9C5INC+0LHRhdC+0LQsIFRlbGVncmFtLCBETlMg0L/QviDRgdC10YDQstC40YHQsNC8LCDRgdC+0LHRgdGC0LLQtdC90L3Ri9C5IEhUVFBTIFZQTiDRgSBUQ1AvVURQLCDRg9C/0YDQsNCy0LvQtdC90LjQtSBMaW51eCDQv9C+IFNTSCDQuCDQv9C+0LTQv9C40YHQutC4LiDQlNC70Y8g0L/QtdGA0LXRhdC+0LTQsCDRgdC+INGB0YLQsNGA0L7Qs9C+INC/0LDQutC10YLQsCDRgtGA0LXQsdGD0LXRgtGB0Y8g0L7QtNC90LAg0YDRg9GH0L3QsNGPINGD0YHRgtCw0L3QvtCy0LrQsCDQuCDQv9C+0LLRgtC+0YDQvdCw0Y8g0L3QsNGB0YLRgNC+0LnQutCwLiJ9",
+  "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
+  "signedAt": 1794156648,
+  "expires": 1809708648,
+  "signature": "MEUCIQC5yNePnOYx0JFbJjIWKb/wNZdxU+rQrEDZmk1lRaEKnAIgEZbx47zfAphIHy2Dk3Qsd/cCwpCPs22UyT24I8DtW4Q="
+}
