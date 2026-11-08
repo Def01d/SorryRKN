@@ -34,12 +34,12 @@ final class ProductionUpdateChecks {
             String marker=Settings.prefs(c).getString("lineage_marker","");
             if(marker.isEmpty() || !marker.equals(RemoteVault.read(c,"upgrade-check").getString("marker")) ||
                 !Settings.prefs(c).getString("lineage_secret_sha","").equals(hash(Settings.secret(c))) ||
-                Settings.prefs(c).getInt("lineage_uid",-1)!=c.getApplicationInfo().uid || BuildConfig.VERSION_CODE!=10000)
+                Settings.prefs(c).getInt("lineage_uid",-1)!=c.getApplicationInfo().uid || c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionCode!=10000)
                 throw new AssertionError("State, signing identity or UID did not survive upgrade");
             report.putString("upgrade","In-place production APK upgrade preserved UID, Telegram secret, preferences and AndroidKeyStore vault");return;
         }
         if("offer".equals(mode) || "download".equals(mode)) {
-            if(BuildConfig.VERSION_CODE>=10000)throw new AssertionError("Install the signed baseline first");
+            if(c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionCode>=10000)throw new AssertionError("Install the signed baseline first");
             Settings.prefs(c).edit().remove("apk_update_url").putBoolean("auto_updates",false)
                 .putLong("apk_update_checked",System.currentTimeMillis()).commit();
             Activity activity=null;
