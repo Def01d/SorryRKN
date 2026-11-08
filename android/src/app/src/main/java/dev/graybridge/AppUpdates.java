@@ -17,7 +17,7 @@ import java.lang.ref.WeakReference;
 
 /** APK releases are separate from upstream declarative data updates. */
 final class AppUpdates {
-    static final String SOURCE="https://raw.githubusercontent.com/Def01d/SorryRKN/main/update.json";
+    static final String SOURCE="https://raw.githubusercontent.com/Def01d/SorryRKN/main/android-update.json";
     private static final ExecutorService WORK=Executors.newSingleThreadExecutor();
     private static final Handler MAIN=new Handler(Looper.getMainLooper());
     private static boolean checking, downloading;
@@ -29,6 +29,7 @@ final class AppUpdates {
         Release(JSONObject j) throws Exception {
             j=UpdateTrust.verified(j);
             if(!j.optString("platform","android").equals("android"))throw new IOException("Обновление другой платформы");
+            if(!j.optString("applicationId").equals(BuildConfig.UPDATE_APPLICATION_ID))throw new IOException("Обновление другого приложения");
             code=j.getInt("versionCode"); name=j.getString("versionName"); url=j.getString("url");
             sha=j.getString("sha256").toLowerCase(Locale.ROOT); size=j.getLong("size"); notes=j.optString("notes","");
             if(code<=0 || name.length()>40 || notes.length()>4000 || !sha.matches("[0-9a-f]{64}") || size<=0 || size>MAX_APK)

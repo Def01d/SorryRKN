@@ -19,6 +19,7 @@ app/src/androidTest/java/dev/graybridge/DeviceChecks.java
 app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java
 app/src/androidTest/java/dev/graybridge/HTTPSRelayDeviceChecks.java
 app/src/androidTest/java/dev/graybridge/NegativeTrustProbe.java
+app/src/androidTest/java/dev/graybridge/ProductionUpdateChecks.java
 app/src/androidTest/java/dev/graybridge/RemoteDeviceChecks.java
 app/src/androidTest/java/dev/graybridge/RemoteGuestChecks.java
 app/src/androidTest/java/dev/graybridge/StartupUpdateChecks.java

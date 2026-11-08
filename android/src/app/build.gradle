@@ -5,11 +5,12 @@ android {
     compileSdk 35
     ndkVersion '28.2.13676358'
     defaultConfig {
-        applicationId 'dev.graybridge'
+        applicationId 'io.github.def01d.sorryrkn'
+        buildConfigField 'String', 'UPDATE_APPLICATION_ID', '"io.github.def01d.sorryrkn"'
         minSdk 26
         targetSdk 35
-        versionCode 22
-        versionName '0.15.0'
+        versionCode providers.gradleProperty('androidVersionCode').map { it.toInteger() }.getOrElse(10000)
+        versionName '1.0.0'
         ndk { abiFilters 'arm64-v8a', 'x86_64' }
         testInstrumentationRunner 'dev.graybridge.DeviceChecks'
     }
@@ -18,6 +19,7 @@ android {
         debug { applicationIdSuffix providers.gradleProperty('startupUpdateProbe').isPresent() ? '.updateprobe' : '.dev'; versionNameSuffix '-test'; manifestPlaceholders = [appLabel: 'SorryRKN Test'] }
         release { minifyEnabled false; manifestPlaceholders = [appLabel: 'SorryRKN'] }
     }
+    if (providers.gradleProperty('productionUpdateChecks').isPresent()) { testBuildType 'release' }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     packaging { jniLibs { useLegacyPackaging true; keepDebugSymbols += ['**/libxray.so','**/libnaive.so'] } }
     sourceSets.main.jniLibs.srcDir layout.buildDirectory.dir('generated/xray/jni')

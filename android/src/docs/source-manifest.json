@@ -1,5 +1,5 @@
 {
-  "version": "0.15.0",
+  "version": "1.0.0",
   "scope": "Android source export; excludes generated build outputs and private local configuration",
   "manifest_self_excluded": true,
   "files": [
@@ -35,8 +35,8 @@
     },
     {
       "path": "app/build.gradle",
-      "size": 3079,
-      "sha256": "83e6cd3ca11aec9f2bdea52c6b28a5d376034be7e68655711619ad9b4f0049e0"
+      "size": 3437,
+      "sha256": "bddc9eba0a7da323748bce76ddc0fd621a5f9d5477dbe01b4b1ade5fee967cca"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -90,8 +90,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 60183,
-      "sha256": "42686805b111ee4acc1c21863887f7f0b9d7c0815858bbb5393a59de1efbb5ca"
+      "size": 60421,
+      "sha256": "64357c2eeb27e21bc1070af0dd76771864731a6c5755ad0e57eabc54a928218e"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
@@ -107,6 +107,11 @@
       "path": "app/src/androidTest/java/dev/graybridge/NegativeTrustProbe.java",
       "size": 3436,
       "sha256": "7130a4487aed8a22ce57fb0e68061c19cb6bd2444e049163f1b97012c35dc917"
+    },
+    {
+      "path": "app/src/androidTest/java/dev/graybridge/ProductionUpdateChecks.java",
+      "size": 6092,
+      "sha256": "daef1abc7e83389adfe447d1c298b0b0ce410b053c5a66a4534ccbe30af158eb"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/RemoteDeviceChecks.java",
@@ -275,8 +280,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/AppUpdates.java",
-      "size": 12627,
-      "sha256": "a3911bf594fd08f5ababd58ccea6076d99d9f783b3e9c7001a6493124e21e2ce"
+      "size": 12987,
+      "sha256": "a0922b38f850ad1e246821f8c2ecce344ba48651e8a874fd9ca3c6b82d535dfa"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeApp.java",
@@ -650,8 +655,8 @@
     },
     {
       "path": "docs/source-files.txt",
-      "size": 48346,
-      "sha256": "f4191ec4f8d6c441e2c16dbb7fb784ea13e5137c59817ca50ce8a44e2d460302"
+      "size": 48414,
+      "sha256": "4d6ab75a86f07b292afd983c1a59369f9652aa7387acf79069cd1341b4fa7a6c"
     },
     {
       "path": "docs/upstream-lock.json",
