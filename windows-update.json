@@ -1,14 +1,14 @@
 {
   "platform": "windows-x64",
-  "versionCode": 10500,
-  "versionName": "1.5.0",
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.5.0/windows/SorryRKN-Windows-1.5.0-Setup.exe",
-  "notes": "Проверка обновлений при каждом запуске. Добавлен режим VPN и подписки: настройка своего Linux-сервера по SSH, свой HTTPS-туннель, резервный VLESS REALITY и подключение через подписку. SOCKS5 разворачивается по выбору. Перед установкой выйдите из SorryRKN через трей.",
-  "size": 42622334,
-  "sha256": "2aeca5efba1ea22aeb73fb133603509ea4d986aab7450ce8993ee34487948a81",
-  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEwNTAwLCJ2ZXJzaW9uTmFtZSI6IjEuNS4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RlZjAxZC9Tb3JyeVJLTi93aW5kb3dzLXYxLjUuMC93aW5kb3dzL1NvcnJ5UktOLVdpbmRvd3MtMS41LjAtU2V0dXAuZXhlIiwibm90ZXMiOiLQn9GA0L7QstC10YDQutCwINC+0LHQvdC+0LLQu9C10L3QuNC5INC/0YDQuCDQutCw0LbQtNC+0Lwg0LfQsNC/0YPRgdC60LUuINCU0L7QsdCw0LLQu9C10L0g0YDQtdC20LjQvCBWUE4g0Lgg0L/QvtC00L/QuNGB0LrQuDog0L3QsNGB0YLRgNC+0LnQutCwINGB0LLQvtC10LPQviBMaW51eC3RgdC10YDQstC10YDQsCDQv9C+IFNTSCwg0YHQstC+0LkgSFRUUFMt0YLRg9C90L3QtdC70YwsINGA0LXQt9C10YDQstC90YvQuSBWTEVTUyBSRUFMSVRZINC4INC/0L7QtNC60LvRjtGH0LXQvdC40LUg0YfQtdGA0LXQtyDQv9C+0LTQv9C40YHQutGDLiBTT0NLUzUg0YDQsNC30LLQvtGA0LDRh9C40LLQsNC10YLRgdGPINC/0L4g0LLRi9Cx0L7RgNGDLiDQn9C10YDQtdC0INGD0YHRgtCw0L3QvtCy0LrQvtC5INCy0YvQudC00LjRgtC1INC40LcgU29ycnlSS04g0YfQtdGA0LXQtyDRgtGA0LXQuS4iLCJzaXplIjo0MjYyMjMzNCwic2hhMjU2IjoiMmFlY2E1ZWZiYTFlYTIyYWViNzNmYjEzMzYwMzUwOWVhNGQ5ODZhYWI3NDUwY2U4OTkzZWUzNDQ4Nzk0OGE4MSJ9",
+  "versionCode": 10600,
+  "versionName": "1.6.0",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0-Setup.exe",
+  "notes": "HTTPS теперь передаёт TCP и UDP через один TCP 443. После обновления отключите VPN и повторите «Свой сервер → Установить HTTPS и добавить узел». Добавлены проверки Discord WebSocket, UDP/STUN и системного маршрута с DNS. Перед установкой выйдите из SorryRKN через трей.",
+  "size": 42900011,
+  "sha256": "eb0ee4a4ca4138b0c4a84597058b17526a82bf4afcd407ff197569fccbbcc984",
+  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEwNjAwLCJ2ZXJzaW9uTmFtZSI6IjEuNi4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RlZjAxZC9Tb3JyeVJLTi93aW5kb3dzLXYxLjYuMC93aW5kb3dzL1NvcnJ5UktOLVdpbmRvd3MtMS42LjAtU2V0dXAuZXhlIiwibm90ZXMiOiJIVFRQUyDRgtC10L/QtdGA0Ywg0L/QtdGA0LXQtNCw0ZHRgiBUQ1Ag0LggVURQINGH0LXRgNC10Lcg0L7QtNC40L0gVENQIDQ0My4g0J/QvtGB0LvQtSDQvtCx0L3QvtCy0LvQtdC90LjRjyDQvtGC0LrQu9GO0YfQuNGC0LUgVlBOINC4INC/0L7QstGC0L7RgNC40YLQtSDCq9Ch0LLQvtC5INGB0LXRgNCy0LXRgCDihpIg0KPRgdGC0LDQvdC+0LLQuNGC0YwgSFRUUFMg0Lgg0LTQvtCx0LDQstC40YLRjCDRg9C30LXQu8K7LiDQlNC+0LHQsNCy0LvQtdC90Ysg0L/RgNC+0LLQtdGA0LrQuCBEaXNjb3JkIFdlYlNvY2tldCwgVURQL1NUVU4g0Lgg0YHQuNGB0YLQtdC80L3QvtCz0L4g0LzQsNGA0YjRgNGD0YLQsCDRgSBETlMuINCf0LXRgNC10LQg0YPRgdGC0LDQvdC+0LLQutC+0Lkg0LLRi9C50LTQuNGC0LUg0LjQtyBTb3JyeVJLTiDRh9C10YDQtdC3INGC0YDQtdC5LiIsInNpemUiOjQyOTAwMDExLCJzaGEyNTYiOiJlYjBlZTRhNGNhNDEzOGIwYzRhODQ1OTcwNThiMTc1MjZhODJiZjRhZmNkNDA3ZmYxOTc1NjlmY2NiYmNjOTg0In0=",
   "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
-  "signedAt": 1793625044,
-  "expires": 1809177044,
-  "signature": "MEMCIH+YHAy7gbBJ4WKyuFYc2jcMViLBgQNGkPGA3CyncUz4Ah9RJwt9C3q+0x861EOQvUXjRSsZXQUGWrQ/qloPdDYT"
+  "signedAt": 1794138323,
+  "expires": 1809690323,
+  "signature": "MEQCIFx6+GpjyvohT3lWzaogzan9oUxSeyCUM/avy5nL8xKQAiAIhwtWQcBd2vA/7PRTN+X1Q7N2H/3fiqgCY/obJx6nvg=="
 }
