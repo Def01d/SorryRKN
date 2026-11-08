@@ -36,7 +36,32 @@ if run https-on "$id" >"$work/foreign-out" 2>"$work/foreign-err"; then exit 1; f
 grep -q 'Refusing to take it over' "$work/foreign-err"
 [[ $(readlink /run/sorryrkn-https) == "$work/absent" && ! -e /etc/systemd/system/sorryrkn-https.service ]]
 rm -- /run/sorryrkn-https
+# Exercise migration of a real 1.5.0 installation. Credentials and its private
+# CA must survive while the new capability is explicitly added to the profile.
+curl -fsSL --proto '=https' --proto-redir '=https' --retry 2 --max-time 45 https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.5.0/windows/src/internal/selfhost/provision.sh -o "$work/legacy.sh"
+printf '%s  %s\n' be3b72f2882f0469730dbada94f360ee20821b6d83d98104fa387648cb21c355 "$work/legacy.sh" | sha256sum -c --status
+# The new installer downloaded Caddy through its verified fallback in earlier
+# checks only after this step. Seed its exact official archive for this legacy
+# migration test so the old downloader's current CDN failure cannot mask it.
+mkdir -p /etc/sorryrkn-https /usr/local/lib/sorryrkn-https
+printf '1\n' > /etc/sorryrkn-https/managed-v1
+printf '1\n' > /usr/local/lib/sorryrkn-https/managed-v1
+chmod 700 /etc/sorryrkn-https; chmod 755 /usr/local/lib/sorryrkn-https
+curl -fsSL --proto '=https' --proto-redir '=https' --retry 2 --max-time 120 -H 'Accept: application/octet-stream' https://api.github.com/repos/klzgrad/forwardproxy/releases/assets/666580211 -o "$work/caddy.xz"
+printf '%s  %s\n' c273dc07dd79c5919f97639cbdcb559d40ce90475dbd8aac80641b0a8c8065ff "$work/caddy.xz" | sha256sum -c --status
+tar xJOf "$work/caddy.xz" caddy-forwardproxy-naive/caddy > /usr/local/lib/sorryrkn-https/caddy
+chmod 755 /usr/local/lib/sorryrkn-https/caddy
+(cd /usr/local/lib/sorryrkn-https && sha256sum caddy > caddy.sha256)
+sh "$work/legacy.sh" https-on "$id" 127.0.0.1 > "$work/legacy"
 run https-on "$id" > "$work/first"
+python3 - "$work" <<'PY'
+import pathlib,sys,urllib.parse
+root=pathlib.Path(sys.argv[1])
+old,new=[urllib.parse.urlsplit((root/name).read_text().strip().split('\t')[-1]) for name in ('legacy','first')]
+oq,nq=map(lambda u:urllib.parse.parse_qs(u.query),(old,new))
+assert old.username==new.username and old.password==new.password and oq['ca']==nq['ca'] and 'relay' not in oq and 'relay' in nq
+print('Upgrade from Windows 1.5.0 server preserved HTTPS credentials and CA; added explicit TCP/UDP capability.')
+PY
 cp /etc/sorryrkn-https/Caddyfile "$work/before-second"
 run https-on "$id2" > "$work/second"
 run https-profile "$id" > "$work/export"
