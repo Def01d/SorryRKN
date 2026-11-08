@@ -74,5 +74,6 @@
     "One manual installation is required for the new Android package",
     "Legacy package settings are not automatically imported",
     "Physical ARM64 device and signed-in service accounts were not tested"
-  ]
+  ],
+  "manifest_signing_backup_restoration_verified": true
 }
