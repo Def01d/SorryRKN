@@ -1,0 +1,78 @@
+{
+  "release": "https://github.com/Def01d/SorryRKN/releases/tag/android-v1.0.0",
+  "normal_public_release": true,
+  "tag": "android-v1.0.0",
+  "tag_commit": "e664b18993ffbedbfb95de9e85ec84e19ce814cc",
+  "feed_commit": "0c1868fcd545e5060fa47576e16aea8177b1748f",
+  "applicationId": "io.github.def01d.sorryrkn",
+  "versionCode": 10000,
+  "versionName": "1.0.0",
+  "certificate_sha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
+  "tagged_apk": {
+    "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.0/android/SorryRKN-Android-1.0.0.apk",
+    "size": 54531317,
+    "sha256": "cce64774edab00584155a753b7b6c6d761cae5b9747c8340d2f942eab30f4f28",
+    "certificate_sha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f"
+  },
+  "source_manifest_entries_verified": 803,
+  "ci_build": {
+    "run": "https://github.com/Def01d/SorryRKN/actions/runs/42500381632",
+    "commit": "82d1a2a4c64847467ac2ab59524fc04c6ffdd851",
+    "artifact_id": 13625217648,
+    "runtime_source_equivalent_to_head": true
+  },
+  "source_validation_run": "https://github.com/Def01d/SorryRKN/actions/runs/42500603752",
+  "new_feed": "https://raw.githubusercontent.com/Def01d/SorryRKN/main/android-update.json",
+  "feed_signature_verified": true,
+  "legacy_android_and_windows_feeds_unchanged": true,
+  "backup_restore_signed_identical_production_apk": true,
+  "production_in_place_upgrade_preserved_settings_secret_uid_and_keystore": true,
+  "public_feed_device_checks": {
+    "startup-public-feed.log": {
+      "sha256": "e1c901cee7c321a10a8e2b4952c7900c78b8a362b07f2f82f6e765224163a1ab",
+      "results": {
+        "result": "PASS",
+        "startup_offer": "Real signed android-update.json offered production 1.0.0 on launch and HOME/reopen despite a recent check"
+      }
+    },
+    "download-public-feed.log": {
+      "sha256": "21e85143296f7959882d73de994d60441e44cbdb70dace2839e5ccc42a53a758",
+      "results": {
+        "download": "Real startup update downloaded the immutable tagged APK and verified hash, package, version and production signer",
+        "result": "PASS"
+      }
+    }
+  },
+  "assets": [
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 363,
+      "digest": "sha256:c9565cec2c39fc3e94ccce90fc3fc862e12e9e2a629b2689b614bba25d0a9ab4"
+    },
+    {
+      "name": "signing-identity.json",
+      "size": 392,
+      "digest": "sha256:19436ead7969d7e7958900f24d017856e58310ab28228e307d7e2a1f0790f3ca"
+    },
+    {
+      "name": "SorryRKN-Android-1.0.0-source.zip",
+      "size": 2840386,
+      "digest": "sha256:6b8c5463348ba8e31b2cff09c2e19b5291ccfbf098c5b6c540e634e867e3fc5b"
+    },
+    {
+      "name": "SorryRKN-Android-1.0.0.apk",
+      "size": 54531317,
+      "digest": "sha256:cce64774edab00584155a753b7b6c6d761cae5b9747c8340d2f942eab30f4f28"
+    },
+    {
+      "name": "validation.json",
+      "size": 2608,
+      "digest": "sha256:7ca94080475cc472f25f1dbf787f82b83e5a762f7bda515a77765a8321824d8c"
+    }
+  ],
+  "limits": [
+    "One manual installation is required for the new Android package",
+    "Legacy package settings are not automatically imported",
+    "Physical ARM64 device and signed-in service accounts were not tested"
+  ]
+}
