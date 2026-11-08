@@ -68,6 +68,8 @@ public class RemoteActivity extends Activity implements SharedPreferences.OnShar
             if(server) {
                 JSONObject profile=RemoteVault.read(this,"server");
                 text(profile.optString("host","Настройте HTTPS на Linux-сервере"),14,MUTED);
+                if(profile.has("https"))text(NaiveEngine.relay(profile.getString("https"))!=null?
+                    "HTTPS · TCP и UDP":"Старый HTTPS-профиль · только TCP. Обновите настройку HTTPS через SSH.",13,MUTED);
                 action(busy?"Отключить":"Подключить",this::toggle,!working && !Settings.busy(this) && (state.equals("on") || !busy && profile.has("https")));
                 action("Управление по SSH",this::serverMenu,editable);
                 if(SshForward.port()>0) action("Отключить локальный SOCKS5",()->{SshForward.stop(this);message="SSH-переадресация отключена";draw();},!working);

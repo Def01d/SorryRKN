@@ -18,6 +18,7 @@ cleanup(){
     fi
     systemctl disable --now "$unit" 2>/dev/null || true
     systemctl disable --now sorryrkn-proxy.service 2>/dev/null || true
+    systemctl disable --now sorryrkn-relay.service 2>/dev/null || true
     rm -rf -- "$work"
 }
 trap cleanup EXIT
@@ -98,6 +99,7 @@ printf '<html><title>Owner site</title></html>\n' >/usr/local/lib/sorryrkn-https
 run https-on "$id" >/dev/null
 curl -fsS --cacert "$work/ca.pem" https://127.0.0.1/ | grep -q 'Owner site'
 echo 'HTTPS: private CA/IP SAN without SNI, ordinary cover, wrong and missing auth, authenticated HTTP2 relay and idempotent peers passed.'
+python3 "$dir/integration-https-relay.py" "$work/first"
 run https-off "$id" | grep -q 'vpn:stopped'
 run install-socks "$id" > "$work/socks"
 grep -q $'SRKN1\tSOCKS\t127.0.0.1\t11080\t' "$work/socks"

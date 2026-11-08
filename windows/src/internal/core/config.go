@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 )
 
-const Version = "1.5.0"
-const VersionCode = 10500
+const Version = "1.6.0"
+const VersionCode = 10600
 const UpdateURL = "https://raw.githubusercontent.com/Def01d/SorryRKN/main/windows-update.json"
 
 type Config struct {

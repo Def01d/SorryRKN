@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"net/url"
 	"time"
 )
 
@@ -41,6 +42,17 @@ func configFor(ctx context.Context, p Profile) (object, error) {
 		return nil, err
 	}
 	out["server"] = ip.String()
+	// The relay is advertised only after it has been provisioned on the VPS.
+	// VLESS frames both TCP and UDP inside Chromium HTTPS CONNECT. The virtual
+	// target is interpreted by the server's authenticated loopback gateway and
+	// is never resolved or dialed on the client network.
+	if out["type"] == "naive" {
+		u, _ := url.Parse(p.Link)
+		if relay := u.Query().Get("relay"); relay != "" {
+			out["tag"] = "https"
+			cfg["outbounds"] = []object{{"type": "vless", "tag": "vpn", "server": "relay.sorryrkn.invalid", "server_port": 443, "uuid": relay, "detour": "https"}, out}
+		}
+	}
 	tun := object{"type": "tun", "interface_name": "SorryRKN-Tunnel", "address": []string{"172.31.254.1/30", "fd7a:7272:6b6e:1::1/126"}, "auto_route": true, "strict_route": true, "dns_mode": "hijack", "mtu": 1400, "route_exclude_address": []string{netip.PrefixFrom(ip, ip.BitLen()).String()}}
 	cfg["log"] = object{"level": "info"}
 	cfg["inbounds"] = []object{tun}

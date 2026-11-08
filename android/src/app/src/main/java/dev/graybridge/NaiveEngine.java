@@ -28,6 +28,15 @@ final class NaiveEngine {
         host=ServerSSH.host(host);if(host.contains(":"))host="["+host+"]";
         return profile.replace("@sorryrkn.invalid:443","@"+host+":443");
     }
+    static String relay(String profile) throws Exception {
+        parse(profile);
+        Uri data=Uri.parse(profile);
+        if(!data.getQueryParameterNames().contains("relay"))return null;
+        java.util.List<String> values=data.getQueryParameters("relay");
+        if(values.size()!=1 || !values.get(0).matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
+            throw new IOException("Некорректный профиль HTTPS TCP/UDP");
+        return values.get(0);
+    }
     java.lang.Process start(Context c,String profile,int port,String pass) throws Exception {
         URI u=parse(profile); Uri data=Uri.parse(profile);
         String host=ServerSSH.host(u.getHost());

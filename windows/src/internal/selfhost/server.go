@@ -271,7 +271,14 @@ func parseResult(host string, action Action, out string) (Result, error) {
 			}
 		}
 		u.Host = net.JoinHostPort(host, "443")
-		return Result{Status: "Профиль NaïveProxy готов", NodeURL: u.String()}, nil
+		status := "Профиль NaïveProxy готов · только TCP"
+		if q.Get("relay") != "" {
+			if !regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`).MatchString(q.Get("relay")) {
+				return Result{}, bad
+			}
+			status = "Профиль HTTPS готов · TCP и UDP"
+		}
+		return Result{Status: status, NodeURL: u.String()}, nil
 	case InstallSOCKS:
 		if len(fields) != 6 || fields[1] != "SOCKS" || fields[2] != "127.0.0.1" || fields[3] != "11080" || fields[4] != "sorryrkn" || !passwordToken.MatchString(fields[5]) {
 			return Result{}, bad

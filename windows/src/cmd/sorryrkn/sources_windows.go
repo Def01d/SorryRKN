@@ -206,11 +206,11 @@ func probeSources(sourceIndex, nodeIndex int) {
 			waits.Add(1)
 			go func(i int, p tunnel.Profile) {
 				defer waits.Done()
-				elapsed, e := tunnel.Probe(ctx, filepath.Dir(root), p)
+				checks, e := tunnel.Diagnose(ctx, filepath.Dir(root), p)
 				if e != nil {
 					lines[i] = p.Name + " — " + e.Error()
 				} else {
-					lines[i] = fmt.Sprintf("%s — HTTPS доступен, %d мс", p.Name, elapsed.Milliseconds())
+					lines[i] = p.Name + "\n" + strings.Join(checks, "\n")
 				}
 			}(i, profile)
 		}
@@ -219,7 +219,7 @@ func probeSources(sourceIndex, nodeIndex int) {
 			return nil, ctx.Err()
 		}
 		return func() {
-			message("Проверка маршрута", strings.Join(lines, "\n")+"\n\nРезультат относится к публичному HTTPS-запросу из вашей сети. Выбор узла меняется кнопкой «Выбрать узел».")
+			message("Проверка маршрута", strings.Join(lines, "\n\n")+"\n\nПубличные проверки HTTPS, Discord WebSocket и UDP/STUN. Вход в аккаунт и голосовой звонок не проверяются. Выбор узла меняется кнопкой «Выбрать узел».")
 		}, nil
 	})
 }

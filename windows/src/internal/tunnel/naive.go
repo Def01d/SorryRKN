@@ -27,7 +27,7 @@ func parseNaive(line string) (Profile, object, error) {
 			return empty, nil, errors.New("пустой или повторяющийся параметр HTTPS CONNECT")
 		}
 		switch k {
-		case "sni", "ca", "spki":
+		case "sni", "ca", "spki", "relay":
 		default:
 			return empty, nil, errors.New("неподдерживаемый параметр HTTPS CONNECT")
 		}
@@ -80,5 +80,8 @@ func parseNaive(line string) (Profile, object, error) {
 	// Standard Caddy forwardproxy carries TCP CONNECT. Declaring UDP-over-TCP
 	// would send UDP payloads to a private protocol the server does not implement.
 	out["udp_over_tcp"] = false
+	if relay := q.Get("relay"); relay != "" && !uuid.MatchString(relay) {
+		return empty, nil, errors.New("неверный идентификатор HTTPS TCP/UDP")
+	}
 	return Profile{Name: label(u.Fragment, u.Hostname()), Protocol: "naive", Link: line}, out, nil
 }

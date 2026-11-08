@@ -7,6 +7,7 @@ dir=/etc/sorryrkn-https
 units=/etc/systemd/system
 vpn=sorryrkn-https.service
 socks=sorryrkn-proxy.service
+relay=sorryrkn-relay.service
 runtime=/usr/local/lib/sorryrkn-https
 die() { printf 'SRKN_ERROR: %s\n' "$1" >&2; exit 1; }
 
@@ -118,7 +119,10 @@ configure_https(){
         for peer in "$dir"/clients/*; do
             printf '  basic_auth u%s %s\n' "$(basename "$peer")" "$(cat "$peer")"
         done
-        printf '  hide_ip\n  hide_via\n  probe_resistance\n  acl {\n   deny 0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 224.0.0.0/4 ::/128 ::1/128 fc00::/7 fe80::/10 ff00::/8\n   allow all\n  }\n }\n'
+        printf '  hide_ip\n  hide_via\n  probe_resistance\n'
+        # The upstream preserves CONNECT target names, including the private
+        # virtual relay target. Its policy replaces Caddy's bypassed ACL.
+        printf '  upstream socks5://gateway:%s@127.0.0.1:11081\n }\n' "$(cat "$dir/relay.credential")"
         printf ' root * %s/site\n file_server\n}\n' "$runtime"
     } > "$tmp/Caddyfile"
     "$runtime/caddy" adapt --config "$tmp/Caddyfile" --adapter caddyfile >/dev/null || die "Cannot validate the generated HTTPS configuration."
@@ -128,7 +132,7 @@ configure_https(){
 profile(){
     [ -f "$dir/clients/$id" ] || die "Set up HTTPS for this device first."
     python3 - "$dir" "$id" <<'PY'
-import base64,pathlib,ssl,sys,urllib.parse
+import base64,hashlib,pathlib,ssl,sys,urllib.parse,uuid
 d=pathlib.Path(sys.argv[1]); peer=sys.argv[2]
 mode,sni=(d/'identity').read_text().split()
 query=dict(sni=sni)
@@ -137,6 +141,8 @@ if mode=='private':
     if not cert.exists(): sys.exit('SRKN_ERROR: The private certificate is not ready.')
     query['ca']=base64.urlsafe_b64encode(ssl.PEM_cert_to_DER_cert(cert.read_text())).decode().rstrip('=')
 pw=(d/'clients'/peer).read_text().strip()
+if (d/'relay.json').exists():
+    query['relay']=str(uuid.UUID(hex=hashlib.sha256((peer+pw).encode()).hexdigest()[:32]))
 print('SRKN1\tHTTPS\tnaive+https://u'+peer+':'+pw+'@sorryrkn.invalid:443/?'+urllib.parse.urlencode(query)+'#SorryRKN')
 PY
 }
@@ -146,6 +152,7 @@ install_https(){
     if ! systemctl is-active --quiet "$vpn" && ss -Hlt 'sport = :443' | grep -q .; then die "TCP port 443 is already in use by another service."; fi
     install_engine
     init_identity
+    install_relay
     mkdir -p -m 755 "$runtime/site"
     if [ ! -f "$runtime/site/index.html" ]; then
         # Use the same welcome page as an ordinary Caddy distribution. Keep
@@ -161,6 +168,8 @@ install_https(){
 Description=SorryRKN HTTPS
 After=network-online.target
 Wants=network-online.target
+Requires=$relay
+After=$relay
 [Service]
 DynamicUser=yes
 RuntimeDirectory=sorryrkn-https
@@ -204,6 +213,80 @@ UNIT
     done
     [ "$ready" = 1 ] || die "Cannot verify the HTTPS certificate and cover page. For a public hostname check DNS and inbound TCP 443, then retry."
     profile
+}
+
+# This component is reachable only on loopback. It accepts the Caddy gateway's
+# random password, routes exactly one virtual target to the VLESS listener and
+# enforces the private-address policy after DNS resolution for every egress.
+# No extra public TCP/UDP port is opened, and legacy TCP-only clients still work.
+install_relay(){
+    if ! systemctl is-active --quiet "$relay" && ss -Hlt '( sport = :11081 or sport = :11082 )' | grep -q .; then
+        die "HTTPS relay loopback port 11081 or 11082 is occupied."
+    fi
+    engine=$runtime/sing-box-1.14.4
+    if [ ! -x "$engine" ] || [ ! -s "$runtime/relay-engine.sha256" ] || ! (cd "$runtime" && sha256sum -c --status relay-engine.sha256); then
+        archive=sing-box-1.14.4-linux-amd64
+        curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 --retry 2 "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/$archive.tar.gz" -o "$tmp/relay.tar.gz" || die "Cannot download the pinned HTTPS relay."
+        printf '%s  %s\n' 699a1b510aa4396b2176d32d1181920399ebf1e267835da6f3b598d0f7c24968 "$tmp/relay.tar.gz" | sha256sum -c --status || die "HTTPS relay checksum mismatch."
+        tar -xzf "$tmp/relay.tar.gz" -C "$tmp" "$archive/sing-box" "$archive/LICENSE"
+        dest=$(mktemp "$runtime/.relay-XXXXXX")
+        install -m 755 "$tmp/$archive/sing-box" "$dest"; mv "$dest" "$engine"
+        install -m 644 "$tmp/$archive/LICENSE" "$runtime/relay-LICENSE"
+        (cd "$runtime" && sha256sum sing-box-1.14.4 > relay-engine.sha256)
+    fi
+    if [ ! -s "$dir/relay.credential" ]; then
+        python3 -c 'import secrets;print(secrets.token_hex(24))' > "$tmp/relay.credential"
+        mv "$tmp/relay.credential" "$dir/relay.credential"
+    fi
+    python3 - "$dir" > "$tmp/relay.json" <<'PY'
+import hashlib,json,pathlib,sys,uuid
+d=pathlib.Path(sys.argv[1])
+peers=[dict(uuid=str(uuid.UUID(hex=hashlib.sha256((p.name+p.read_text().strip()).encode()).hexdigest()[:32]))) for p in sorted((d/'clients').iterdir())]
+config=dict(log=dict(level='warn'),
+    inbounds=[dict(type='socks',tag='gateway',listen='127.0.0.1',listen_port=11081,
+                   users=[dict(username='gateway',password=(d/'relay.credential').read_text().strip())]),
+              dict(type='vless',tag='payload',listen='127.0.0.1',listen_port=11082,users=peers)],
+    outbounds=[dict(type='direct',tag='exit')],
+    dns=dict(servers=[dict(type='local',tag='local')],final='local'),
+    route=dict(final='exit',default_domain_resolver='local',rules=[
+        dict(inbound=['gateway'],domain=['relay.sorryrkn.invalid'],port=[443],action='route',outbound='exit',override_address='127.0.0.1',override_port=11082),
+        dict(action='resolve',server='local',strategy='prefer_ipv4'),
+        dict(ip_is_private=True,action='reject'),
+        dict(ip_cidr=['0.0.0.0/8','100.64.0.0/10','224.0.0.0/4','::/128','ff00::/8'],action='reject')]))
+print(json.dumps(config))
+PY
+    "$engine" check -c "$tmp/relay.json" >&2 || die "Invalid HTTPS relay configuration."
+    # Reconcile the running process even after an interrupted prior installation.
+    mv "$tmp/relay.json" "$dir/relay.json"
+    write_unit "$relay" <<UNIT
+# Managed by SorryRKN HTTPS v1
+[Unit]
+Description=SorryRKN HTTPS TCP and UDP relay
+After=network-online.target
+Wants=network-online.target
+[Service]
+DynamicUser=yes
+LoadCredential=config.json:$dir/relay.json
+ExecStart=$engine run -c %d/config.json
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+Restart=on-failure
+RestartSec=2
+[Install]
+WantedBy=multi-user.target
+UNIT
+    systemctl daemon-reload
+    systemctl enable "$relay" >&2
+    systemctl restart "$relay" >&2 || die "Cannot start HTTPS TCP/UDP relay."
+    ready=0
+    for n in $(seq 1 30); do
+        pid=$(systemctl show "$relay" -p MainPID --value)
+        if [ "$pid" -gt 1 ] && ss -Hltnp 'sport = :11081' | grep -Fq "pid=$pid," && ss -Hltnp 'sport = :11082' | grep -Fq "pid=$pid,"; then ready=1; break; fi
+        sleep .2
+    done
+    [ "$ready" = 1 ] || die "HTTPS relay did not open its loopback listeners."
 }
 
 install_socks() {
@@ -363,9 +446,10 @@ main(){
     [ "$(printf %s "$host" | wc -c)" -le 253 ] || die "Invalid server hostname."
     exec 9>/run/lock/sorryrkn-https.lock
     flock -w 90 9 || die "Another server operation is in progress."
-    check_unit "$vpn"; check_unit "$socks"
+    check_unit "$vpn"; check_unit "$socks"; check_unit "$relay"
     case "$action" in
-        https-on) check_new_unit_paths "$vpn" /var/lib/sorryrkn-https /var/lib/private/sorryrkn-https /run/sorryrkn-https "/run/credentials/$vpn";;
+        https-on) check_new_unit_paths "$vpn" /var/lib/sorryrkn-https /var/lib/private/sorryrkn-https /run/sorryrkn-https "/run/credentials/$vpn"
+                  check_new_unit_paths "$relay" "/run/credentials/$relay";;
         install-socks) check_new_unit_paths "$socks" "/run/credentials/$socks";;
     esac
     case "$action" in
@@ -378,7 +462,8 @@ main(){
         https-on) install_https;;
         https-profile) profile;;
         https-start) [ -f "$units/$vpn" ] || die "Install HTTPS first."; systemctl enable --now "$vpn" >&2; report;;
-        https-off) if [ -f "$units/$vpn" ]; then systemctl disable --now "$vpn" >&2; fi; report;;
+        https-off) if [ -f "$units/$vpn" ]; then systemctl disable --now "$vpn" >&2; fi
+                   if [ -f "$units/$relay" ]; then systemctl disable --now "$relay" >&2; fi; report;;
         install-socks) deps; install_socks;;
         stop-socks) if [ -f "$units/$socks" ]; then systemctl disable --now "$socks" >&2; fi; report;;
         status|https-status) report;;

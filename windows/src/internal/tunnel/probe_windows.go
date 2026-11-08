@@ -26,38 +26,52 @@ func Probe(ctx context.Context, appDir string, p Profile) (time.Duration, error)
 func probeHTTPS(ctx context.Context, appDir string, p Profile, target string, roots *x509.CertPool) (time.Duration, error) {
 	ctx, cancel := context.WithTimeout(ctx, 18*time.Second)
 	defer cancel()
+	var elapsed time.Duration
+	err := withProbe(ctx, appDir, p, func(dial proxy.ContextDialer, _ string, _ *proxy.Auth) error {
+		var err error
+		elapsed, err = checkHTTPS(ctx, dial, target, roots)
+		return err
+	})
+	return elapsed, err
+}
+
+func withProbe(ctx context.Context, appDir string, p Profile, check func(proxy.ContextDialer, string, *proxy.Auth) error) error {
 	cfg, err := configFor(ctx, p)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
-		return 0, errors.New("не удалось зарезервировать локальный порт проверки")
+		return errors.New("не удалось зарезервировать локальный порт проверки")
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
 	addr := listener.Addr().String()
 	listener.Close()
 	var nonce [24]byte
 	if _, err = rand.Read(nonce[:]); err != nil {
-		return 0, errors.New("не удалось создать пароль проверки")
+		return errors.New("не удалось создать пароль проверки")
 	}
 	auth := proxy.Auth{User: "check", Password: hex.EncodeToString(nonce[:])}
 	cfg["inbounds"] = []object{{"type": "socks", "listen": "127.0.0.1", "listen_port": port, "users": []object{{"username": auth.User, "password": auth.Password}}}}
 	raw, err := json.Marshal(cfg)
 	if err != nil {
-		return 0, errors.New("не удалось создать конфигурацию проверки")
+		return errors.New("не удалось создать конфигурацию проверки")
 	}
 	defer clear(raw)
 	var session Session
 	if err = session.startContext(ctx, appDir, raw); err != nil {
-		return 0, err
+		return err
 	}
 	defer session.Stop()
 	dial, err := proxy.SOCKS5("tcp", addr, &auth, &net.Dialer{Timeout: 4 * time.Second})
 	if err != nil {
-		return 0, errors.New("не удалось создать соединение проверки")
+		return errors.New("не удалось создать соединение проверки")
 	}
-	transport := &http.Transport{DialContext: dial.(proxy.ContextDialer).DialContext, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}, DisableKeepAlives: true, ForceAttemptHTTP2: true, MaxResponseHeaderBytes: 32 << 10}
+	return check(dial.(proxy.ContextDialer), addr, &auth)
+}
+
+func checkHTTPS(ctx context.Context, dial proxy.ContextDialer, target string, roots *x509.CertPool) (time.Duration, error) {
+	transport := &http.Transport{DialContext: dial.DialContext, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}, DisableKeepAlives: true, ForceAttemptHTTP2: true, MaxResponseHeaderBytes: 32 << 10}
 	defer transport.CloseIdleConnections()
 	client := http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)

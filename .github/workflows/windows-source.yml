@@ -72,7 +72,7 @@ jobs:
           Start-Transcript -Path dist/ci-logs/build.log
           try {
             & ./scripts/build.ps1
-            foreach ($artifact in @('dist/SorryRKN-Windows-1.5.0.zip', 'dist/SorryRKN-Windows-1.5.0-Setup.exe')) {
+            foreach ($artifact in @('dist/SorryRKN-Windows-1.6.0.zip', 'dist/SorryRKN-Windows-1.6.0-Setup.exe')) {
               if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) { throw "Missing Windows package: $artifact" }
             }
           } finally {
@@ -116,8 +116,8 @@ jobs:
         with:
           name: windows-source-packages
           path: |
-            windows/src/dist/SorryRKN-Windows-1.5.0.zip
-            windows/src/dist/SorryRKN-Windows-1.5.0-Setup.exe
+            windows/src/dist/SorryRKN-Windows-1.6.0.zip
+            windows/src/dist/SorryRKN-Windows-1.6.0-Setup.exe
           if-no-files-found: error
           compression-level: 0
 

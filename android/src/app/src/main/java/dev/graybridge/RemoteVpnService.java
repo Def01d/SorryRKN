@@ -15,6 +15,7 @@ import org.json.*;
 public class RemoteVpnService extends VpnService {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private java.lang.Process engine;
+    private java.lang.Process httpsEngine;
     private Thread tunnel;
     private ParcelFileDescriptor fd;
     private File yaml;
@@ -56,6 +57,11 @@ public class RemoteVpnService extends VpnService {
                         if (engine == child) finish(id, "Соединение завершилось.");
                     }); } catch (InterruptedException | RejectedExecutionException ignored) { }
                 }, "xray-exit").start();
+                java.lang.Process httpsChild=httpsEngine;
+                if(httpsChild!=null)new Thread(()->{
+                    try {httpsChild.waitFor();worker.execute(()->{if(httpsEngine==httpsChild)finish(id,"HTTPS-соединение завершилось.");});}
+                    catch(InterruptedException | RejectedExecutionException ignored){}
+                },"https-exit").start();
             } catch (Exception | LinkageError e) {
                 finish(id, "Не удалось открыть туннель. Проверьте разрешение VPN и параметры узла.");
             }
@@ -67,21 +73,47 @@ public class RemoteVpnService extends VpnService {
         int port;
         try (ServerSocket reserve = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) { port = reserve.getLocalPort(); }
         String password = UUID.randomUUID().toString();
+        boolean fullRelay=false;
         if(self) {
+            String profile=RemoteVault.read(this,"server").getString("https");
             naive=new NaiveEngine();
-            engine=naive.start(this,RemoteVault.read(this,"server").getString("https"),port,password);
+            engine=naive.start(this,profile,port,password);
+            awaitSocks(port,password);
+            naive.ready();
+            String relay=NaiveEngine.relay(profile);
+            if(relay!=null) {
+                fullRelay=true;
+                httpsEngine=engine;
+                int httpsPort=port;
+                try(ServerSocket reserve=new ServerSocket(0,1,InetAddress.getByName("127.0.0.1"))){port=reserve.getLocalPort();}
+                JSONObject user=new JSONObject().put("id",relay).put("encryption","none");
+                JSONObject peer=new JSONObject().put("address","relay.sorryrkn.invalid").put("port",443)
+                    .put("users",new JSONArray().put(user));
+                JSONObject outbound=new JSONObject().put("tag","remote").put("protocol","vless")
+                    .put("settings",new JSONObject().put("vnext",new JSONArray().put(peer)))
+                    .put("streamSettings",new JSONObject().put("network","tcp").put("security","none")
+                        .put("sockopt",new JSONObject().put("dialerProxy","https")));
+                JSONObject local=new JSONObject().put("address","127.0.0.1").put("port",httpsPort)
+                    .put("users",new JSONArray().put(new JSONObject().put("user","local").put("pass",password)));
+                JSONObject https=new JSONObject().put("tag","https").put("protocol","socks")
+                    .put("settings",new JSONObject().put("servers",new JSONArray().put(local)));
+                startXray(port,password,new JSONArray().put(outbound).put(https));
+            }
         } else {
             startXray(port,password,RemoteSubscriptions.outbound(this));
         }
         awaitSocks(port, password);
         if(naive!=null)naive.ready();
-        startTun(port,password,self);
+        startTun(port,password,self && !fullRelay);
     }
     private void startXray(int port,String password, JSONObject outbound) throws Exception {
+        startXray(port,password,new JSONArray().put(outbound));
+    }
+    private void startXray(int port,String password, JSONArray outbounds) throws Exception {
         JSONObject account = new JSONObject().put("user", "local").put("pass", password);
         JSONObject settings = new JSONObject().put("auth", "password").put("accounts", new JSONArray().put(account)).put("udp", true).put("ip","127.0.0.1");
         JSONObject listener = new JSONObject().put("port",port).put("listen","127.0.0.1").put("protocol","socks").put("settings",settings);
-        JSONObject config = new JSONObject().put("inbounds",new JSONArray().put(listener)).put("outbounds",new JSONArray().put(outbound))
+        JSONObject config = new JSONObject().put("inbounds",new JSONArray().put(listener)).put("outbounds",outbounds)
             .put("log", new JSONObject().put("loglevel","none"));
         File exe = new File(getApplicationInfo().nativeLibraryDir,"libxray.so");
         engine = new ProcessBuilder(exe.toString(),"run","-config","stdin:").redirectError(new File("/dev/null")).redirectOutput(new File("/dev/null")).start();
@@ -135,6 +167,7 @@ public class RemoteVpnService extends VpnService {
     private void close() {
         active = false;
         if (engine!=null) { engine.destroyForcibly(); engine=null; }
+        if (httpsEngine!=null) { httpsEngine.destroyForcibly(); httpsEngine=null; }
         if (tunnel!=null) {
             while(tunnel.isAlive()) {
                 NativeTunnel.quit();
