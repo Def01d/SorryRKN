@@ -1,0 +1,9 @@
+{
+  "legacy_package": "dev.graybridge",
+  "legacy_can_upgrade_in_place": false,
+  "algorithm": "RSA-4096",
+  "application_id": "io.github.def01d.sorryrkn",
+  "certificate_sha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
+  "update_feed": "https://raw.githubusercontent.com/Def01d/SorryRKN/main/android-update.json",
+  "lineage": "Android 1.0.0 and later"
+}

@@ -4,6 +4,8 @@ param(
     [string]$KeyDirectory=(Join-Path $env:LOCALAPPDATA 'SorryRKN-maintainer/android-production'),
     [string]$BackupDirectory,
     [switch]$UseRecoveryBackup,
+    [switch]$TestApk,
+    [string]$PublicIdentityPath=(Join-Path $PSScriptRoot '../android/signing-identity.json'),
     [string]$InputApk,
     [string]$OutputApk,
     [string]$Distro='Ubuntu',
@@ -22,6 +24,7 @@ $identityFile=Join-Path $KeyDirectory 'identity.json'
 $password=$null;$raw=$null
 try {
     if($Action -eq 'Create') {
+        if(Test-Path -LiteralPath $PublicIdentityPath) {throw 'A production identity is already published. Restore its original key instead of creating a replacement.'}
         if(-not $BackupDirectory) {throw 'An owner-private backup directory outside Git is required'}
         if((Test-Path -LiteralPath $keystore) -or (Test-Path -LiteralPath $identityFile) -or
            ((Test-Path -LiteralPath $BackupDirectory) -and @(Get-ChildItem -LiteralPath $BackupDirectory -Force).Count -gt 0)) {throw 'Refusing to replace an existing key or backup'}
@@ -42,6 +45,7 @@ try {
         if(-not $BackupDirectory) {throw 'BackupDirectory is required'}
         $recovery=Get-Content -LiteralPath (Join-Path $BackupDirectory 'recovery.json') -Raw | ConvertFrom-Json
         $password=$recovery.password;$keystore=Join-Path $BackupDirectory 'signing.keystore'
+        $identityFile=Join-Path $BackupDirectory 'identity.json'
     } else {
         $raw=[Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($passwordFile),$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
         $password=[Text.Encoding]::UTF8.GetString($raw)
@@ -54,6 +58,7 @@ try {
     if($Action -eq 'Sign') {
         if(-not $InputApk -or -not $OutputApk) {throw 'InputApk and a new OutputApk are required'}
         $request.input=[IO.Path]::GetFullPath($InputApk);$request.output=[IO.Path]::GetFullPath($OutputApk)
+        $request.application_id='io.github.def01d.sorryrkn'+$(if($TestApk){'.test'}else{''})
     }
     $response=($request | ConvertTo-Json -Compress) | & wsl.exe -d $Distro -- python3 $linuxBridge
     if($LASTEXITCODE -ne 0) {throw 'Android signing operation failed'}
@@ -71,6 +76,8 @@ try {
     } else {
         $identity=Get-Content -LiteralPath $identityFile -Raw | ConvertFrom-Json
         if($fingerprint -cne $identity.certificate_sha256) {throw 'Signing identity changed'}
+        $published=Get-Content -LiteralPath $PublicIdentityPath -Raw | ConvertFrom-Json
+        if($fingerprint -cne $published.certificate_sha256 -or $published.application_id -cne 'io.github.def01d.sorryrkn') {throw 'Key does not match the published Android identity'}
     }
     Write-Output "Android production certificate SHA-256: $fingerprint"
 } finally {

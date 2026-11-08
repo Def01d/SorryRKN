@@ -40,6 +40,13 @@ jobs:
                       assert package.getinfo(f"lib/{abi}/lib{engine}.so").file_size > 0
               assert package.testzip() is None
           PY
+      - name: Save unsigned release input for offline production signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-unsigned-release
+          path: android/src/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+          compression-level: 0
   python-network:
     runs-on: ubuntu-latest
     timeout-minutes: 15

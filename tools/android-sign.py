@@ -35,6 +35,9 @@ elif data["action"] == "sign":
     sdk = linux_path(data["build_tools"])
     source, output = map(linux_path, (data["input"], data["output"]))
     assert not Path(output).exists(), "Refusing to overwrite an existing signed APK"
+    badging = run([sdk + "/aapt", "dump", "badging", source], capture_output=True, text=True).stdout
+    package = re.search(r"^package: name='([^']+)'", badging)
+    assert package and package.group(1) == data["application_id"], "Unexpected Android package"
     with tempfile.TemporaryDirectory(prefix="sorryrkn-sign-") as temp:
         aligned = str(Path(temp) / "aligned.apk")
         run([sdk + "/zipalign", "-P", "16", "-f", "4", source, aligned])

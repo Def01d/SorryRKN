@@ -38,13 +38,27 @@ final class ProductionUpdateChecks {
                 throw new AssertionError("State, signing identity or UID did not survive upgrade");
             report.putString("upgrade","In-place production APK upgrade preserved UID, Telegram secret, preferences and AndroidKeyStore vault");return;
         }
-        if("offer".equals(mode)) {
+        if("offer".equals(mode) || "download".equals(mode)) {
             if(BuildConfig.VERSION_CODE>=10000)throw new AssertionError("Install the signed baseline first");
             Settings.prefs(c).edit().remove("apk_update_url").putBoolean("auto_updates",false)
                 .putLong("apk_update_checked",System.currentTimeMillis()).commit();
             Activity activity=null;
             try {
                 activity=test.startActivitySync(new Intent(c,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                if("download".equals(mode)) {
+                    File apk=new File(c.getCacheDir(),"update.apk");apk.delete();
+                    offer(test);click(test,"Обновить");
+                    long end=System.currentTimeMillis()+210000;
+                    while(!apk.exists() && System.currentTimeMillis()<end)Thread.sleep(200);
+                    if(!apk.exists())throw new AssertionError("Production APK download did not finish");
+                    String wanted=args.getString("expectedSha");
+                    if(wanted==null || !wanted.matches("[0-9a-f]{64}"))throw new AssertionError("Missing expected APK hash");
+                    MessageDigest digest=MessageDigest.getInstance("SHA-256");
+                    try(InputStream in=new FileInputStream(apk)){byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1)digest.update(b,0,n);}
+                    if(!wanted.equals(AppUpdates.hex(digest.digest())))throw new AssertionError("Downloaded APK differs from tagged release");
+                    AppUpdates.verifyArchive(c,apk,10000);
+                    report.putString("download","Real startup update downloaded the immutable tagged APK and verified hash, package, version and production signer");return;
+                }
                 offer(test);dismiss(test);
                 long checked=Settings.prefs(c).getLong("apk_update_checked",0);
                 shell(test,"input keyevent 3");Thread.sleep(200);
@@ -81,7 +95,10 @@ final class ProductionUpdateChecks {
         throw new AssertionError("Missing production update offer");
     }
     private static void dismiss(Instrumentation test)throws Exception {
-        AccessibilityNodeInfo button=node(test,"Позже");if(button==null||!button.performAction(AccessibilityNodeInfo.ACTION_CLICK))throw new AssertionError("Missing Later button");
+        click(test,"Позже");
         test.waitForIdleSync();Thread.sleep(200);
+    }
+    private static void click(Instrumentation test,String title)throws Exception {
+        AccessibilityNodeInfo button=node(test,title);if(button==null||!button.performAction(AccessibilityNodeInfo.ACTION_CLICK))throw new AssertionError("Missing button "+title);
     }
 }

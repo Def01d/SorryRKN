@@ -110,8 +110,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/ProductionUpdateChecks.java",
-      "size": 6092,
-      "sha256": "daef1abc7e83389adfe447d1c298b0b0ce410b053c5a66a4534ccbe30af158eb"
+      "size": 7497,
+      "sha256": "7b477f3e7b193e08e4bf3881074dd5d6c27579b96c224cf5fbf441e786a576ef"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/RemoteDeviceChecks.java",
