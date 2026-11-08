@@ -15,19 +15,21 @@
   <a href="https://github.com/Def01d/SorryRKN/releases">Релизы</a>
 </p>
 
-## Android 0.11.0 и Windows 1.5.0
+## Android 0.11.0 и Windows 1.6.0
 
 В Windows выберите режим в верхней части главного окна. **«Локальный обход»** включает DPI, Telegram и DNS для нейросервисов. **«VPN и подписки»** подключает устройство через свой сервер или выбранный узел провайдера. Настройки сервера доступны по SSH, SOCKS5 включается отдельно. Программа проверяет обновления при каждом запуске. [Как настроить VPN и подписки](docs/VPN.md) · [DNS и нейросети](docs/DNS-PROFILES.md).
 
-Исходники Android 0.14.0 включают новый сетевой режим. Чтобы выпустить APK для обновления существующих установок, нужен прежний ключ подписи. В публичном Android-канале доступна 0.11.0.
+Основной HTTPS-режим Windows 1.6.0 передаёт TCP и UDP через один TCP 443. После обновления повторите настройку HTTPS своего сервера через SSH. [Проверки и ограничения](docs/VALIDATION-HTTPS-1.6.0.md).
+
+Исходники Android 0.15.0 включают тот же сетевой режим. Чтобы выпустить APK для обновления существующих установок, нужен прежний ключ подписи. В публичном Android-канале доступна 0.11.0.
 
 ## Скачивание
 
 | Платформа | Версия | Скачать | Требования |
 | --- | --- | --- | --- |
 | **Android** | **0.11.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/v0.11.0/SorryRKN-0.11.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
-| **Windows** | **1.5.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.5.0/windows/SorryRKN-Windows-1.5.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
-| **Windows Portable** | **1.5.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.5.0/windows/SorryRKN-Windows-1.5.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
+| **Windows** | **1.6.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
+| **Windows Portable** | **1.6.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 
 [Что изменилось](CHANGELOG.md) · [Контрольные суммы Android](SHA256SUMS.txt) · [Контрольные суммы Windows](windows/SHA256SUMS.txt)
 
@@ -103,7 +105,7 @@ Android и Windows используют отдельные источники о
 
 [Исходники Android](android/src) · [Сборка Android](android/src/README.md) · [Исходники Windows](windows/src) · [Сборка Windows](windows/src/BUILD.md)
 
-В основной ветке находятся [исходники Android 0.14.0](android/src) и [Windows 1.5.0](windows/src).
+В основной ветке находятся [исходники Android 0.15.0](android/src) и [Windows 1.6.0](windows/src).
 
 В Android включены Java-интерфейс и служба, Python-прокси, JNI и исходники нативных зависимостей; в Windows — Go-приложение, Telegram-прокси, ресурсы и сценарии сборки. Ключ подписи официального APK и личные конфигурации не публикуются. Для самостоятельной сборки используется собственная подпись.
 
