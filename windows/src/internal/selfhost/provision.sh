@@ -172,7 +172,7 @@ install_https(){
 Description=SorryRKN HTTPS
 After=network-online.target
 Wants=network-online.target
-Requires=$relay
+Wants=$relay
 After=$relay
 [Service]
 DynamicUser=yes
@@ -263,7 +263,11 @@ print(json.dumps(config))
 PY
     "$engine" check -c "$tmp/relay.json" >&2 || die "Invalid HTTPS relay configuration."
     # Reconcile the running process even after an interrupted prior installation.
-    mv "$tmp/relay.json" "$dir/relay.json"
+    changed=0
+    if ! cmp -s "$tmp/relay.json" "$dir/relay.json"; then
+        mv "$tmp/relay.json" "$dir/relay.json"; changed=1
+    fi
+    previous_unit=$(sha256sum "$units/$relay" 2>/dev/null || true)
     write_unit "$relay" <<UNIT
 # Managed by SorryRKN HTTPS v1
 [Unit]
@@ -283,9 +287,13 @@ RestartSec=2
 [Install]
 WantedBy=multi-user.target
 UNIT
+    [ "$previous_unit" = "$(sha256sum "$units/$relay")" ] || changed=1
     systemctl daemon-reload
     systemctl enable "$relay" >&2
-    systemctl restart "$relay" >&2 || die "Cannot start HTTPS TCP/UDP relay."
+    if [ "$changed" = 1 ] || ! systemctl is-active --quiet "$relay"; then
+        systemctl reset-failed "$relay" >&2 || true
+        systemctl restart "$relay" >&2 || die "Cannot start HTTPS TCP/UDP relay."
+    fi
     ready=0
     for n in $(seq 1 30); do
         pid=$(systemctl show "$relay" -p MainPID --value)

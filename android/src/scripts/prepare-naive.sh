@@ -8,8 +8,7 @@ get() {
     local name=$1 sha=$2 part
     if ! echo "$sha  $cache/$name" | sha256sum --check --status 2>/dev/null; then
         part=$(mktemp "$cache/part.XXXXXXXX")
-        curl --fail --location --retry 3 --silent --show-error --proto '=https' --proto-redir '=https' --max-time 180 \
-          "https://github.com/klzgrad/naiveproxy/releases/download/$version/$name" -o "$part"
+        bash scripts/fetch-pinned.sh "https://github.com/klzgrad/naiveproxy/releases/download/$version/$name" "$sha" "$part"
         echo "$sha  $part" | sha256sum --check --status
         mv "$part" "$cache/$name"
     fi

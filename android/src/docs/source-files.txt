@@ -143,6 +143,7 @@ native/Application.mk
 native/bridge.c
 requirements-dev.txt
 scripts/build-native.sh
+scripts/fetch-pinned.sh
 scripts/prepare-naive.sh
 scripts/prepare-xray.sh
 scripts/test-network.sh

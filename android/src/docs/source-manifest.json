@@ -35,8 +35,8 @@
     },
     {
       "path": "app/build.gradle",
-      "size": 2959,
-      "sha256": "f348b52af58d93b18bc94c74beaddf7488141c6c17b55c1a8db6fb8e68f923cf"
+      "size": 3079,
+      "sha256": "83e6cd3ca11aec9f2bdea52c6b28a5d376034be7e68655711619ad9b4f0049e0"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -265,8 +265,8 @@
     },
     {
       "path": "app/src/main/assets/provision.sh",
-      "size": 21893,
-      "sha256": "9e91f8ed60641bc9c739716430d9939187507c6ee12d0c297432e16b94b6089a"
+      "size": 22259,
+      "sha256": "9c712709faf9fa79bbbdbe2899ca441973a2e67be0c197801c80b648d39c563e"
     },
     {
       "path": "app/src/main/assets/reality.sh",
@@ -650,8 +650,8 @@
     },
     {
       "path": "docs/source-files.txt",
-      "size": 48322,
-      "sha256": "90d0ffdcf726e94b574b7abb46bce2ca698fcc8c94bae9fc609b3b3850e7cd06"
+      "size": 48346,
+      "sha256": "f4191ec4f8d6c441e2c16dbb7fb784ea13e5137c59817ca50ce8a44e2d460302"
     },
     {
       "path": "docs/upstream-lock.json",
@@ -670,8 +670,8 @@
     },
     {
       "path": "gradle/wrapper/gradle-wrapper.properties",
-      "size": 251,
-      "sha256": "78c6e730fd8d698a4d7dcf6e60d1b8d3a6b1e70d0897c81f370e0528c4d9f529"
+      "size": 339,
+      "sha256": "08b501bef8d0357d2ea3a76e099a149f15b18ff927002821b1f93bf936ff183f"
     },
     {
       "path": "gradlew",
@@ -724,14 +724,19 @@
       "sha256": "f37653b725d9b7d2cd412f894f4cc0857dd3aa7b62d112da6e35a2fc7e7f50df"
     },
     {
+      "path": "scripts/fetch-pinned.sh",
+      "size": 1047,
+      "sha256": "37903654d80bf9c80e16a22de0ee0750e924e0e13488b7492bab443c3ad63ce9"
+    },
+    {
       "path": "scripts/prepare-naive.sh",
-      "size": 1410,
-      "sha256": "3da60edfad28a264d46905c8afa26c1f21581dab8d38f89328ad7b0789e39c4d"
+      "size": 1351,
+      "sha256": "a2b580fe80c210cacab81dc364437d197daca5fb76fb51c298dbe360632022c5"
     },
     {
       "path": "scripts/prepare-xray.sh",
-      "size": 1213,
-      "sha256": "10d2430bab0557539a13fcd177872a5600d881f7df6a53b70897e33cdedfae99"
+      "size": 1154,
+      "sha256": "965610df05ae1618c78d84b01f3dca1c5de07590bc601cf1d268db898030093a"
     },
     {
       "path": "scripts/test-network.sh",

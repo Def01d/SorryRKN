@@ -58,6 +58,7 @@ tasks.register('prepareXray', Exec) {
     workingDir rootProject.projectDir
     commandLine 'bash', 'scripts/prepare-xray.sh'
     inputs.file rootProject.file('scripts/prepare-xray.sh')
+    inputs.file rootProject.file('scripts/fetch-pinned.sh')
     outputs.dir layout.buildDirectory.dir('generated/xray')
 }
 tasks.named('preBuild').configure { dependsOn 'prepareXray' }
@@ -65,6 +66,7 @@ tasks.register('prepareNaive', Exec) {
     workingDir rootProject.projectDir
     commandLine 'bash', 'scripts/prepare-naive.sh'
     inputs.file rootProject.file('scripts/prepare-naive.sh')
+    inputs.file rootProject.file('scripts/fetch-pinned.sh')
     outputs.dir layout.buildDirectory.dir('generated/naive')
 }
 tasks.named('preBuild').configure { dependsOn 'prepareNaive' }

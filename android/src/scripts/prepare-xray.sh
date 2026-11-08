@@ -13,8 +13,7 @@ for abi in arm64-v8a x86_64; do
   if ! echo "$sha  $archive" | sha256sum --check --status 2>/dev/null; then
     part=$(mktemp "$cache/download.XXXXXXXX")
     trap 'rm -f -- "$part"' EXIT
-    curl --fail --location --retry 3 --silent --show-error --proto '=https' --proto-redir '=https' --max-time 180 \
-      "https://github.com/XTLS/Xray-core/releases/download/$version/Xray-android-$arch.zip" -o "$part"
+    bash scripts/fetch-pinned.sh "https://github.com/XTLS/Xray-core/releases/download/$version/Xray-android-$arch.zip" "$sha" "$part"
     echo "$sha  $part" | sha256sum --check --status
     mv "$part" "$archive"
     trap - EXIT
