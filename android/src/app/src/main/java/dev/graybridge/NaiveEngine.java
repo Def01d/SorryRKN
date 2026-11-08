@@ -44,6 +44,7 @@ final class NaiveEngine {
         String tlsAuthority=sni.contains(":")?"["+sni+"]":sni;
         JSONObject config=new JSONObject().put("listen","socks://local:"+pass+"@127.0.0.1:"+port)
             .put("proxy","https://"+u.getRawUserInfo()+"@"+tlsAuthority+":"+u.getPort());
+        if(BuildConfig.DEBUG)config.put("log", "");
         if(!host.equals(sni)) {
             String ip=InetAddress.getByName(host).getHostAddress();if(ip.contains(":"))ip="["+ip+"]";
             config.put("host-resolver-rules","MAP "+sni+" "+ip);

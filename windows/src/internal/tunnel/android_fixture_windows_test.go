@@ -37,6 +37,9 @@ func TestAndroidHTTPSFixture(t *testing.T) {
 			{"inbound": "payload", "ip_cidr": "10.0.2.2/32", "port_range": []string{"18888:18889"}, "action": "route", "outbound": "exit", "override_address": "127.0.0.1"},
 			{"action": "reject"}}}}
 	config, _ := json.Marshal(cfg)
+	if err := os.WriteFile(filepath.Join(dir, "peer.json"), config, 0600); err != nil {
+		t.Fatal(err)
+	}
 	log, err := os.Create(filepath.Join(dir, "peer.log"))
 	if err != nil {
 		t.Fatal(err)

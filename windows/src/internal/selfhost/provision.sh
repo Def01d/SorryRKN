@@ -230,7 +230,9 @@ install_relay(){
     engine=$runtime/sing-box-1.14.4
     if [ ! -x "$engine" ] || [ ! -s "$runtime/relay-engine.sha256" ] || ! (cd "$runtime" && sha256sum -c --status relay-engine.sha256); then
         archive=sing-box-1.14.4-linux-amd64
-        curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 --retry 2 "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/$archive.tar.gz" -o "$tmp/relay.tar.gz" || die "Cannot download the pinned HTTPS relay."
+        if ! curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 --retry 2 "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/$archive.tar.gz" -o "$tmp/relay.tar.gz"; then
+            curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 --retry 2 -H 'Accept: application/octet-stream' https://api.github.com/repos/SagerNet/sing-box/releases/assets/669526810 -o "$tmp/relay.tar.gz" || die "Cannot download the pinned HTTPS relay."
+        fi
         printf '%s  %s\n' 699a1b510aa4396b2176d32d1181920399ebf1e267835da6f3b598d0f7c24968 "$tmp/relay.tar.gz" | sha256sum -c --status || die "HTTPS relay checksum mismatch."
         tar -xzf "$tmp/relay.tar.gz" -C "$tmp" "$archive/sing-box" "$archive/LICENSE"
         dest=$(mktemp "$runtime/.relay-XXXXXX")

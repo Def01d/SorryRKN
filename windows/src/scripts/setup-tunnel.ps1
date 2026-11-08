@@ -6,7 +6,15 @@ $cache = Join-Path $root 'dist/tunnel-cache'
 New-Item -ItemType Directory -Force $engine,$cache | Out-Null
 function Get-PinnedArchive($url, $path, $hash) {
     if (-not (Test-Path -LiteralPath $path) -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $hash) {
-        Invoke-WebRequest -Uri $url -OutFile $path
+        try { Invoke-WebRequest -Uri $url -OutFile $path -MaximumRetryCount 2 -RetryIntervalSec 3 }
+        catch {
+            if ($url -notmatch '^https://github.com/([^/]+/[^/]+)/releases/download/([^/]+)/([^/]+)$') { throw }
+            $repoName=$Matches[1]; $tagName=$Matches[2]; $assetName=$Matches[3]
+            $release=Invoke-RestMethod -Uri "https://api.github.com/repos/$repoName/releases/tags/$tagName" -MaximumRetryCount 2 -RetryIntervalSec 3
+            $asset=$release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
+            if (-not $asset) { throw 'Pinned VPN release asset is missing' }
+            Invoke-WebRequest -Uri $asset.url -Headers @{Accept='application/octet-stream'} -OutFile $path -MaximumRetryCount 2 -RetryIntervalSec 3
+        }
     }
     if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $hash) {
         throw 'VPN runtime archive checksum mismatch'

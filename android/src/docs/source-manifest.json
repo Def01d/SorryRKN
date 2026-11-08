@@ -265,8 +265,8 @@
     },
     {
       "path": "app/src/main/assets/provision.sh",
-      "size": 21628,
-      "sha256": "2a773110036882bd99e2dec3452615b1949b8c3c350719d51ecef19e4eaa6d78"
+      "size": 21893,
+      "sha256": "9e91f8ed60641bc9c739716430d9939187507c6ee12d0c297432e16b94b6089a"
     },
     {
       "path": "app/src/main/assets/reality.sh",
@@ -315,8 +315,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/NaiveEngine.java",
-      "size": 4744,
-      "sha256": "bae0039092c2eccc1f87e275bc0365db8cd728cede5b3adc163f6c17b14b7f8b"
+      "size": 4797,
+      "sha256": "8aa705b0a65bec81781a4e17fc6d65932553ee16a3bc09ccfa2109a90290e1fa"
     },
     {
       "path": "app/src/main/java/dev/graybridge/NativeTunnel.java",
