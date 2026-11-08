@@ -114,9 +114,10 @@ public class RemoteVpnService extends VpnService {
         JSONObject settings = new JSONObject().put("auth", "password").put("accounts", new JSONArray().put(account)).put("udp", true).put("ip","127.0.0.1");
         JSONObject listener = new JSONObject().put("port",port).put("listen","127.0.0.1").put("protocol","socks").put("settings",settings);
         JSONObject config = new JSONObject().put("inbounds",new JSONArray().put(listener)).put("outbounds",outbounds)
-            .put("log", new JSONObject().put("loglevel","none"));
+            .put("log", new JSONObject().put("loglevel",BuildConfig.DEBUG?"debug":"none"));
         File exe = new File(getApplicationInfo().nativeLibraryDir,"libxray.so");
-        engine = new ProcessBuilder(exe.toString(),"run","-config","stdin:").redirectError(new File("/dev/null")).redirectOutput(new File("/dev/null")).start();
+        File log=BuildConfig.DEBUG?new File(getCacheDir(),"remote-engine-test.log"):new File("/dev/null");
+        engine = new ProcessBuilder(exe.toString(),"run","-config","stdin:").redirectError(log).redirectOutput(log).start();
         try (OutputStream in = engine.getOutputStream()) { in.write(config.toString().getBytes(StandardCharsets.UTF_8)); }
     }
     private void startTun(int port,String password,boolean self) throws Exception {

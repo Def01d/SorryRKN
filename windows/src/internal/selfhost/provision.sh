@@ -73,7 +73,11 @@ install_engine() {
     # only its expected executable. Keep the verified engine on repeated setup.
     digest=c273dc07dd79c5919f97639cbdcb559d40ce90475dbd8aac80641b0a8c8065ff
     if [ ! -x "$runtime/caddy" ] || [ ! -s "$runtime/caddy.sha256" ] || ! (cd "$runtime" && sha256sum -c --status caddy.sha256); then
-        curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --retry 2 --max-time 120 https://github.com/klzgrad/forwardproxy/releases/download/v2.11.7-naive2/caddy-forwardproxy-naive.tar.xz -o "$tmp/caddy.xz" || die "Cannot download the verified Caddy server from GitHub."
+        if ! curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --connect-timeout 15 --retry 2 --max-time 120 https://github.com/klzgrad/forwardproxy/releases/download/v2.11.7-naive2/caddy-forwardproxy-naive.tar.xz -o "$tmp/caddy.xz"; then
+            # The immutable official asset API can work when the browser URL
+            # fails at GitHub's CDN. Both downloads require the same pinned hash.
+            curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 120 --retry 2 -H 'Accept: application/octet-stream' https://api.github.com/repos/klzgrad/forwardproxy/releases/assets/666580211 -o "$tmp/caddy.xz" || die "Cannot download the verified Caddy server from GitHub."
+        fi
         printf '%s  %s\n' "$digest" "$tmp/caddy.xz" | sha256sum -c --status || die "Caddy archive digest mismatch."
         dest=$(mktemp "$runtime/.caddy-XXXXXX")
         tar xJOf "$tmp/caddy.xz" caddy-forwardproxy-naive/caddy > "$dest"

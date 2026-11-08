@@ -52,6 +52,7 @@ final class NaiveEngine {
         Files.write(cfg.toPath(),config.toString().getBytes(StandardCharsets.UTF_8));
         ProcessBuilder proc=new ProcessBuilder(new File(c.getApplicationInfo().nativeLibraryDir,"libnaive.so").toString(),cfg.toString())
             .redirectOutput(new File("/dev/null")).redirectError(new File("/dev/null"));
+        if(BuildConfig.DEBUG)proc.redirectErrorStream(true).redirectOutput(new File(c.getCacheDir(),"naive-engine-test.log"));
         String ca=data.getQueryParameter("ca");
         if(ca!=null) {
             byte[] der=Base64.decode(ca,Base64.NO_WRAP|Base64.URL_SAFE);

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -29,13 +30,28 @@ func TestAndroidHTTPSFixture(t *testing.T) {
 	gateway, link := naiveFixture(t, freePort(t))
 	gateway["tag"] = "gateway"
 	payloadPort := freePort(t)
-	var peer Session
-	startFixture(t, &peer, root, object{"log": object{"level": "info"}, "inbounds": []object{gateway,
+	cfg := object{"log": object{"level": "debug"}, "inbounds": []object{gateway,
 		{"type": "vless", "tag": "payload", "listen": "127.0.0.1", "listen_port": payloadPort, "users": []object{{"uuid": fakeUUID}}}},
 		"outbounds": []object{{"type": "direct", "tag": "exit"}}, "route": object{"rules": []object{
 			{"inbound": "gateway", "domain": "relay.sorryrkn.invalid", "action": "route", "outbound": "exit", "override_address": "127.0.0.1", "override_port": payloadPort},
 			{"inbound": "payload", "ip_cidr": "10.0.2.2/32", "port_range": []string{"18888:18889"}, "action": "route", "outbound": "exit", "override_address": "127.0.0.1"},
-			{"action": "reject"}}}})
+			{"action": "reject"}}}}
+	config, _ := json.Marshal(cfg)
+	log, err := os.Create(filepath.Join(dir, "peer.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer log.Close()
+	peer := exec.Command(filepath.Join(root, "runtime", "tunnel", "sing-box.exe"), "run", "-c", "stdin", "--disable-color")
+	peer.Dir = filepath.Join(root, "runtime", "tunnel")
+	peer.Stdin = bytes.NewReader(config)
+	peer.Stdout = log
+	peer.Stderr = log
+	if err = peer.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { peer.Process.Kill(); peer.Wait() }()
+	time.Sleep(time.Second)
 	tcp, err := net.Listen("tcp4", "127.0.0.1:18888")
 	if err != nil {
 		t.Fatal(err)

@@ -265,8 +265,8 @@
     },
     {
       "path": "app/src/main/assets/provision.sh",
-      "size": 21184,
-      "sha256": "1df3daf900c204e69da7944a3a0781fe67eaa5fbc51ae411cb526d4d0f4cd5cf"
+      "size": 21628,
+      "sha256": "2a773110036882bd99e2dec3452615b1949b8c3c350719d51ecef19e4eaa6d78"
     },
     {
       "path": "app/src/main/assets/reality.sh",
@@ -315,8 +315,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/NaiveEngine.java",
-      "size": 4616,
-      "sha256": "0c0706996d347745f6bcc3ccbd4141a043e609bdd016823ee84ce086ce3b8f0b"
+      "size": 4744,
+      "sha256": "bae0039092c2eccc1f87e275bc0365db8cd728cede5b3adc163f6c17b14b7f8b"
     },
     {
       "path": "app/src/main/java/dev/graybridge/NativeTunnel.java",
@@ -340,8 +340,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/RemoteVpnService.java",
-      "size": 10810,
-      "sha256": "3116652d42122fa220dd19342c3d7ce3bf150186941c3a1df0644a8ececa83c4"
+      "size": 10908,
+      "sha256": "4a50c23574a6890fef9e2a7d716504ebd14c5318a7c06c339f5e53167ab30747"
     },
     {
       "path": "app/src/main/java/dev/graybridge/RouteSummary.java",
@@ -671,7 +671,7 @@
     {
       "path": "gradle/wrapper/gradle-wrapper.properties",
       "size": 251,
-      "sha256": "cdab1ffb439219b1db125e3c99a86cf2424f8762b9b3faa404ed061e3635ecde"
+      "sha256": "78c6e730fd8d698a4d7dcf6e60d1b8d3a6b1e70d0897c81f370e0528c4d9f529"
     },
     {
       "path": "gradlew",
