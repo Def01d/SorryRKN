@@ -23,8 +23,11 @@ final class ProductionUpdateChecks {
             report.putString("seed","Production baseline state and AndroidKeyStore-encrypted vault saved");return;
         }
         if("candidate".equals(mode)) {
-            File candidate=copy(test,c,args.getString("candidate"),"candidate.apk");
+            File candidate=copy(test,c,args.getString("candidate"),"update.part");
             AppUpdates.verifyArchive(c,candidate,10000);candidate.delete();
+            android.content.pm.ProviderInfo provider=c.getPackageManager().resolveContentProvider(c.getPackageName()+".updates",0);
+            if(provider==null || provider.exported || !provider.grantUriPermissions || provider.applicationInfo.uid!=c.getApplicationInfo().uid)
+                throw new AssertionError("Invalid production APK update provider");
             File wrong=copy(test,c,args.getString("wrongSigner"),"wrong-signer.apk");
             try{AppUpdates.verifyArchive(c,wrong,10000);throw new AssertionError("Different APK signer accepted");}
             catch(IOException expected){}finally{wrong.delete();}

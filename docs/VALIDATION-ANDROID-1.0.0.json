@@ -1,0 +1,65 @@
+{
+  "platform": "Android",
+  "versionName": "1.0.0",
+  "versionCode": 10000,
+  "applicationId": "io.github.def01d.sorryrkn",
+  "certificate_sha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
+  "apk": {
+    "file": "SorryRKN-Android-1.0.0.apk",
+    "size": 54531317,
+    "sha256": "cce64774edab00584155a753b7b6c6d761cae5b9747c8340d2f942eab30f4f28"
+  },
+  "build": {
+    "run": "https://github.com/Def01d/SorryRKN/actions/runs/42500381632",
+    "commit": "82d1a2a4c64847467ac2ab59524fc04c6ffdd851",
+    "artifact_id": 13625217648,
+    "runtime_source_equivalent_to_head": true
+  },
+  "latest_source_ci": "https://github.com/Def01d/SorryRKN/actions/runs/42500603752",
+  "production_signer_verified": true,
+  "signature_schemes_verified": [
+    "v2",
+    "v3"
+  ],
+  "backup_restore_signed_identical_apk": true,
+  "test_device": "Android 15 API 35 x86_64 emulator",
+  "device_checks": {
+    "upgrade-seed.log": {
+      "sha256": "652aff5805c76cc2b4776afedff563af7492528ee6a43045fc903b7d46527b65",
+      "results": {
+        "result": "PASS",
+        "seed": "Production baseline state and AndroidKeyStore-encrypted vault saved"
+      }
+    },
+    "upgrade-candidate.log": {
+      "sha256": "1ca8ac2aae406054b99519bda93f22e97b3f39c70c3c20272ce3d7b42666aac1",
+      "results": {
+        "archive": "Production signer accepted; same-package APK with a different signer rejected",
+        "result": "PASS"
+      }
+    },
+    "upgrade-preserved.log": {
+      "sha256": "0928491cfd63d906ae36a0dd9f16dc7c9e4802d23356d2ec85976eafc14727e7",
+      "results": {
+        "result": "PASS",
+        "upgrade": "In-place production APK upgrade preserved UID, Telegram secret, preferences and AndroidKeyStore vault"
+      }
+    },
+    "production-vpn.log": {
+      "sha256": "b75665af5d6bbc6f88b1cd12aa4004bf1fe96589291a703ab2d81a1fb503d4b7",
+      "results": {
+        "result": "PASS",
+        "xray": "PASS: VPN active, TCP 128 KiB, 100 UDP packets (64/160/1000/1300 bytes)"
+      }
+    }
+  },
+  "update_feed": "https://raw.githubusercontent.com/Def01d/SorryRKN/main/android-update.json",
+  "feed_publication_verification": "Reported separately after immutable binary publication in PUBLICATION-ANDROID-1.0.0.json",
+  "limits": [
+    "One manual installation is required for the new package",
+    "Legacy package data is not automatically migrated",
+    "Physical ARM64 device not tested",
+    "No signed-in service session, actual voice call, operator-wide or TSPU comparison"
+  ],
+  "updater_temp_part_and_provider_checked": true
+}

@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "size": 16026,
-      "sha256": "041a1fecc1084f5c3cbf25f22948e3124bfbad765b30b1197d3c771df213aa26"
+      "size": 15944,
+      "sha256": "2bf9cc189716ac1c290f562e837b9c62d408590f7dc1feebd7ba9f23c8ae5876"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -30,8 +30,8 @@
     },
     {
       "path": "VALIDATION.md",
-      "size": 10803,
-      "sha256": "d243accb2fca0369a32637412c3b4428cc3b9bf0841b34012e8fb9b324cff3c0"
+      "size": 11074,
+      "sha256": "e13de988fa4afd7e69aa524b1a6feb7865d24ff9b68924c521b48dabbac590e3"
     },
     {
       "path": "app/build.gradle",
@@ -110,8 +110,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/ProductionUpdateChecks.java",
-      "size": 7589,
-      "sha256": "5660e68fda96f7794769636c5e9362e5f239d3ab877213ce52b36b3e3c659487"
+      "size": 7948,
+      "sha256": "fd34f2d9eccf93df189cd5edf9406001e4d9ab71433cbbf0f97da7a48e7e1262"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/RemoteDeviceChecks.java",

@@ -105,7 +105,7 @@ Android и Windows используют отдельные источники о
 
 [Исходники Android](android/src) · [Сборка Android](android/src/README.md) · [Исходники Windows](windows/src) · [Сборка Windows](windows/src/BUILD.md)
 
-В основной ветке находятся [исходники Android 0.15.0](android/src) и [Windows 1.6.0](windows/src).
+В основной ветке находятся [исходники Android 1.0.0](android/src) и [Windows 1.6.0](windows/src).
 
 В Android включены Java-интерфейс и служба, Python-прокси, JNI и исходники нативных зависимостей; в Windows — Go-приложение, Telegram-прокси, ресурсы и сценарии сборки. Ключ подписи официального APK и личные конфигурации не публикуются. Для самостоятельной сборки используется собственная подпись.
 
