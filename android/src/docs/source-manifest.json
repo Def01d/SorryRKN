@@ -1,5 +1,5 @@
 {
-  "version": "0.14.0",
+  "version": "0.15.0",
   "scope": "Android source export; excludes generated build outputs and private local configuration",
   "manifest_self_excluded": true,
   "files": [
@@ -36,7 +36,7 @@
     {
       "path": "app/build.gradle",
       "size": 2959,
-      "sha256": "177ce4e02f00c193ddf48fe1b24a70eb31a18ef6716518680bd00459a97483da"
+      "sha256": "f348b52af58d93b18bc94c74beaddf7488141c6c17b55c1a8db6fb8e68f923cf"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -260,8 +260,8 @@
     },
     {
       "path": "app/src/main/assets/provision.sh",
-      "size": 16639,
-      "sha256": "be3b72f2882f0469730dbada94f360ee20821b6d83d98104fa387648cb21c355"
+      "size": 21184,
+      "sha256": "1df3daf900c204e69da7944a3a0781fe67eaa5fbc51ae411cb526d4d0f4cd5cf"
     },
     {
       "path": "app/src/main/assets/reality.sh",
@@ -310,8 +310,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/NaiveEngine.java",
-      "size": 4024,
-      "sha256": "3f05898b925563909d38ee234a1b1cb97e7b6671898e96894bdd6ba1181d55a9"
+      "size": 4616,
+      "sha256": "0c0706996d347745f6bcc3ccbd4141a043e609bdd016823ee84ce086ce3b8f0b"
     },
     {
       "path": "app/src/main/java/dev/graybridge/NativeTunnel.java",
@@ -320,8 +320,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/RemoteActivity.java",
-      "size": 16436,
-      "sha256": "fea1840bbfe8dd0db8edf2759e1f4ba9903de7d4b137a94679e8dc1882e87b7a"
+      "size": 16922,
+      "sha256": "0dc5a6a03a9102ce35732929f90b45f6b1666b8e8cb4d8c0fde55795c519ccba"
     },
     {
       "path": "app/src/main/java/dev/graybridge/RemoteSubscriptions.java",
@@ -335,8 +335,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/RemoteVpnService.java",
-      "size": 8356,
-      "sha256": "6b3f10cec3a85bba450e02a7e7b55ba12664f2cd94c6a2086e9053a5272f3c79"
+      "size": 10810,
+      "sha256": "3116652d42122fa220dd19342c3d7ce3bf150186941c3a1df0644a8ececa83c4"
     },
     {
       "path": "app/src/main/java/dev/graybridge/RouteSummary.java",
