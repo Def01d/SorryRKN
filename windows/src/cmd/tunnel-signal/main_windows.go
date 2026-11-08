@@ -22,6 +22,13 @@ func main() {
 	if ok == 0 {
 		os.Exit(1)
 	}
+	defer kernel.NewProc("FreeConsole").Call()
+	// GenerateConsoleCtrlEvent targets the whole attached console, including
+	// this sender. Handle the event here so only the engine begins shutdown.
+	handler := windows.NewCallback(func(event uint32) uintptr { return 1 })
+	if ok, _, _ := kernel.NewProc("SetConsoleCtrlHandler").Call(handler, 1); ok == 0 {
+		os.Exit(1)
+	}
 	if err = windows.GenerateConsoleCtrlEvent(windows.CTRL_BREAK_EVENT, 0); err != nil {
 		os.Exit(1)
 	}

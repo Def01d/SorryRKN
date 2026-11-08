@@ -191,13 +191,15 @@ func (s *Session) Stop() {
 	defer cancel()
 	signal := exec.CommandContext(ctx, filepath.Join(c.dir, "signal.exe"), strconv.Itoa(c.pid))
 	signal.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
-	if signal.Run() == nil {
-		select {
-		case <-c.done:
-			windows.CloseHandle(c.job)
-			return
-		case <-time.After(3 * time.Second):
-		}
+	// Ctrl+Break can also interrupt the short-lived sender. Its exit status
+	// does not tell us whether the engine received the signal. Always allow
+	// the engine to finish its DNS/interface/route cleanup before killing it.
+	_ = signal.Run()
+	select {
+	case <-c.done:
+		windows.CloseHandle(c.job)
+		return
+	case <-time.After(5 * time.Second):
 	}
 	c.terminate()
 }
