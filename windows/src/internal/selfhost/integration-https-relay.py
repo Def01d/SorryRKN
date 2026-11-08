@@ -105,9 +105,24 @@ finally:
 
 # The upstream must retain the private-destination policy Caddy no longer applies.
 time.sleep(.4)
+private_listener = socket.socket()
+private_listener.bind(('127.0.0.1', 0))
+private_listener.listen()
+private_contacted = threading.Event()
+
+def private_canary():
+    try:
+        connection, _ = private_listener.accept()
+        private_contacted.set()
+        with connection:
+            connection.sendall(b'private-service-must-not-be-reachable')
+    except OSError:
+        pass
+
+threading.Thread(target=private_canary, daemon=True).start()
 for private in ('127.0.0.1', '169.254.169.254', '10.0.0.1'):
     try:
-        with connect(private, 22) as stream:
+        with connect(private, private_listener.getsockname()[1] if private == '127.0.0.1' else 22) as stream:
             # SOCKS may optimistically acknowledge before routing. Verify that
             # no private-service payload traverses the established HTTP stream.
             stream.sendall(b'probe\r\n')
@@ -115,4 +130,18 @@ for private in ('127.0.0.1', '169.254.169.254', '10.0.0.1'):
                 raise AssertionError('Private destination returned data')
     except (ConnectionError, EOFError, OSError):
         pass
+assert not private_contacted.is_set(), 'Gateway connected to a private service'
+try:
+    with vless(1, '127.0.0.1', private_listener.getsockname()[1]) as stream:
+        stream.sendall(b'probe\r\n')
+        try:
+            header = exact(stream, 2)
+            exact(stream, header[1])
+            assert not stream.recv(256), 'Encapsulated private service returned data'
+        except EOFError:
+            pass
+except (ConnectionError, EOFError, OSError):
+    pass
+assert not private_contacted.is_set(), 'Encapsulated VLESS connected to a private service'
+private_listener.close()
 print('HTTPS TCP/UDP: 100 VLESS UDP frames (64/160/1000/1300 bytes) traversed authenticated Caddy CONNECT, loopback gateway and real UDP socket; private destinations refused.')
