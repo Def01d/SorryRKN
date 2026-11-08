@@ -98,6 +98,18 @@ func startFixture(t *testing.T, s *Session, root string, cfg object) {
 	t.Cleanup(s.Stop)
 }
 
+func TestEngineStopsGracefully(t *testing.T) {
+	root := runtimeDir(t)
+	var session Session
+	startFixture(t, &session, root, object{"log": object{"level": "info"}, "inbounds": []object{{"type": "socks", "listen": "127.0.0.1", "listen_port": freePort(t)}}})
+	child := session.child
+	session.Stop()
+	<-child.done
+	if child.exitErr != nil {
+		t.Fatalf("engine was forcibly terminated before cleanup: %v", child.exitErr)
+	}
+}
+
 // The baseline test changes no routes and binds both fixture listeners to loopback.
 // Only a disposable GitHub runner gets the explicit opt-in to exercise native TUN.
 func TestLocalRelay(t *testing.T) {
@@ -182,7 +194,18 @@ func testRelay(t *testing.T, protocol string, useTUN bool, badPeer string) {
 		}
 	}
 	hc := http.Client{Transport: transport, Timeout: 6 * time.Second}
-	resp, err := hc.Get(strings.Replace(origin.URL, "127.0.0.1", "198.18.78.2", 1))
+	target := strings.Replace(origin.URL, "127.0.0.1", "198.18.78.2", 1)
+	resp, err := hc.Get(target)
+	if useTUN && err != nil {
+		// Windows may still be retiring routes/flows of the previous adapter
+		// after the next interface appears. Retry only this idempotent fixture
+		// request while waiting for data-plane readiness, with a bounded budget.
+		deadline := time.Now().Add(15 * time.Second)
+		for err != nil && time.Now().Before(deadline) {
+			time.Sleep(150 * time.Millisecond)
+			resp, err = hc.Get(target)
+		}
+	}
 	if badPeer != "" {
 		if err == nil {
 			resp.Body.Close()
@@ -198,7 +221,11 @@ func testRelay(t *testing.T, protocol string, useTUN bool, badPeer string) {
 	if err != nil || string(body) != "relay fixture reached" {
 		t.Fatalf("relay failed: %s, %v", body, err)
 	}
+	child := client.child
 	client.Stop()
+	if child.exitErr != nil {
+		t.Fatalf("tunnel was forcibly terminated before route cleanup: %v", child.exitErr)
+	}
 	if client.Active() {
 		t.Fatal("VPN still active after stop")
 	}

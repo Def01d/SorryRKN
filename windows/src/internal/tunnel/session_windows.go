@@ -24,10 +24,11 @@ type Session struct {
 	active atomic.Pointer[engine]
 }
 type engine struct {
-	done chan struct{}
-	job  windows.Handle
-	pid  int
-	dir  string
+	done    chan struct{}
+	exitErr error // read only after done is closed
+	job     windows.Handle
+	pid     int
+	dir     string
 }
 
 func (s *Session) Active() bool {
@@ -142,7 +143,7 @@ func (s *Session) startContext(ctx context.Context, appDir string, data []byte) 
 		return err
 	}
 	c := &engine{done: make(chan struct{}), job: retained, pid: cmd.Process.Pid, dir: dir}
-	go func() { cmd.Wait(); close(c.done) }()
+	go func() { c.exitErr = cmd.Wait(); close(c.done) }()
 	if _, err = input.Write(data); err != nil {
 		input.Close()
 		c.terminate()
