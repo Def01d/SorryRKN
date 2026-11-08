@@ -155,15 +155,7 @@ func testRelay(t *testing.T, protocol string, useTUN bool, badPeer string) {
 	}
 	transport := &http.Transport{}
 	defer transport.CloseIdleConnections()
-	if useTUN && protocol == "vless" {
-		// A separate route-scoped test covers subscription nodes. The primary
-		// HTTPS test uses the exact production config briefly on the isolated VM.
-		tun := cfg["inbounds"].([]object)[0]
-		tun["route_address"] = []string{"198.18.78.2/32"}
-		tun["dns_mode"] = "disabled"
-		tun["strict_route"] = false
-		delete(tun, "route_exclude_address")
-	} else if !useTUN {
+	if !useTUN {
 		mixed := freePort(t)
 		cfg["inbounds"] = []object{{"type": "socks", "listen": "127.0.0.1", "listen_port": mixed}}
 		d, err := proxy.SOCKS5("tcp", "127.0.0.1:"+strconv.Itoa(mixed), nil, &net.Dialer{Timeout: 5 * time.Second})
@@ -177,7 +169,7 @@ func testRelay(t *testing.T, protocol string, useTUN bool, badPeer string) {
 	if !client.Active() {
 		t.Fatal("client exited during start")
 	}
-	if useTUN && protocol == "naive" {
+	if useTUN {
 		iface, err := net.InterfaceByName("SorryRKN-Tunnel")
 		if err != nil {
 			t.Fatal(err)
