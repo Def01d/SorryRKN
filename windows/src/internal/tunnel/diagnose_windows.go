@@ -63,6 +63,62 @@ func Diagnose(ctx context.Context, appDir string, p Profile) ([]string, error) {
 	return result, err
 }
 
+// DiagnoseSystem exercises the same system route and DNS used by desktop apps.
+// Call it only while our system VPN is active, alongside the per-node SOCKS test.
+func DiagnoseSystem(ctx context.Context) []string {
+	ctx, cancel := context.WithTimeout(ctx, 18*time.Second)
+	defer cancel()
+	results := make([]string, 3)
+	var waits sync.WaitGroup
+	waits.Add(3)
+	go func() {
+		defer waits.Done()
+		elapsed, e := checkHTTPS(ctx, &net.Dialer{}, probeURL, nil)
+		if e != nil {
+			results[0] = "Системный HTTPS/DNS — запрос не прошёл"
+		} else {
+			results[0] = fmt.Sprintf("Системный HTTPS/DNS — %d мс", elapsed.Milliseconds())
+		}
+	}()
+	go func() {
+		defer waits.Done()
+		if checkDiscord(ctx, &net.Dialer{}, "wss://gateway.discord.gg/?v=10&encoding=json", nil) != nil {
+			results[1] = "Системный Discord WebSocket — соединение не прошло"
+		} else {
+			results[1] = "Системный Discord WebSocket — получен Hello"
+		}
+	}()
+	go func() {
+		defer waits.Done()
+		conn, e := (&net.Dialer{}).DialContext(ctx, "udp", "stun.cloudflare.com:3478")
+		if e == nil {
+			defer conn.Close()
+			deadline, _ := ctx.Deadline()
+			conn.SetDeadline(deadline)
+			request, err := stunRequest()
+			e = err
+			if e == nil {
+				_, e = conn.Write(request)
+			}
+			if e == nil {
+				buf := make([]byte, 65535)
+				var n int
+				n, e = conn.Read(buf)
+				if e == nil {
+					e = stunResponse(buf[:n], request)
+				}
+			}
+		}
+		if e != nil {
+			results[2] = "Системный UDP/STUN — ответ не получен"
+		} else {
+			results[2] = "Системный UDP/STUN — ответ получен"
+		}
+	}()
+	waits.Wait()
+	return results
+}
+
 func checkDiscord(ctx context.Context, dial proxy.ContextDialer, target string, roots *tls.Config) error {
 	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
@@ -240,12 +296,10 @@ func checkSTUN(ctx context.Context, addr string, auth *proxy.Auth, host string, 
 	}
 	defer control.Close()
 	defer udp.Close()
-	request := []byte{0, 1, 0, 0, 0x21, 0x12, 0xa4, 0x42}
-	nonce := make([]byte, 12)
-	if _, err = rand.Read(nonce); err != nil {
+	request, err := stunRequest()
+	if err != nil {
 		return err
 	}
-	request = append(request, nonce...)
 	if _, err = udp.WriteToUDP(udpPacket(host, port, request), remote); err != nil {
 		return err
 	}
@@ -261,7 +315,19 @@ func checkSTUN(ctx context.Context, addr string, auth *proxy.Auth, host string, 
 	if err != nil {
 		return err
 	}
-	if len(payload) < 20 || payload[0] != 1 || payload[1] != 1 || !bytes.Equal(payload[4:20], request[4:20]) || int(binary.BigEndian.Uint16(payload[2:4])) != len(payload)-20 {
+	return stunResponse(payload, request)
+}
+
+func stunRequest() ([]byte, error) {
+	request := []byte{0, 1, 0, 0, 0x21, 0x12, 0xa4, 0x42}
+	nonce := make([]byte, 12)
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, err
+	}
+	return append(request, nonce...), nil
+}
+func stunResponse(payload, request []byte) error {
+	if len(payload) < 20 || len(request) != 20 || payload[0] != 1 || payload[1] != 1 || !bytes.Equal(payload[4:20], request[4:20]) || int(binary.BigEndian.Uint16(payload[2:4])) != len(payload)-20 {
 		return errors.New("STUN binding response mismatch")
 	}
 	return nil

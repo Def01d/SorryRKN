@@ -186,6 +186,7 @@ func sourceCommand(id, notification int) {
 }
 
 func probeSources(sourceIndex, nodeIndex int) {
+	checkSystem := vpnSession.Active()
 	source := vpnLibrary.Sources[sourceIndex]
 	if nodeIndex < 0 || nodeIndex >= len(source.Profiles) {
 		return
@@ -202,6 +203,14 @@ func probeSources(sourceIndex, nodeIndex int) {
 	startWork("Проверка соединения", 35*time.Second, func(ctx context.Context) (func(), error) {
 		lines := make([]string, len(profiles))
 		var waits sync.WaitGroup
+		if checkSystem {
+			lines = append(lines, "")
+			waits.Add(1)
+			go func() {
+				defer waits.Done()
+				lines[len(profiles)] = "Текущий системный VPN\n" + strings.Join(tunnel.DiagnoseSystem(ctx), "\n")
+			}()
+		}
 		for i, profile := range profiles {
 			waits.Add(1)
 			go func(i int, p tunnel.Profile) {

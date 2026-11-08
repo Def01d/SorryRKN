@@ -103,9 +103,13 @@ esac
 engine=$lib/sing-box-$version
 if [ ! -x "$engine" ]; then
     archive=sing-box-$version-linux-$arch
-    curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 --retry 2 \
-        "https://github.com/SagerNet/sing-box/releases/download/v$version/$archive.tar.gz" -o "$tmp/engine.tar.gz" ||
-        die "Cannot download the pinned sing-box release from GitHub."
+    if ! curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 --retry 2 \
+        "https://github.com/SagerNet/sing-box/releases/download/v$version/$archive.tar.gz" -o "$tmp/engine.tar.gz"; then
+        asset=$(curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 45 --retry 2 "https://api.github.com/repos/SagerNet/sing-box/releases/tags/v$version" |
+            python3 -c 'import json,sys; print(next(a["url"] for a in json.load(sys.stdin)["assets"] if a["name"]==sys.argv[1]))' "$archive.tar.gz") || die "Cannot locate the pinned sing-box release."
+        case "$asset" in https://api.github.com/repos/SagerNet/sing-box/releases/assets/*) :;; *) die "Unexpected release asset URL.";; esac
+        curl -fSsL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 --retry 2 -H 'Accept: application/octet-stream' "$asset" -o "$tmp/engine.tar.gz" || die "Cannot download the pinned sing-box release from GitHub."
+    fi
     printf '%s  %s\n' "$hash" "$tmp/engine.tar.gz" | sha256sum -c - >&2 || die "VPN engine checksum mismatch."
     tar -xzf "$tmp/engine.tar.gz" -C "$tmp" "$archive/sing-box" "$archive/LICENSE"
     f=$(mktemp "$lib/.engine-XXXXXX")

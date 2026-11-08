@@ -1,3 +1,5 @@
 # SSH sends these files to a POSIX shell, including from builds made on Windows.
 /windows/src/internal/selfhost/*.sh text eol=lf
 /android/src/app/src/main/assets/*.sh text eol=lf
+/android/src/scripts/*.sh text eol=lf
+/android/src/gradlew text eol=lf

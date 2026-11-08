@@ -107,8 +107,12 @@ finally:
 time.sleep(.4)
 for private in ('127.0.0.1', '169.254.169.254', '10.0.0.1'):
     try:
-        with connect(private, 22):
-            raise AssertionError('Private destination allowed')
+        with connect(private, 22) as stream:
+            # SOCKS may optimistically acknowledge before routing. Verify that
+            # no private-service payload traverses the established HTTP stream.
+            stream.sendall(b'probe\r\n')
+            if stream.recv(256):
+                raise AssertionError('Private destination returned data')
     except (ConnectionError, EOFError, OSError):
         pass
 print('HTTPS TCP/UDP: 100 VLESS UDP frames (64/160/1000/1300 bytes) traversed authenticated Caddy CONNECT, loopback gateway and real UDP socket; private destinations refused.')

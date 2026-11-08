@@ -270,8 +270,8 @@
     },
     {
       "path": "app/src/main/assets/reality.sh",
-      "size": 10486,
-      "sha256": "19c2154647c7fe3ba5abbfcc632fb11849a063f1397ca21413688f66d5048f08"
+      "size": 11201,
+      "sha256": "2964ef7b4a59e38592a1a067c7a32d08957d6906dfcf15e51764750a1e4f1189"
     },
     {
       "path": "app/src/main/java/dev/graybridge/AppUpdates.java",
@@ -730,13 +730,13 @@
     },
     {
       "path": "scripts/prepare-naive.sh",
-      "size": 1351,
-      "sha256": "a2b580fe80c210cacab81dc364437d197daca5fb76fb51c298dbe360632022c5"
+      "size": 1321,
+      "sha256": "5b7acee8588a6369631c91dccb9c57fec8280bb0c972e1b029fddf5ca7296e77"
     },
     {
       "path": "scripts/prepare-xray.sh",
-      "size": 1154,
-      "sha256": "965610df05ae1618c78d84b01f3dca1c5de07590bc601cf1d268db898030093a"
+      "size": 1128,
+      "sha256": "734c1d7b2190de21d3fadd55e01ff6b1c1d4c0dde8f8c1ac0790ba68f06ec7e0"
     },
     {
       "path": "scripts/test-network.sh",
