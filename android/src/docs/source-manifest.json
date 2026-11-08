@@ -90,13 +90,18 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 59195,
-      "sha256": "d7c7eb0eb41a8e9d4413c0b1e79b833d3810a1c5a76800430d2879501ca0d2bd"
+      "size": 60183,
+      "sha256": "42686805b111ee4acc1c21863887f7f0b9d7c0815858bbb5393a59de1efbb5ca"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
       "size": 6925,
       "sha256": "d0526b2759f639dc9fcb6ed7a63db6a06a2ae51945a58de5c105b2bf3f1b4e57"
+    },
+    {
+      "path": "app/src/androidTest/java/dev/graybridge/HTTPSRelayDeviceChecks.java",
+      "size": 3263,
+      "sha256": "0da9768140f0e7cb0ade98442b75cac00932042097362a5547be2f6b7219ebdf"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/NegativeTrustProbe.java",
@@ -645,8 +650,8 @@
     },
     {
       "path": "docs/source-files.txt",
-      "size": 48254,
-      "sha256": "d21b0efbd3783f725fb63ee10c57f202c894edacc12b0fad68a7f03c2f790de2"
+      "size": 48322,
+      "sha256": "90d0ffdcf726e94b574b7abb46bce2ca698fcc8c94bae9fc609b3b3850e7cd06"
     },
     {
       "path": "docs/upstream-lock.json",
@@ -750,8 +755,8 @@
     },
     {
       "path": "tests/device-probe/src/main/java/dev/graybridge/probe/ProbeActivity.java",
-      "size": 12653,
-      "sha256": "b9fecfeaa4c41d8171273b37118dbdc2298ae67193268feb025455aeb29a59c3"
+      "size": 12974,
+      "sha256": "1ad2495ba9b2e1d504913be25e5ba187b8a53220add8de1b89f7dfbda3f9a94d"
     },
     {
       "path": "tests/device-probe/src/main/java/dev/graybridge/probe/PublicServiceChecks.java",

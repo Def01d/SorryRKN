@@ -16,6 +16,9 @@ public class DeviceChecks extends Instrumentation {
         Bundle report = new Bundle();
         try {
             Context target = getTargetContext();
+            if(arguments!=null && Boolean.parseBoolean(arguments.getString("httpsRelayChecks","false"))) {
+                HTTPSRelayDeviceChecks.run(this,target,report);report.putString("result","PASS");finish(0,report);return;
+            }
             if(arguments!=null && Boolean.parseBoolean(arguments.getString("remoteGuestChecks","false"))) {
                 RemoteGuestChecks.run(this,target,report);report.putString("result","PASS");finish(0,report);return;
             }

@@ -17,6 +17,7 @@ app/src/androidTest/assets/telegram_verified_check.py
 app/src/androidTest/assets/telegram_wire_check.py
 app/src/androidTest/java/dev/graybridge/DeviceChecks.java
 app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java
+app/src/androidTest/java/dev/graybridge/HTTPSRelayDeviceChecks.java
 app/src/androidTest/java/dev/graybridge/NegativeTrustProbe.java
 app/src/androidTest/java/dev/graybridge/RemoteDeviceChecks.java
 app/src/androidTest/java/dev/graybridge/RemoteGuestChecks.java

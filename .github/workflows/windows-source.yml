@@ -91,7 +91,7 @@ jobs:
         env:
           SORRYRKN_ISOLATED_TUN_TEST: '1'
         run: |
-          go test -count=1 -v -run '^TestIsolatedTUNRelay$' ./internal/tunnel 2>&1 | Tee-Object -FilePath dist/ci-logs/tunnel-native.log
+          go test -count=1 -v -run '^TestIsolated(TUNRelay|HTTPSDatagrams)$' ./internal/tunnel 2>&1 | Tee-Object -FilePath dist/ci-logs/tunnel-native.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Authenticate production JSON metadata offline

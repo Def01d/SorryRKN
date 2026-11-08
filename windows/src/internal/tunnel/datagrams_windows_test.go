@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,30 @@ import (
 )
 
 func TestHTTPSRelayTCPWebSocketAndUDP(t *testing.T) {
+	testHTTPSDatagrams(t, false)
+}
+
+func TestIsolatedHTTPSDatagrams(t *testing.T) {
+	if os.Getenv("SORRYRKN_ISOLATED_TUN_TEST") != "1" || os.Getenv("GITHUB_ACTIONS") != "true" {
+		t.Skip("requires isolated hosted runner")
+	}
+	testHTTPSDatagrams(t, true)
+}
+
+type fixtureDialer struct{}
+
+func (fixtureDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	if host == "example.com" {
+		addr = net.JoinHostPort("198.18.78.2", port)
+	}
+	return (&net.Dialer{}).DialContext(ctx, network, addr)
+}
+
+func testHTTPSDatagrams(t *testing.T, useTUN bool) {
 	root := runtimeDir(t)
 	gateway, link := naiveFixture(t, freePort(t))
 	gateway["tag"] = "gateway"
@@ -65,24 +90,39 @@ func TestHTTPSRelayTCPWebSocketAndUDP(t *testing.T) {
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	err = withProbe(ctx, root, p, func(dial proxy.ContextDialer, addr string, auth *proxy.Auth) error {
+	check := func(dial proxy.ContextDialer, addr string, auth *proxy.Auth) error {
 		if _, err := checkHTTPS(ctx, dial, public, certs); err != nil {
 			return fmt.Errorf("HTTPS: %w", err)
 		}
 		if err := checkDiscord(ctx, dial, strings.Replace(public, "https://", "wss://", 1)+"/ws", &tls.Config{RootCAs: certs}); err != nil {
 			return fmt.Errorf("WebSocket: %w", err)
 		}
-		udp, control, bound, err := socksUDP(ctx, addr, auth)
+		port := echo.LocalAddr().(*net.UDPAddr).Port
+		var udp *net.UDPConn
+		var bound *net.UDPAddr
+		if useTUN {
+			udp, err = net.ListenUDP("udp4", &net.UDPAddr{})
+			bound = &net.UDPAddr{IP: net.ParseIP("198.18.78.2"), Port: port}
+		} else {
+			var control net.Conn
+			udp, control, bound, err = socksUDP(ctx, addr, auth)
+			if err == nil {
+				defer control.Close()
+			}
+		}
 		if err != nil {
 			return err
 		}
-		defer control.Close()
 		defer udp.Close()
-		port := echo.LocalAddr().(*net.UDPAddr).Port
+		udp.SetDeadline(time.Now().Add(10 * time.Second))
 		for i := 0; i < 100; i++ {
 			// Small voice-sized frames and datagrams near the tunnel MTU.
 			payload := bytes.Repeat([]byte{byte(i)}, []int{64, 160, 1000, 1300}[i%4])
-			if _, err = udp.WriteToUDP(udpPacket("198.18.78.2", port, payload), bound); err != nil {
+			packet := payload
+			if !useTUN {
+				packet = udpPacket("198.18.78.2", port, payload)
+			}
+			if _, err = udp.WriteToUDP(packet, bound); err != nil {
 				return err
 			}
 			buf := make([]byte, 65535)
@@ -90,13 +130,27 @@ func TestHTTPSRelayTCPWebSocketAndUDP(t *testing.T) {
 			if err != nil {
 				return fmt.Errorf("UDP packet %d: %w", i, err)
 			}
-			got, err := udpPayload(buf[:n])
+			got := buf[:n]
+			if !useTUN {
+				got, err = udpPayload(got)
+			}
 			if err != nil || !bytes.Equal(payload, got) {
 				return fmt.Errorf("UDP packet %d corrupted", i)
 			}
 		}
 		return nil
-	})
+	}
+	if useTUN {
+		cfg, e := configFor(ctx, p)
+		if e != nil {
+			t.Fatal(e)
+		}
+		var session Session
+		startFixture(t, &session, root, cfg)
+		err = check(fixtureDialer{}, "", nil)
+	} else {
+		err = withProbe(ctx, root, p, check)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

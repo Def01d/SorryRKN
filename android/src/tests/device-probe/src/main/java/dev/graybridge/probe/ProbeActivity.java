@@ -76,15 +76,17 @@ public class ProbeActivity extends Activity {
                 }
                 try(DatagramSocket udp=new DatagramSocket()) {
                     udp.setSoTimeout(10000);
-                    byte[] sample=Arrays.copyOf(payload,1000);
-                    udp.send(new DatagramPacket(sample,sample.length,InetAddress.getByName("10.0.2.2"),18889));
-                    DatagramPacket reply=new DatagramPacket(new byte[1500],1500);udp.receive(reply);
-                    if(!Arrays.equals(sample,Arrays.copyOf(reply.getData(),reply.getLength())))throw new AssertionError("UDP data mismatch");
+                    for(int i=0;i<100;i++) {
+                        byte[] sample=Arrays.copyOfRange(payload,i,i+new int[]{64,160,1000,1300}[i%4]);
+                        udp.send(new DatagramPacket(sample,sample.length,InetAddress.getByName("10.0.2.2"),18889));
+                        DatagramPacket reply=new DatagramPacket(new byte[1500],1500);udp.receive(reply);
+                        if(!Arrays.equals(sample,Arrays.copyOf(reply.getData(),reply.getLength())))throw new AssertionError("UDP data mismatch "+i);
+                    }
                 }
                 String ca=getIntent().getStringExtra("tlsCa");
                 if(getIntent().getBooleanExtra("extraSites",false))checkSmartDnsHints();
                 if(ca!=null) checkHttps(ca);
-                result="PASS: "+(getIntent().getBooleanExtra("requireVpn",true)?"VPN active":"baseline")+", TCP 128 KiB, UDP 1000 bytes"+(ca!=null?", HTTPS "+(getIntent().getBooleanExtra("extraSites",false)?8:3)+" hosts x 1 MiB, WSS Discord Hello":"")+(getIntent().getBooleanExtra("extraSites",false)?", AI DNS AAAA/HTTPS replies":"");
+                result="PASS: "+(getIntent().getBooleanExtra("requireVpn",true)?"VPN active":"baseline")+", TCP 128 KiB, 100 UDP packets (64/160/1000/1300 bytes)"+(ca!=null?", HTTPS "+(getIntent().getBooleanExtra("extraSites",false)?8:3)+" hosts x 1 MiB, WSS Discord Hello":"")+(getIntent().getBooleanExtra("extraSites",false)?", AI DNS AAAA/HTTPS replies":"");
             } catch(Throwable e) { result="FAIL: "+e; }
             Log.i("GrayBridgeProbe",result);
             String callback=getIntent().getStringExtra("callbackPackage");
