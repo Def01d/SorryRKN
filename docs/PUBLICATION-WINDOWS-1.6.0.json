@@ -1,0 +1,84 @@
+{
+  "tag": "windows-v1.6.0",
+  "release": "https://github.com/Def01d/SorryRKN/releases/tag/windows-v1.6.0",
+  "build": {
+    "run": "https://github.com/Def01d/SorryRKN/actions/runs/42476132651",
+    "build_commit": "c531ed3a6662f80f465380a55228754adb230836",
+    "jobs": [
+      {
+        "name": "selfhost-tcp",
+        "url": "https://github.com/Def01d/SorryRKN/actions/runs/42476132651/job/128719147130"
+      },
+      {
+        "name": "windows-source",
+        "url": "https://github.com/Def01d/SorryRKN/actions/runs/42476132651/job/128719168543"
+      },
+      {
+        "name": "selfhost-linux",
+        "url": "https://github.com/Def01d/SorryRKN/actions/runs/42476132651/job/128719145571"
+      },
+      {
+        "name": "native-validation",
+        "url": "https://github.com/Def01d/SorryRKN/actions/runs/42476132651/job/128719147392"
+      }
+    ],
+    "packages": [
+      {
+        "name": "SorryRKN-Windows-1.6.0-Setup.exe",
+        "bytes": 42900011,
+        "sha256": "eb0ee4a4ca4138b0c4a84597058b17526a82bf4afcd407ff197569fccbbcc984"
+      },
+      {
+        "name": "SorryRKN-Windows-1.6.0.zip",
+        "bytes": 60023307,
+        "sha256": "61ad2ab90024430f0535a9558b1dadc4317c4abd5cc6b86e635745fe7475fe20"
+      }
+    ]
+  },
+  "tagged": [
+    {
+      "name": "SorryRKN-Windows-1.6.0-Setup.exe",
+      "bytes": 42900011,
+      "sha256": "eb0ee4a4ca4138b0c4a84597058b17526a82bf4afcd407ff197569fccbbcc984",
+      "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0-Setup.exe"
+    },
+    {
+      "name": "SorryRKN-Windows-1.6.0.zip",
+      "bytes": 60023307,
+      "sha256": "61ad2ab90024430f0535a9558b1dadc4317c4abd5cc6b86e635745fe7475fe20",
+      "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0.zip"
+    }
+  ],
+  "versionCode": 10600,
+  "feed_verified": true,
+  "clients_downloaded_and_verified": [
+    "legacy",
+    "signed"
+  ],
+  "android_feed": "0.11.0 (18), signature verified",
+  "android_validation": "https://github.com/Def01d/SorryRKN/releases/download/windows-v1.6.0/android-validation.json",
+  "scope": "Windows hosted runners with production TUN TCP/UDP, Ubuntu VPS migration from 1.5.0 and real Caddy relay, Android API 35 separate UID TCP/UDP. Public Discord Hello only; no signed-in Discord session, voice call, operator-wide or TSPU comparison.",
+  "feed_commit": "6ac874e25a374467ad43a9a604ee957f562c6ed3",
+  "tag_commit": "85b2d8a0554ff681c2f1d0b0ac66ab3f542e8d97",
+  "android_source_build": "https://github.com/Def01d/SorryRKN/actions/runs/42466670366",
+  "windows_native_validation": {
+    "installed_runtime": true,
+    "subscription_import_ui": true,
+    "checked_updates_on_both_launches": true,
+    "installer": true,
+    "user_rules_editor": true,
+    "route_editor_preserves_secret": true,
+    "installer_preserves_existing_settings": true,
+    "ssh_setup_ui": true,
+    "gui_telegram": true,
+    "tray_background": true,
+    "gui_exit": true,
+    "gui_stop": true,
+    "service_routes_persistence": true,
+    "checked_updates_on_reopen": true,
+    "gui_window": true,
+    "custom_only_dns": true,
+    "uninstaller": true,
+    "service_routes_ui": true
+  }
+}
