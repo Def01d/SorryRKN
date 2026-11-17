@@ -21,13 +21,13 @@
 
 Основной HTTPS-режим Windows 1.6.0 передаёт TCP и UDP через один TCP 443. После обновления повторите настройку HTTPS своего сервера через SSH. [Проверки и ограничения](docs/VALIDATION-HTTPS-1.6.0.md).
 
-Android 1.0.1 — обновление нового приложения с постоянной производственной подписью и пакетом `io.github.def01d.sorryrkn`. Для перехода со старого пакета установите APK один раз. В версии 1.0.0 обновление появится при запуске. [Подпись, канал и выпуск Android](docs/ANDROID-RELEASE.md).
+Android 1.0.2 — обновление нового приложения с постоянной производственной подписью и пакетом `io.github.def01d.sorryrkn`. Для перехода со старого пакета установите APK один раз. В версиях 1.0.0 и 1.0.1 обновление появится при запуске. [Подпись, канал и выпуск Android](docs/ANDROID-RELEASE.md).
 
 ## Скачивание
 
 | Платформа | Версия | Скачать | Требования |
 | --- | --- | --- | --- |
-| **Android** | **1.0.1** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.1/android/SorryRKN-Android-1.0.1.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
+| **Android** | **1.0.2** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.2/android/SorryRKN-Android-1.0.2.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
 | **Windows** | **1.6.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
 | **Windows Portable** | **1.6.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 

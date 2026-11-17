@@ -1,0 +1,487 @@
+{
+  "platform": "Android",
+  "versionName": "1.0.2",
+  "versionCode": 10002,
+  "applicationId": "io.github.def01d.sorryrkn",
+  "certificate_sha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
+  "signature_schemes_verified": [
+    "v2",
+    "v3"
+  ],
+  "apk": {
+    "file": "SorryRKN-Android-1.0.2.apk",
+    "size": 54539509,
+    "sha256": "201ada65e4ad2383c3857f685239dd0d189542f7374ed5526392d3fe0a5b6ca6",
+    "abis": [
+      "arm64-v8a",
+      "x86_64"
+    ]
+  },
+  "build": {
+    "run": "https://github.com/Def01d/SorryRKN/actions/runs/44140131972",
+    "commit": "323278bf127395f1911bfddc5f0c70bb5822fb41",
+    "unsigned_sha256": "46fd9f77d2246589e95de639554c685b282d503b0a6b36383de4befd9cb442cc",
+    "python_tests_passed": 440,
+    "python_subtests_passed": 34,
+    "source_manifest_entries_verified": 804
+  },
+  "test_device": "Android 15 API 35 x86_64 emulator",
+  "regression_fixture": {
+    "native_engine": "repository ByeDPI compiled for Linux",
+    "condition": "TCP accepts but an unfragmented TLS ClientHello receives no reply",
+    "verified": [
+      "DoH recovers using native TLS splitting",
+      "ChatGPT synthetic route check selects DPI path",
+      "opaque application TLS request succeeds once",
+      "untrusted DNS TLS certificate rejected",
+      "DNS cache invalidation clears both paths",
+      "direct TLS fallback works if local DPI listener unavailable",
+      "external Telegram WSS relay supports explicit DPI with hostname verification and 1 MiB binary echo"
+    ]
+  },
+  "telegram": {
+    "normal_and_media_dc_replies": 10,
+    "checks": 10,
+    "tls_wss_probes_passed": 2,
+    "checked_at": "2026-11-17T17:47:52.024539+00:00",
+    "engine_preserved": true
+  },
+  "local_vpn": {
+    "probe_app_separate_uid": true,
+    "tcp_bytes": 131072,
+    "udp_packets": 100,
+    "udp_payload_sizes": [
+      64,
+      160,
+      1000,
+      1300
+    ]
+  },
+  "upgrade": {
+    "from": "1.0.1 (10001) public APK",
+    "preserved": [
+      "UID",
+      "preferences",
+      "Telegram secret",
+      "AndroidKeyStore vault"
+    ],
+    "same_package_and_version_wrong_signer_rejected": true,
+    "update_provider_checked": true
+  },
+  "limitations": [
+    "No signed-in Telegram or ChatGPT account was tested.",
+    "Public endpoint results do not prove calls, media transfers or availability on every operator.",
+    "Physical ARM64 devices and the reported vivo V2205 mobile network were unavailable.",
+    "ARM64 and x86_64 engines were packaged; runtime checks used x86_64."
+  ],
+  "public_services": {
+    "result": "PARTIAL",
+    "passed": 6,
+    "total": 7,
+    "checks": [
+      {
+        "service": "YouTube",
+        "url": "https://www.youtube.com/generate_204",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "142.251.150.4",
+          "142.251.151.4",
+          "142.251.156.4",
+          "142.251.154.4",
+          "142.251.152.4",
+          "142.251.155.4",
+          "142.251.153.4",
+          "142.251.157.4",
+          "2001:4860:4826:400::",
+          "2001:4860:482c:400::",
+          "2001:4860:4829:400::",
+          "2001:4860:482a:400::",
+          "2001:4860:482b:400::",
+          "2001:4860:4828:400::",
+          "2001:4860:482d:400::",
+          "2001:4860:4827:400::"
+        ],
+        "dns_ms": 911,
+        "connected_address": "142.251.150.4",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 2477,
+        "http_status": 204,
+        "body_bytes_examined": 0,
+        "body_truncated": false,
+        "content_type": "",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 2760
+      },
+      {
+        "service": "Discord API",
+        "url": "https://discord.com/api/v10/gateway",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "162.159.128.233",
+          "162.159.138.232",
+          "162.159.137.232",
+          "162.159.135.232",
+          "162.159.136.232"
+        ],
+        "dns_ms": 893,
+        "connected_address": "162.159.128.233",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 2444,
+        "http_status": 200,
+        "body_bytes_examined": 35,
+        "body_truncated": false,
+        "content_type": "application/json",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 2693
+      },
+      {
+        "service": "Discord CDN",
+        "url": "https://cdn.discordapp.com/embed/avatars/0.png",
+        "ok": false,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "162.159.129.233",
+          "162.159.134.233",
+          "162.159.133.233",
+          "162.159.130.233",
+          "162.159.135.233"
+        ],
+        "dns_ms": 889,
+        "connected_address": "162.159.129.233",
+        "state": "timeout",
+        "error": "SocketTimeoutException",
+        "stage": "TLS",
+        "elapsed_ms": 8058
+      },
+      {
+        "service": "Discord Gateway",
+        "url": "wss://gateway.discord.gg/?v=10&encoding=json",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "162.159.135.234",
+          "162.159.136.234",
+          "162.159.130.234",
+          "162.159.133.234",
+          "162.159.134.234"
+        ],
+        "dns_ms": 892,
+        "connected_address": "162.159.135.234",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 2464,
+        "http_status": 101,
+        "state": "verified_gateway_hello",
+        "stage": "WebSocket",
+        "elapsed_ms": 2714
+      },
+      {
+        "service": "Instagram",
+        "url": "https://www.instagram.com/",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "57.144.244.34",
+          "2a03:2880:f37a:22:face:b00c:0:4420"
+        ],
+        "dns_ms": 890,
+        "connected_address": "57.144.244.34",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 2706,
+        "http_status": 200,
+        "body_bytes_examined": 65536,
+        "body_truncated": true,
+        "content_type": "text/html; charset=\"utf-8\"",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 3141
+      },
+      {
+        "service": "ChatGPT public page",
+        "url": "https://chatgpt.com/",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "172.64.155.209",
+          "104.18.32.47",
+          "2606:4700:4408::ac40:9bd1",
+          "2a06:98c1:3101::6812:202f"
+        ],
+        "dns_ms": 944,
+        "connected_address": "172.64.155.209",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 1846,
+        "http_status": 200,
+        "body_bytes_examined": 65536,
+        "body_truncated": true,
+        "content_type": "text/html; charset=utf-8",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 2485
+      },
+      {
+        "service": "ChatGPT OAuth providers",
+        "url": "https://chatgpt.com/api/auth/providers",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "172.64.155.209",
+          "104.18.32.47",
+          "2606:4700:4408::ac40:9bd1",
+          "2a06:98c1:3101::6812:202f"
+        ],
+        "dns_ms": 945,
+        "connected_address": "172.64.155.209",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 1919,
+        "http_status": 200,
+        "body_bytes_examined": 175,
+        "body_truncated": false,
+        "content_type": "application/json; charset=utf-8",
+        "state": "verified_public_oauth_metadata",
+        "stage": "HTTP",
+        "elapsed_ms": 2201
+      }
+    ],
+    "vpn_active_for_probe_uid": true,
+    "system_dns": true,
+    "certificate_validation_required": true,
+    "hostname_validation_required": true,
+    "authenticated_access": false,
+    "elapsed_ms": 8065,
+    "checked_at_epoch_ms": 1794937732343,
+    "scope": "Fixed public requests only; no account, chat, video playback, media download, or voice-call validation"
+  },
+  "public_services_startup": {
+    "state": "on",
+    "active_strategy": "ByeDPI / Disorder",
+    "ai_route_check": {
+      "state": "verified_public",
+      "verified": true,
+      "authenticated_access": false,
+      "checked_at": "2026-11-17T17:48:38+00:00",
+      "candidates": [
+        {
+          "address": "206.223.246.246",
+          "state": "verified_public",
+          "verified": true,
+          "route": "dpi",
+          "http_status": 200
+        }
+      ],
+      "selected_address": "206.223.246.246",
+      "selected_route": "dpi"
+    }
+  },
+  "public_services_recheck": {
+    "result": "PASS",
+    "passed": 7,
+    "total": 7,
+    "checks": [
+      {
+        "service": "YouTube",
+        "url": "https://www.youtube.com/generate_204",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "142.251.153.4",
+          "142.251.152.4",
+          "142.251.157.4",
+          "142.251.156.4",
+          "142.251.155.4",
+          "142.251.150.4",
+          "142.251.151.4",
+          "142.251.154.4",
+          "2001:4860:4826:400::",
+          "2001:4860:4829:400::",
+          "2001:4860:482b:400::",
+          "2001:4860:482a:400::",
+          "2001:4860:4827:400::",
+          "2001:4860:4828:400::",
+          "2001:4860:482c:400::",
+          "2001:4860:482d:400::"
+        ],
+        "dns_ms": 1175,
+        "connected_address": "142.251.153.4",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 1684,
+        "http_status": 204,
+        "body_bytes_examined": 0,
+        "body_truncated": false,
+        "content_type": "",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 1899
+      },
+      {
+        "service": "Discord API",
+        "url": "https://discord.com/api/v10/gateway",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "162.159.128.233",
+          "162.159.135.232",
+          "162.159.136.232",
+          "162.159.137.232",
+          "162.159.138.232"
+        ],
+        "dns_ms": 1557,
+        "connected_address": "162.159.128.233",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 1969,
+        "http_status": 200,
+        "body_bytes_examined": 35,
+        "body_truncated": false,
+        "content_type": "application/json",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 2207
+      },
+      {
+        "service": "Discord CDN",
+        "url": "https://cdn.discordapp.com/embed/avatars/0.png",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "162.159.135.233",
+          "162.159.129.233",
+          "162.159.130.233",
+          "162.159.134.233",
+          "162.159.133.233"
+        ],
+        "dns_ms": 1171,
+        "connected_address": "162.159.135.233",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 1688,
+        "http_status": 200,
+        "body_bytes_examined": 1268,
+        "body_truncated": false,
+        "content_type": "image/png",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 1917
+      },
+      {
+        "service": "Discord Gateway",
+        "url": "wss://gateway.discord.gg/?v=10&encoding=json",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "162.159.134.234",
+          "162.159.133.234",
+          "162.159.135.234",
+          "162.159.136.234",
+          "162.159.130.234"
+        ],
+        "dns_ms": 1558,
+        "connected_address": "162.159.134.234",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 1962,
+        "http_status": 101,
+        "state": "verified_gateway_hello",
+        "stage": "WebSocket",
+        "elapsed_ms": 2319
+      },
+      {
+        "service": "Instagram",
+        "url": "https://www.instagram.com/",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "57.144.244.34",
+          "2a03:2880:f37c:22:face:b00c:0:4420"
+        ],
+        "dns_ms": 1560,
+        "connected_address": "57.144.244.34",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 1966,
+        "http_status": 200,
+        "body_bytes_examined": 65536,
+        "body_truncated": true,
+        "content_type": "text/html; charset=\"utf-8\"",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 2417
+      },
+      {
+        "service": "ChatGPT public page",
+        "url": "https://chatgpt.com/",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "206.223.242.221",
+          "206.223.246.246"
+        ],
+        "dns_ms": 434,
+        "connected_address": "206.223.242.221",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 916,
+        "http_status": 200,
+        "body_bytes_examined": 65536,
+        "body_truncated": true,
+        "content_type": "text/html; charset=utf-8",
+        "state": "reachable_public",
+        "stage": "HTTP",
+        "elapsed_ms": 1642
+      },
+      {
+        "service": "ChatGPT OAuth providers",
+        "url": "https://chatgpt.com/api/auth/providers",
+        "ok": true,
+        "authenticated_access": false,
+        "dns_addresses": [
+          "206.223.242.221",
+          "206.223.246.246"
+        ],
+        "dns_ms": 647,
+        "connected_address": "206.223.242.221",
+        "certificate_chain_verified": true,
+        "hostname_verified": true,
+        "tls_protocol": "TLSv1.3",
+        "tls_ms": 4516,
+        "http_status": 200,
+        "body_bytes_examined": 175,
+        "body_truncated": false,
+        "content_type": "application/json; charset=utf-8",
+        "state": "verified_public_oauth_metadata",
+        "stage": "HTTP",
+        "elapsed_ms": 4740
+      }
+    ],
+    "vpn_active_for_probe_uid": true,
+    "system_dns": true,
+    "certificate_validation_required": true,
+    "hostname_validation_required": true,
+    "authenticated_access": false,
+    "elapsed_ms": 4740,
+    "checked_at_epoch_ms": 1794937802855,
+    "scope": "Fixed public requests only; no account, chat, video playback, media download, or voice-call validation"
+  }
+}
