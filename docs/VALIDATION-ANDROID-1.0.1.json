@@ -1,0 +1,76 @@
+{
+  "platform": "Android",
+  "versionName": "1.0.1",
+  "versionCode": 10001,
+  "applicationId": "io.github.def01d.sorryrkn",
+  "certificate_sha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
+  "signature_schemes_verified": [
+    "v2",
+    "v3"
+  ],
+  "apk": {
+    "file": "SorryRKN-Android-1.0.1.apk",
+    "size": 54535413,
+    "sha256": "c29d8fda1268ab9e181151735ea1e43c59d52c2f7d7380378c85ec663cf07cfe",
+    "abis": [
+      "arm64-v8a",
+      "x86_64"
+    ]
+  },
+  "build": {
+    "run": "https://github.com/Def01d/SorryRKN/actions/runs/44106444740",
+    "commit": "f1f323365af5efa5de0629b14917b28bf35e8e4c",
+    "artifact_id": 14337274801,
+    "unsigned_sha256": "3effa145210ab8740bc611a3c00113b3112663b058e36441ea9df88728a5a2a4",
+    "python_tests_passed": 433,
+    "python_subtests_passed": 34,
+    "source_manifest_entries_verified": 803
+  },
+  "test_device": "Android 15 API 35 x86_64 emulator",
+  "reproduced": {
+    "legacy": "0.11.0 answered on 5/5 DCs while listening on TCP 1443",
+    "regression": "1.0.0 failed to bind TCP 1443 while 0.11.0 ran",
+    "control": "1.0.0 answered on 5/5 DCs after 0.11.0 stopped"
+  },
+  "telegram": {
+    "while_legacy_proxy_stayed_running": true,
+    "normal_and_media_dc_replies": 10,
+    "checks": 10,
+    "tls_wss_probes_passed": 2,
+    "checked_at": "2026-11-17T14:48:16.877424+00:00",
+    "engine_preserved": true,
+    "preserved_existing_proxy_when_legacy_absent": {
+      "old_package_installed": false,
+      "existing_1_0_0_proxy_port": 1443,
+      "retained_after_upgrade": true,
+      "secret_preserved": true,
+      "passed_before_after": [
+        5,
+        5
+      ]
+    }
+  },
+  "local_vpn": {
+    "probe_app_separate_uid": true,
+    "tcp_bytes": 131072,
+    "udp_packets": 100,
+    "udp_payload_sizes": [
+      64,
+      160,
+      1000,
+      1300
+    ]
+  },
+  "upgrade": {
+    "from": "1.0.0 (10000) public APK",
+    "preserved": [
+      "UID",
+      "preferences",
+      "Telegram secret",
+      "AndroidKeyStore vault"
+    ],
+    "same_package_and_version_wrong_signer_rejected": true,
+    "update_provider_checked": true
+  },
+  "scope": "Synthetic MTProto replies and isolated VPN traffic. Account, actual media transfer, calls, physical ARM64 and provider coverage were outside the test."
+}
