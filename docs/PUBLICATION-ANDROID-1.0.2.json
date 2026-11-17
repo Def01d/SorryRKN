@@ -1,0 +1,60 @@
+{
+  "release": "https://github.com/Def01d/SorryRKN/releases/tag/android-v1.0.2",
+  "tag": "android-v1.0.2",
+  "draft": false,
+  "prerelease": false,
+  "tag_commit": "5ca8914688284847e798c06bb68dc590b89034ac",
+  "tagged_apk": {
+    "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.2/android/SorryRKN-Android-1.0.2.apk",
+    "size": 54539509,
+    "sha256": "201ada65e4ad2383c3857f685239dd0d189542f7374ed5526392d3fe0a5b6ca6",
+    "certificate_sha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f"
+  },
+  "update_feed": {
+    "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/main/android-update.json",
+    "commit": "5f19de33a7e44f9199dd3ea6ea49789b50b66c4c",
+    "signature_verified": true,
+    "versionCode": 10002
+  },
+  "ci_artifact": {
+    "digest": "sha256:7a161815be6d2aac51bb373d8989fa48769f1ca1712ae081415acffa57fae9ae",
+    "id": 14353343254,
+    "name": "android-unsigned-release",
+    "size_in_bytes": 54518816
+  },
+  "assets": [
+    {
+      "digest": "sha256:2b96f209f4ca3deb967ae64727ef8c1d6d0d8a6ff16e0e14dbb6c04c5dc8666c",
+      "name": "SHA256SUMS.txt",
+      "size": 363
+    },
+    {
+      "digest": "sha256:19436ead7969d7e7958900f24d017856e58310ab28228e307d7e2a1f0790f3ca",
+      "name": "signing-identity.json",
+      "size": 392
+    },
+    {
+      "digest": "sha256:6b8c770bccdcfb9775d93e68d4747e70dc4d7be0eabd9abefe370a0609a9c662",
+      "name": "SorryRKN-Android-1.0.2-source.zip",
+      "size": 2839722
+    },
+    {
+      "digest": "sha256:201ada65e4ad2383c3857f685239dd0d189542f7374ed5526392d3fe0a5b6ca6",
+      "name": "SorryRKN-Android-1.0.2.apk",
+      "size": 54539509
+    },
+    {
+      "digest": "sha256:c717546b953f9b3ea896fb0de651071aeb9681ac98c2f3271b2ae76ded1696cf",
+      "name": "validation.json",
+      "size": 15023
+    }
+  ],
+  "android_1_0_1_upgrade": {
+    "device": "Android 15 API 35 x86_64 emulator",
+    "offered_on_launch_and_reopen": true,
+    "downloaded_tagged_apk_and_validated_package_version_signature_and_sha256": true,
+    "installed_that_download_with_adb": true,
+    "preserved_preferences_telegram_secret_and_vault": true
+  },
+  "legacy_android_and_windows_feeds_unchanged": true
+}
