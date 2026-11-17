@@ -1,0 +1,53 @@
+{
+  "release": "https://github.com/Def01d/SorryRKN/releases/tag/android-v1.0.1",
+  "tag": "android-v1.0.1",
+  "draft": false,
+  "prerelease": false,
+  "tag_commit": "47800626d8f40828a05f45bc8df87d26b0120e8f",
+  "tagged_apk": {
+    "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.1/android/SorryRKN-Android-1.0.1.apk",
+    "size": 54535413,
+    "sha256": "c29d8fda1268ab9e181151735ea1e43c59d52c2f7d7380378c85ec663cf07cfe",
+    "certificate_sha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f"
+  },
+  "update_feed": {
+    "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/main/android-update.json",
+    "commit": "85d7e1de547ae853736f7c7fde92b4a22f60b7a0",
+    "signature_verified": true,
+    "versionCode": 10001
+  },
+  "assets": [
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 363,
+      "digest": "sha256:09a274f1daa250c9cfa6c1f48a94325c161e8db3a53c905a604351e4733258e5"
+    },
+    {
+      "name": "signing-identity.json",
+      "size": 392,
+      "digest": "sha256:19436ead7969d7e7958900f24d017856e58310ab28228e307d7e2a1f0790f3ca"
+    },
+    {
+      "name": "SorryRKN-Android-1.0.1-source.zip",
+      "size": 2828798,
+      "digest": "sha256:85c79ab0247ec91f78bd28f8fb9b92bc8c1b1b0015d00adf05b0459b834b1e8c"
+    },
+    {
+      "name": "SorryRKN-Android-1.0.1.apk",
+      "size": 54535413,
+      "digest": "sha256:c29d8fda1268ab9e181151735ea1e43c59d52c2f7d7380378c85ec663cf07cfe"
+    },
+    {
+      "name": "validation.json",
+      "size": 2285,
+      "digest": "sha256:ec5b937de34c03f3f001b5c97fc94205a922b87245f4a884dc32cb65c90e9ad9"
+    }
+  ],
+  "android_1_0_0_upgrade": {
+    "device": "Android 15 API 35 x86_64 emulator",
+    "offered_on_launch_and_reopen": true,
+    "downloaded_tagged_apk_and_validated_package_version_signature_and_sha256": true,
+    "installed_that_download_with_adb": true,
+    "preserved_preferences_telegram_secret_and_vault": true
+  }
+}
