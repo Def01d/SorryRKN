@@ -185,6 +185,7 @@ tests/test_telegram_shutdown.py
 tests/test_telegram_startup_routes.py
 tests/test_telegram_verified_routes.py
 tests/test_traffic.py
+tests/test_transport_dpi.py
 tests/test_updates_and_selection.py
 tests/test_user_rules.py
 tests/upstream/__init__.py

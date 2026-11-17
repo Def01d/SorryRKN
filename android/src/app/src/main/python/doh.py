@@ -158,12 +158,14 @@ def cache_records(query, answer):
 
 
 class Resolver:
-    def __init__(self, port, transport=None,providers=PROVIDERS):
+    def __init__(self, port, transport=None,providers=PROVIDERS, fallback_port=None, timeout=3.0):
         self.providers=providers
+        self.timeout = timeout
+        self.fallback = Resolver(fallback_port, providers=providers, timeout=8.0) if fallback_port else None
         inner = transport or httpx.AsyncHTTPTransport(proxy=f"socks5://127.0.0.1:{port}" if port else None,
             verify=verified_context(), trust_env=False, limits=httpx.Limits(max_connections=16, max_keepalive_connections=6))
         self.client = httpx.AsyncClient(transport=PinnedTransport(inner,{host:ip for _,host,ip in providers}),
-                                       timeout=2.5, trust_env=False, follow_redirects=False)
+                                       timeout=timeout-.5, trust_env=False, follow_redirects=False)
         self.preferred = None
         self.provider = ""
         self.cache = OrderedDict()
@@ -187,6 +189,28 @@ class Resolver:
         return None
 
     async def _lookup(self, payload):
+        if self.fallback is None:
+            return await self._lookup_providers(payload)
+        async def attempt(via_dpi):
+            if via_dpi:
+                await asyncio.sleep(.25)
+                return await self.fallback.query(payload), True
+            return await self._lookup_providers(payload), False
+        tasks = [asyncio.create_task(attempt(False)), asyncio.create_task(attempt(True))]
+        try:
+            for completed in asyncio.as_completed(tasks):
+                answer, via_dpi = await completed
+                if answer:
+                    if via_dpi:
+                        self.provider = self.fallback.provider + " · DPI"
+                    return answer
+            return None
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _lookup_providers(self, payload):
         # No hostname resolution is needed to reach these providers. A blocked
         # Google resolver must not disable every Android application's DNS.
         if self.preferred and len(self.providers) == 1:
@@ -207,7 +231,7 @@ class Resolver:
             return await self._query(provider, payload)
         tasks=[asyncio.create_task(attempt(p)) for p in candidates]
         try:
-            async with asyncio.timeout(3):
+            async with asyncio.timeout(self.timeout):
                 for completed in asyncio.as_completed(tasks):
                     result=await completed
                     if result:
@@ -261,6 +285,8 @@ class Resolver:
                 await asyncio.gather(entry[0], return_exceptions=True)
 
     def invalidate(self, host):
+        if self.fallback:
+            self.fallback.invalidate(host)
         self.last_addresses.pop(host, None)
         labels=host.encode('idna').split(b'.')
         question=b''.join(bytes([len(label)])+label for label in labels)+b'\0'
@@ -273,6 +299,8 @@ class Resolver:
         for task in tasks: task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         await self.client.aclose()
+        if self.fallback:
+            await self.fallback.close()
 
     async def resolve(self, host):
         labels=host.encode('idna').split(b'.')

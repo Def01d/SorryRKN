@@ -224,7 +224,7 @@ public class DeviceChecks extends Instrumentation {
             Thread.sleep(300);
             BridgeService.stop(target);
             waitFor(target,"off",15000);
-            for(int port: new int[]{BridgeService.DPI_PORT,BridgeService.PROBE_PORT,Settings.telegramPort(target)}) {
+            for(int port: new int[]{BridgeService.DPI_PORT,BridgeService.PROBE_PORT,BridgeService.TRANSPORT_PORT,Settings.telegramPort(target)}) {
                 try(java.net.Socket socket=new java.net.Socket()) {
                     socket.connect(new java.net.InetSocketAddress("127.0.0.1",port),100);
                     throw new AssertionError("Port remained open after cancellation: "+port);
@@ -290,7 +290,7 @@ public class DeviceChecks extends Instrumentation {
                 BridgeService.stop(target);waitFor(target,"off",20000);
                 if(Python.getInstance().getModule("android_bridge").callAttr("is_running").toBoolean())
                     throw new AssertionError("Telegram engine remained active after verified check");
-                for(int port:new int[]{BridgeService.EXTRAS_PORT,Settings.telegramPort(target)}) {
+                for(int port:new int[]{BridgeService.EXTRAS_PORT,BridgeService.TRANSPORT_PORT,Settings.telegramPort(target)}) {
                     try(java.net.Socket socket=new java.net.Socket()) {
                         socket.connect(new java.net.InetSocketAddress("127.0.0.1",port),100);
                         throw new AssertionError("Check listener remained open: "+port);
@@ -354,7 +354,7 @@ public class DeviceChecks extends Instrumentation {
             target.unregisterReceiver(receiver);
             try {
                 BridgeService.stop(target);waitFor(target,"off",20000);
-                for(int port:new int[]{BridgeService.DPI_PORT,BridgeService.GATEWAY_PORT,BridgeService.PROBE_PORT,BridgeService.DISCORD_PORT,BridgeService.EXTRAS_PORT,Settings.telegramPort(target)}) {
+                for(int port:new int[]{BridgeService.DPI_PORT,BridgeService.GATEWAY_PORT,BridgeService.PROBE_PORT,BridgeService.DISCORD_PORT,BridgeService.EXTRAS_PORT,BridgeService.TRANSPORT_PORT,Settings.telegramPort(target)}) {
                     try(java.net.Socket socket=new java.net.Socket()) {
                         socket.connect(new java.net.InetSocketAddress("127.0.0.1",port),100);
                         throw new AssertionError("Public check listener remained open: "+port);
@@ -681,7 +681,7 @@ public class DeviceChecks extends Instrumentation {
             if(mixed)clearStrategyMemory(target);
         if(mixed)Python.getInstance().getModule("builtins").callAttr("exec",
                 "strategy_probe.probe=_saved_probe\n",tlsGlobals);
-            for(int port:new int[]{BridgeService.DPI_PORT,BridgeService.GATEWAY_PORT,BridgeService.PROBE_PORT,BridgeService.DISCORD_PORT,BridgeService.EXTRAS_PORT,Settings.telegramPort(target)}) {
+            for(int port:new int[]{BridgeService.DPI_PORT,BridgeService.GATEWAY_PORT,BridgeService.PROBE_PORT,BridgeService.DISCORD_PORT,BridgeService.EXTRAS_PORT,BridgeService.TRANSPORT_PORT,Settings.telegramPort(target)}) {
                 try(java.net.Socket socket=new java.net.Socket("127.0.0.1",port)) {
                     throw new AssertionError("Port remained open after dataPath test: "+port);
                 } catch(java.io.IOException expected) { }

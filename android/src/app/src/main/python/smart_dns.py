@@ -47,15 +47,16 @@ def failure_response(payload):
 
 
 class SmartDNS:
-    def __init__(self,port=None,normal=None,smart=None,rules=None,own_ip=False,protected=None,profile='comss',directory=None,service_dns=None,network_key=''):
+    def __init__(self,port=None,normal=None,smart=None,rules=None,own_ip=False,protected=None,profile='comss',directory=None,service_dns=None,network_key='',fallback_port=None):
         self.rules=rules or DomainRules()
         self.own_ip=bool(own_ip)
         self.protected=protected or (lambda host:False)
         self.preferences=OrderedDict()
-        self.normal=normal or Resolver(port)
+        self.fallback_port=fallback_port
+        self.normal=normal or Resolver(port, fallback_port=fallback_port)
         # Do not even create the relay-provider transport in own-IP mode.
-        self.smart=None if self.own_ip else smart or Resolver(None,providers=providers(selected_profile(profile,directory)))
-        self.routing=None if self.own_ip or not service_dns else ServiceRouter(profile,service_dns,directory,network_key,self.rules.is_geo)
+        self.smart=None if self.own_ip else smart or Resolver(None,providers=providers(selected_profile(profile,directory)),fallback_port=fallback_port)
+        self.routing=None if self.own_ip or not service_dns else ServiceRouter(profile,service_dns,directory,network_key,self.rules.is_geo,fallback_port)
         self.smart_pool={profile or 'comss':self.smart} if self.smart else {}
         self.directory=directory
         self.default_profile=profile or 'comss'
@@ -121,7 +122,7 @@ class SmartDNS:
         if not self.routing:return self.smart
         identifier=self.routing.profile(host)
         if identifier not in self.smart_pool:
-            self.smart_pool[identifier]=Resolver(None,providers=providers(selected_profile(identifier,self.directory)))
+            self.smart_pool[identifier]=Resolver(None,providers=providers(selected_profile(identifier,self.directory)),fallback_port=self.fallback_port)
         return self.smart_pool[identifier]
 
     async def recover_routes(self):

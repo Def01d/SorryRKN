@@ -29,7 +29,7 @@ def tls(tmp_path):
             .public_key(key.public_key()).serial_number(x509.random_serial_number())
             .not_valid_before(now - datetime.timedelta(minutes=1))
             .not_valid_after(now + datetime.timedelta(days=1))
-            .add_extension(x509.SubjectAlternativeName([x509.DNSName(DOMAIN)]), False)
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName(DOMAIN), x509.DNSName('kws2.relay.example')]), False)
             .sign(key, hashes.SHA256()))
     cp, kp = tmp_path / 'cert.pem', tmp_path / 'key.pem'
     cp.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
@@ -192,6 +192,23 @@ async def test_verified_tls_and_binary_media_cross_local_socks_unchanged(monkeyp
             assert state['payloads'] == payloads
             assert ws.writer.get_extra_info('ssl_object').context.check_hostname
             assert ws.writer.get_extra_info('ssl_object').context.verify_mode == ssl.CERT_REQUIRED
+        finally:
+            await ws.close()
+
+
+@pytest.mark.asyncio
+async def test_external_relay_uses_explicit_dpi_listener_and_preserves_verified_hostname(monkeypatch, tls):
+    async with local_dpi(monkeypatch, tls) as state:
+        port = proxy_config.telegram_dpi_port
+        monkeypatch.setattr(proxy_config, 'telegram_dpi_port', 0)
+        ws = await RawWebSocket.connect('149.154.167.99', 'kws2.relay.example', timeout=2, dpi_port=port)
+        try:
+            data = bytes(range(256)) * 4096
+            await ws.send(data)
+            assert await asyncio.wait_for(ws.recv(), 2) == data
+            assert state['names'] == ['kws2.relay.example']
+            assert b'Host: kws2.relay.example\r\n' in state['requests'][0]
+            assert ws.writer.get_extra_info('ssl_object').context.check_hostname
         finally:
             await ws.close()
 

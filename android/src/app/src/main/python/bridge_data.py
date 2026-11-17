@@ -175,6 +175,19 @@ def instagram_args(profile_id,directory,adaptive=True):
     return bye_args(profile_id,directory,adaptive,'bye-instagram-hosts.txt')
 
 
+def transport_args(preferred=''):
+    """Dedicated loopback listener for explicit HTTPS DNS and relay requests."""
+    profiles = [p for p in BASE if p.get("engine") == "byedpi"]
+    priority = [preferred, 'bye-tls', 'bye-fake-4', 'bye-disorder', 'bye-fake-6']
+    ordered = sorted(profiles, key=lambda p: priority.index(p['id']) if p['id'] in priority else len(priority))
+    args = ["--timeout", "2", "--auto-mode", "o,s"]
+    for index, profile in enumerate(ordered):
+        if index:
+            args += ["--auto=torst,ssl_err", "--auto-mode=o,s"]
+        args += ["--proto", "tls", *profile["args"]]
+    return json.dumps([*args, "--auto=none"])
+
+
 def extras_args(profile_id,directory,adaptive=True,geo_domains=(),direct_domains=(),builtins=True,telegram=False):
     """Local DPI only: canonical DNS destinations, no DNS relay endpoint.
 

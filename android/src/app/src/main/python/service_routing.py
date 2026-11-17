@@ -86,7 +86,8 @@ def best_profile(report, identifier, preferred, catalog, network_key):
 
 
 class ServiceRouter:
-    def __init__(self, default='comss', choices=None, directory=None, network_key='',allowed=None):
+    def __init__(self, default='comss', choices=None, directory=None, network_key='',allowed=None,fallback_port=None):
+        self.fallback_port=fallback_port
         self.selection = selection(default, choices)
         self.catalog = load_catalog(directory)
         self.default = selected_profile(default, directory)['id']
@@ -115,7 +116,8 @@ class ServiceRouter:
             return
         if check is None:
             from dns_matrix import probe
-            check = probe
+            from functools import partial
+            check = partial(probe,fallback_port=self.fallback_port) if self.fallback_port else probe
         self.checking, self.checked = True, time.monotonic()
         slots = asyncio.Semaphore(4)
         async def one(service):

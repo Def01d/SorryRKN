@@ -20,7 +20,7 @@ from geo_route import GeoRoutes, GeoRouteError
 
 TLS_FIRST_REPLY_TIMEOUT=10.0
 AI_ROUTE_URL='https://chatgpt.com/api/auth/providers'
-AI_ROUTE_TIMEOUT=8.0
+AI_ROUTE_TIMEOUT=16.0
 AI_ROUTE_CACHE_TTL=120.0
 
 
@@ -188,7 +188,8 @@ class Gateway:
                       "quic_blocked":0,"udp_forwarded":0,
                       "tx_bytes":0,"rx_bytes":0,"connect_failed":0,"relay_failed":0}
         self.stats.update(geo_attempts=0,geo_retries=0,geo_failures=0,geo_last_stage='',geo_last_endpoint='')
-        self.geo = GeoRoutes(self.stats)
+        self.transport_port=(routes or {}).get('transport_dpi')
+        self.geo = GeoRoutes(self.stats, self.transport_port)
         self.ai_route_check = None
         self._ai_route_checked = 0
         self._ai_route_lock = asyncio.Lock()
@@ -201,7 +202,8 @@ class Gateway:
         self.resolver = (SmartDNS(rules=self.routes.rules,own_ip=self.routes.own_ip,
                                  protected=self.routes.protected,profile=self.routes.ports.get('dns_profile','comss'),
                                  directory=self.routes.ports.get('dns_directory'),service_dns=self.routes.ports.get('service_dns'),
-                                 network_key=self.routes.ports.get('dns_network_key','')) if self.routes
+                                 network_key=self.routes.ports.get('dns_network_key',''),
+                                 fallback_port=self.transport_port) if self.routes
                          else Resolver(self.upstream_port))
         self.server = await asyncio.start_server(self.accept, "127.0.0.1", self.port)
         self.port = self.server.sockets[0].getsockname()[1]
@@ -250,7 +252,7 @@ class Gateway:
 
         Only fixed, unauthenticated diagnostic GETs are sent. Application TLS
         remains opaque, user requests are never replayed, and open sockets are
-        untouched. The probe uses the same direct Comss path as GeoRoutes; the
+        untouched. The probe uses the same direct and local DPI paths as GeoRoutes; the
         Android service excludes this process UID from its own VPN.
         """
         async with self._ai_route_lock:
@@ -282,14 +284,17 @@ class Gateway:
                 addresses=self.resolver.candidates('chatgpt.com',first)[:4]
                 if not addresses:
                     return dict(result,state='dns_failed')
-                tasks=[asyncio.create_task(self._check_ai_candidate(address)) for address in addresses]
+                paths=[None, self.transport_port] if self.transport_port else [None]
+                tasks=[asyncio.create_task(self._check_ai_candidate(address, path))
+                       for address in addresses for path in paths]
                 for completed in asyncio.as_completed(tasks):
                     candidate=await completed
                     result['candidates'].append(candidate)
                     if candidate.get('verified') and self.resolver.prefer('chatgpt.com',candidate['address']):
                         address=candidate['address']
-                        self.geo.failed.pop(('chatgpt.com',address,443),None)
-                        result.update(state='verified_public',verified=True,selected_address=address)
+                        self.geo.prefer('chatgpt.com',address,443,candidate['route'])
+                        result.update(state='verified_public',verified=True,selected_address=address,
+                                      selected_route=candidate['route'])
                         return result
                 if any(item.get('state')=='challenge' for item in result['candidates']):
                     result['state']='challenge'
@@ -303,16 +308,17 @@ class Gateway:
         return result
 
     @staticmethod
-    async def _check_ai_candidate(address):
+    async def _check_ai_candidate(address, proxy_port=None):
         from service_probe import _classify
-        result={'address':address,'state':'transport_error','verified':False}
+        result={'address':address,'state':'transport_error','verified':False,'route':'dpi' if proxy_port else 'direct'}
         # One verified TLS pool per endpoint: no connection is reused under a
         # different TLS identity, and environment/system proxies are ignored.
         inner=httpx.AsyncHTTPTransport(verify=verified_context(),trust_env=False,retries=0,
+            proxy=f"socks5://127.0.0.1:{proxy_port}" if proxy_port else None,
             limits=httpx.Limits(max_connections=1,max_keepalive_connections=0))
         transport=PinnedTransport(inner,{'chatgpt.com':address})
         try:
-            async with httpx.AsyncClient(transport=transport,trust_env=False,follow_redirects=False,timeout=4) as client:
+            async with httpx.AsyncClient(transport=transport,trust_env=False,follow_redirects=False,timeout=7 if proxy_port else 4) as client:
                 async with client.stream('GET',AI_ROUTE_URL,headers={'Accept':'application/json',
                     'Accept-Encoding':'identity','User-Agent':'SorryRKN-RouteCheck'}) as response:
                     body=bytearray()

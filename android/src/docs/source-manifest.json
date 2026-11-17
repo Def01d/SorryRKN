@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "scope": "Android source export; excludes generated build outputs and private local configuration",
   "manifest_self_excluded": true,
   "files": [
@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "size": 15944,
-      "sha256": "2bf9cc189716ac1c290f562e837b9c62d408590f7dc1feebd7ba9f23c8ae5876"
+      "size": 16995,
+      "sha256": "82093797677016dbb0830e6219f391a06c99f20357832a877249e8503989c5fd"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -36,7 +36,7 @@
     {
       "path": "app/build.gradle",
       "size": 3437,
-      "sha256": "c8524e31f8b756fcc6d477f25199b86a4002fe4ceca70553179441d789970a2d"
+      "sha256": "017d5024017ab0c2cf25ee7c8de946216ee5f32c2fb38ca8e3aa10ef93481ef4"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -90,8 +90,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 61214,
-      "sha256": "18bd8e870d4156dd288c3f98f34166a1e1c1f77972eb6369b52a40dd0e7b4c4f"
+      "size": 60582,
+      "sha256": "4761b88fa9c47d2d2e17e6640b064b9408737bc939701c7fb95120a8b65ae818"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
@@ -290,8 +290,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeService.java",
-      "size": 37428,
-      "sha256": "1997da0eed4d91036451541cec8199e9663e67e048bb76d469ceb10c9c13308e"
+      "size": 39193,
+      "sha256": "716f80dcc21c2baa238af314f286e15e28cef830f95e0dbfe180c79b4faf5e25"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeTile.java",
@@ -310,8 +310,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/DnsProfiles.java",
-      "size": 11858,
-      "sha256": "1f8b3e92c2bc272cd5dd97c1e3e3e5cad7aa801af22aa18ec44c3f147d68a900"
+      "size": 12055,
+      "sha256": "b238d21547a5dfb11d7a63a60dceb676d359cafa05f40b141625c6255b50ea53"
     },
     {
       "path": "app/src/main/java/dev/graybridge/MainActivity.java",
@@ -400,18 +400,18 @@
     },
     {
       "path": "app/src/main/python/android_bridge.py",
-      "size": 12145,
-      "sha256": "29ec9ab774732f15dd4a3182493d933e22f54059cb5463599ceb718164bbf9fa"
+      "size": 12223,
+      "sha256": "c598958066b29d836fb92f0bfd97519435f7ab956b8c4167b339189903ca81d4"
     },
     {
       "path": "app/src/main/python/bridge_data.py",
-      "size": 14784,
-      "sha256": "01080ccd221446bf0611922ac5de5e776462ab7ac162db181f6a6bd21d9b7e32"
+      "size": 15438,
+      "sha256": "811e9c5047b420d95dc714648a9d0f4d3806b37772dfd3f118608aff004d8a71"
     },
     {
       "path": "app/src/main/python/connection_health.py",
-      "size": 784,
-      "sha256": "07f6b0d926f1cda4a6704714bc55284123c666495fff9c2039f9f414a2883f25"
+      "size": 2123,
+      "sha256": "57957fd669f20f191d6918cfc9b69f57b8522688a4132de9d45cc17e07ab6df3"
     },
     {
       "path": "app/src/main/python/discord_gateway.py",
@@ -420,8 +420,8 @@
     },
     {
       "path": "app/src/main/python/dns_matrix.py",
-      "size": 9377,
-      "sha256": "7fb8307aeb31f9f9e1438b975fcd93616404c61d2f037bca632bbe6b76a52dae"
+      "size": 10967,
+      "sha256": "1e1e8401f3bc8e5ca6819b49d50598653f2e0fd35d2b8301b5013868f78a67ca"
     },
     {
       "path": "app/src/main/python/dns_profiles.json",
@@ -435,8 +435,8 @@
     },
     {
       "path": "app/src/main/python/doh.py",
-      "size": 12551,
-      "sha256": "8da24845524b567e22eadbfdbe6b9375c0d351383a42b2dc2f2d7d06e6b48e0c"
+      "size": 13792,
+      "sha256": "362ce0e211bc4dbe50e22a60cc4471065a7086d43527e1a823196d0eb207f3f7"
     },
     {
       "path": "app/src/main/python/extra_sites.py",
@@ -445,13 +445,13 @@
     },
     {
       "path": "app/src/main/python/gateway.py",
-      "size": 25456,
-      "sha256": "48b8c8e2f827f852230c3450a4032df296effab2df25f51b7d37109c5e660be2"
+      "size": 26513,
+      "sha256": "a89a42faa7cfda8a8cda3fdda0728b926ac2503421360a51ef1ff10f9c4e84f5"
     },
     {
       "path": "app/src/main/python/geo_route.py",
-      "size": 4938,
-      "sha256": "4b4237ecf325d858564034b7e0f6d972ee8747ab8f4b5c5ce8569943a204bfb7"
+      "size": 6164,
+      "sha256": "caf79b01f874f1b6e75782aa395b43cd17759d72281ab7881bc669fc02aba3b8"
     },
     {
       "path": "app/src/main/python/proxy/__init__.py",
@@ -480,8 +480,8 @@
     },
     {
       "path": "app/src/main/python/proxy/config.py",
-      "size": 7017,
-      "sha256": "d10caba9583d17724f2b92c041394f4c8a801c0a8e81427c592cc3bcb5a95c9d"
+      "size": 7045,
+      "sha256": "71bf3b00c2dd85f10d350c99bc37cebec0a3d3c0e39cba65457ccd96f030dc71"
     },
     {
       "path": "app/src/main/python/proxy/fake_tls.py",
@@ -515,8 +515,8 @@
     },
     {
       "path": "app/src/main/python/proxy/raw_websocket.py",
-      "size": 15587,
-      "sha256": "e1e2526c8b5cf31256658411f6400d84a6e0222af2ce36b13ae662d05faebba4"
+      "size": 15695,
+      "sha256": "fc48d5ee2d8200969ce1c58a22000dffbf4308278b1dbf24902cccdeb0c14569"
     },
     {
       "path": "app/src/main/python/proxy/route_diagnostics.py",
@@ -530,8 +530,8 @@
     },
     {
       "path": "app/src/main/python/proxy/telegram_endpoints.py",
-      "size": 2565,
-      "sha256": "ba194dce32491d17eba31b478caaca24668800d31ea9153ef27068d537ce47b4"
+      "size": 2651,
+      "sha256": "9cc3d94d36cba4cb7be7a7791dfeb130d062c12d14818c3773a3ca37f8edba1d"
     },
     {
       "path": "app/src/main/python/proxy/tg_ws_proxy.py",
@@ -545,8 +545,8 @@
     },
     {
       "path": "app/src/main/python/proxy/verified_routes.py",
-      "size": 10644,
-      "sha256": "fd7c6d81c4d8ae5c5ce2d012e103a5a9b47ee717a53811652b7d21ecb8996879"
+      "size": 11062,
+      "sha256": "1cfe311c9c332e7711a0a6eaf8589fb30a5cfe98dd5e43299036cbc78c62f538"
     },
     {
       "path": "app/src/main/python/remote_nodes.py",
@@ -565,8 +565,8 @@
     },
     {
       "path": "app/src/main/python/service_routing.py",
-      "size": 7292,
-      "sha256": "5643835ccaa1f0c43c9b12dc1f1a9a4d41213cdaabd5618395073e99f4dbce70"
+      "size": 7629,
+      "sha256": "f4748b7ee38757cce590bea2e678186d10372e11a82311f182bda725a57cf45e"
     },
     {
       "path": "app/src/main/python/services.json",
@@ -575,13 +575,13 @@
     },
     {
       "path": "app/src/main/python/smart_dns.py",
-      "size": 7295,
-      "sha256": "2d950ed3b829bae7ed38d643865c80bdb83250796f9071d186a4ebaf82923a38"
+      "size": 7601,
+      "sha256": "97f4cc6a4f5637c3d64aa42c06ec94cb435d05e04bb56cac2de7907af36e4772"
     },
     {
       "path": "app/src/main/python/strategy_probe.py",
-      "size": 9126,
-      "sha256": "0a73cb93b55342024223ab73eebb2b6026f7e37e20d29b6d82a53ca79516e6a8"
+      "size": 9299,
+      "sha256": "ed38bab87b622f48d261dc654f6a080bb5592fc7a9a0054bf0863597258bd875"
     },
     {
       "path": "app/src/main/python/telegram_probe.py",
@@ -655,8 +655,8 @@
     },
     {
       "path": "docs/source-files.txt",
-      "size": 48414,
-      "sha256": "4d6ab75a86f07b292afd983c1a59369f9652aa7387acf79069cd1341b4fa7a6c"
+      "size": 48442,
+      "sha256": "ffcb5867add990be77a93d0d3ceda7d3aed20f1b85ba148539510b219aca3627"
     },
     {
       "path": "docs/upstream-lock.json",
@@ -835,8 +835,8 @@
     },
     {
       "path": "tests/test_geo_route.py",
-      "size": 8960,
-      "sha256": "e69c7bdd85e2547815f1222bd36662d0422dcc3c1220086b367cb2adde9898e2"
+      "size": 9808,
+      "sha256": "d30884e42e648117af6276f2a705ff2965ada5b3bce84d31e27e7548483ec770"
     },
     {
       "path": "tests/test_media_health.py",
@@ -885,8 +885,8 @@
     },
     {
       "path": "tests/test_telegram_local_dpi.py",
-      "size": 10474,
-      "sha256": "a2f685cd804f0cd71d350b529bbf1c27f36a43e8422777b85c250f28f7819080"
+      "size": 11327,
+      "sha256": "9f82b3d4d6594fffda571de19f67f9819a7aaf6f2d48cbb43ef93c7733f34674"
     },
     {
       "path": "tests/test_telegram_native_endpoints.py",
@@ -925,13 +925,18 @@
     },
     {
       "path": "tests/test_telegram_verified_routes.py",
-      "size": 13413,
-      "sha256": "103857e1a043709d50edd2b399cc11f013a32addb4a93c7ca41421a6d30a4582"
+      "size": 13856,
+      "sha256": "aaf9b0b5dc477f4fcfab7ca0dce7d66cec14fa4fc9144603e3e39189c2732915"
     },
     {
       "path": "tests/test_traffic.py",
       "size": 6085,
       "sha256": "08aaabf1cd4c793f1fc2e992711e6a641d1ea47acfa050dfb68b55bdb4ec5841"
+    },
+    {
+      "path": "tests/test_transport_dpi.py",
+      "size": 10366,
+      "sha256": "202bc52302a48e13b0b79461d6f86a441252481d89190ed89017d78d30b66484"
     },
     {
       "path": "tests/test_updates_and_selection.py",

@@ -132,13 +132,13 @@ class RawWebSocket:
     async def connect(host: str, domain: str, timeout: float = 10.0,
                       path: str = '/apiws', *,
                       sni: Optional[str] = None, secure = True,
-                      direct: bool = False) -> 'RawWebSocket':
+                      direct: bool = False, dpi_port: int = 0) -> 'RawWebSocket':
         # One deadline covers TCP, SOCKS, TLS and every HTTP response header.
         # A slow or broken peer cannot keep a pool slot indefinitely occupied.
         compatible = legacy_fronting(host, domain, sni)
         use_dpi = (not direct and not compatible and secure
-                   and domain.lower().endswith('.web.telegram.org')
-                   and proxy_config.telegram_dpi_port > 0)
+                   and (dpi_port > 0 or domain.lower().endswith('.web.telegram.org')
+                        and proxy_config.telegram_dpi_port > 0))
         route = 'ws_fronting' if compatible else ('ws_local_socks' if use_dpi else 'ws_direct')
         attempt = Attempt(route, domain, host, 443 if secure else 80)
         attempt.stage('local_socket' if use_dpi else 'tcp')
@@ -147,7 +147,7 @@ class RawWebSocket:
             # failed stage, while a losing race/lifecycle stop is cancellation.
             async with asyncio.timeout(timeout):
                 return await RawWebSocket._connect(host, domain, timeout, path,
-                    sni=sni, secure=secure, direct=direct, attempt=attempt)
+                    sni=sni, secure=secure, direct=direct, attempt=attempt, dpi_port=dpi_port)
         except asyncio.CancelledError:
             attempt.cancel()
             raise
@@ -158,7 +158,7 @@ class RawWebSocket:
             attempt.finish()
 
     @staticmethod
-    async def _connect(host, domain, timeout, path, *, sni, secure, direct=False, attempt):
+    async def _connect(host, domain, timeout, path, *, sni, secure, direct=False, attempt, dpi_port=0):
         compatible = legacy_fronting(host, domain, sni)
         # This pinned Telegram endpoint historically requires a decoy SNI.
         # Preserve upstream certificate-chain verification for exactly that
@@ -169,13 +169,13 @@ class RawWebSocket:
             sni = domain
 
         use_dpi = (not direct and not compatible and secure
-                   and domain.lower().endswith('.web.telegram.org')
-                   and proxy_config.telegram_dpi_port > 0)
+                   and (dpi_port > 0 or domain.lower().endswith('.web.telegram.org')
+                        and proxy_config.telegram_dpi_port > 0))
         writer = None
         try:
             if use_dpi:
                 reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection('127.0.0.1', proxy_config.telegram_dpi_port),
+                    asyncio.open_connection('127.0.0.1', dpi_port or proxy_config.telegram_dpi_port),
                     timeout=min(timeout, 10))
                 attempt.success()
                 set_sock_opts(writer.transport, proxy_config.buffer_size)

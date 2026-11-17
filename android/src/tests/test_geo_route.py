@@ -82,6 +82,19 @@ async def test_production_fallback_finishes_before_five_second_client_timeout(tm
         assert gw.stats['geo_retries']==1
 
 @pytest.mark.asyncio
+async def test_unavailable_dpi_listener_falls_back_to_verified_direct_tls(tmp_path,monkeypatch,tls):
+    import socket
+    async with chatgpt_gateway(tmp_path,monkeypatch,tls,'refused')as (gw,port,requests,*rest):
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1',0)); gw.geo.proxy_port=sock.getsockname()[1]
+        async def resolve(host):return '127.0.0.1'
+        gw.resolver.resolve=resolve
+        async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(proxy=f'socks5://127.0.0.1:{gw.port}',verify=tls[1],trust_env=False),timeout=5,trust_env=False)as client:
+            assert (await client.post(f'https://chatgpt.com:{port}/once',content=b'application')).text=='working'
+        assert len(requests)==1 and gw.stats['geo_last_route']=='direct'
+        assert gw.stats['geo_retries']==1
+
+@pytest.mark.asyncio
 async def test_dns_fallback_does_not_weaken_real_certificate_verification(tmp_path,monkeypatch,tls):
     async with chatgpt_gateway(tmp_path,monkeypatch,tls,'refused')as (gw,port,*rest):
         async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(proxy=f'socks5://127.0.0.1:{gw.port}',verify=True,trust_env=False),trust_env=False)as client:

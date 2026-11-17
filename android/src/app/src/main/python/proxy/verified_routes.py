@@ -24,8 +24,8 @@ from .route_diagnostics import Attempt
 from .utils import PROTO_TAG_ABRIDGED, WS_PATH, WS_PATH_TEST, ws_domains
 
 CONNECT_TIMEOUT = 3.0
-PROBE_TIMEOUT = 3.5
-SELECT_TIMEOUT = 4.0
+PROBE_TIMEOUT = 10.0
+SELECT_TIMEOUT = 12.0
 FIRST_REPLY_TIMEOUT = 8.0
 CACHE_SECONDS = 60.0
 FAILED_SECONDS = 15.0
@@ -108,8 +108,9 @@ async def open_route(route):
         set_sock_opts(writer.transport, proxy_config.buffer_size)
         return TcpTransport(reader, writer)
     return await RawWebSocket.connect(
-        route.host, route.domain, timeout=CONNECT_TIMEOUT, path=route.path,
-        sni=route.sni, direct=route.direct, secure=not proxy_config.disable_secure)
+        route.host, route.domain, timeout=9.0, path=route.path,
+        sni=route.sni, direct=route.direct, secure=not proxy_config.disable_secure,
+        dpi_port=proxy_config.relay_dpi_port if route.kind in ('cf', 'worker') else 0)
 
 
 class PacketReader:
@@ -143,6 +144,9 @@ async def _probe(route, dc, delay, test=False):
     transport = None
     failure_key = abs(dc), dc < 0, test, route
     diagnostic = route.kind if route.kind in ('native_tcp', 'ws_fronting') else 'ws_direct'
+    if (not route.direct and diagnostic == 'ws_direct' and
+            (proxy_config.relay_dpi_port if route.kind in ('cf', 'worker') else proxy_config.telegram_dpi_port)):
+        diagnostic = 'ws_local_socks'
     attempt = None
     try:
         await asyncio.sleep(delay)
@@ -227,6 +231,8 @@ async def select(dc, media, test):
         for index, base in enumerate(islice(balancer.get_domains_for_dc(dc), 2)):
             domain = f'kws{dc}.{base}'
             add(Route('cf', domain, domain=domain), .6 + index * .1)
+            if proxy_config.relay_dpi_port:
+                add(Route('cf', domain, domain=domain, direct=True), .9 + index * .1)
     for index, domain in enumerate(proxy_config.cfproxy_worker_domains[:2]):
         query = urlencode({'dst': native[0][0], 'dc': dc})
         add(Route('worker', domain, domain=domain, path='/apiws?' + query), .6 + index * .1)

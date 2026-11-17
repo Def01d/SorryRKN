@@ -27,6 +27,7 @@ public class BridgeService extends VpnService {
     static final int PROBE_PORT = 31082;
     static final int DISCORD_PORT = 31083;
     static final int EXTRAS_PORT = 31084;
+    static final int TRANSPORT_PORT = 31085;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile boolean desired;
@@ -35,6 +36,7 @@ public class BridgeService extends VpnService {
     private Process tpws;
     private Process discordProcess;
     private Process instagramProcess;
+    private Process transportProcess;
     private Strategies.Profile youtubeProfile,discordProfile;
     private Thread tunnelThread;
     private PyObject engine;
@@ -93,7 +95,8 @@ public class BridgeService extends VpnService {
                     if(SystemClock.elapsedRealtime()-connectedAt>60000)recoveryFailures=0;
                     if ((vpnActive && (tunnelThread == null || !tunnelThread.isAlive())) ||
                         (dpiActive && (tpws==null || !tpws.isAlive() || (discordProcess!=null && !discordProcess.isAlive()))) ||
-                        (instagramProcess!=null && !instagramProcess.isAlive()))
+                        (instagramProcess!=null && !instagramProcess.isAlive()) ||
+                        (transportProcess!=null && !transportProcess.isAlive()))
                         throw new IOException("Сетевой модуль остановился");
                     if (engine != null && !engine.callAttr("is_running").toBoolean())
                         throw new IOException("Локальный прокси остановился");
@@ -187,6 +190,8 @@ public class BridgeService extends VpnService {
                 if(Build.VERSION.SDK_INT>=29)networkReport.put("mtu",links.getMtu());
             }
             Settings.prefs(this).edit().putString("network_report",networkReport.toString()).apply();
+            transportProcess=launchTransport();
+            awaitPort(TRANSPORT_PORT,transportProcess);
             if (Settings.dpi(this)) {
                 Strategies.Profile chosen = chooseStrategy();
                 if (!desired) { closeResources(); return; }
@@ -213,10 +218,15 @@ public class BridgeService extends VpnService {
                 }
             }
             if (!desired) { closeResources(); return; }
+            if(discordProfile!=null && discordProfile.id.startsWith("bye-")) {
+                stopTransport();
+                transportProcess=launchTransport();
+                awaitPort(TRANSPORT_PORT,transportProcess);
+            }
             vpnActive=dpiActive || Settings.extras(this) || UserRules.geo(this);
             if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
             engine = Python.getInstance().getModule("android_bridge");
-            JSONObject routes=new JSONObject().put("gateway_port",GATEWAY_PORT);
+            JSONObject routes=new JSONObject().put("gateway_port",GATEWAY_PORT).put("transport_dpi",TRANSPORT_PORT);
             boolean telegram=Settings.telegram(this);
             if(telegram)routes.put("telegram_port",Settings.prepareTelegramPort(this))
                 .put("telegram_dpi",EXTRAS_PORT).put("telegram_relay",Settings.telegramRelay(this));
@@ -293,6 +303,20 @@ public class BridgeService extends VpnService {
             "--hostlist-exclude=" + new File(getFilesDir(), "exclude.txt").getPath()));
             args.addAll(profile.args);
         }
+        return launchProcess(args);
+    }
+
+    private Process launchTransport() throws Exception {
+        List<String> args=new ArrayList<>(Arrays.asList(
+            new File(getApplicationInfo().nativeLibraryDir,"libbyedpi.so").getPath(),
+            "--ip","127.0.0.1","--port",Integer.toString(TRANSPORT_PORT),"--max-conn","512"));
+        String preferred=discordProfile!=null ? discordProfile.id : youtubeProfile!=null ? youtubeProfile.id : "";
+        JSONArray options=new JSONArray(DataUpdates.module(this).callAttr("transport_args",preferred).toString());
+        for(int i=0;i<options.length();i++)args.add(options.getString(i));
+        return launchProcess(args);
+    }
+
+    private Process launchProcess(List<String> args) throws IOException {
         Process process = new ProcessBuilder(args).redirectErrorStream(true).start();
         Thread drain = new Thread(() -> {
             try (InputStream in = process.getInputStream()) {
@@ -365,7 +389,7 @@ public class BridgeService extends VpnService {
                 tpws = launch(p, PROBE_PORT, false);
                 awaitPort(PROBE_PORT);
                 if (!desired) return null;
-                JSONObject result = new JSONObject(probe.callAttr("probe", PROBE_PORT, this).toString());
+                JSONObject result = new JSONObject(probe.callAttr("probe", PROBE_PORT, this, TRANSPORT_PORT).toString());
                 if (result.optBoolean("cancelled")) return null;
                 result.put("strategy",p.name);
                 reports.put(result);
@@ -432,7 +456,7 @@ public class BridgeService extends VpnService {
         Process candidate=launch(profile,PROBE_PORT,false);
         try {
             awaitPort(PROBE_PORT,candidate);
-            return new JSONObject(Python.getInstance().getModule("strategy_probe").callAttr("probe",PROBE_PORT,this).toString());
+            return new JSONObject(Python.getInstance().getModule("strategy_probe").callAttr("probe",PROBE_PORT,this,TRANSPORT_PORT).toString());
         } finally {
             candidate.destroy();
             if(!candidate.waitFor(1,TimeUnit.SECONDS))candidate.destroyForcibly();
@@ -556,6 +580,15 @@ public class BridgeService extends VpnService {
         finishStopped("error", detail, commandId);
     }
 
+    private void stopTransport() {
+        if(transportProcess==null)return;
+        transportProcess.destroy();
+        try {
+            if(!transportProcess.waitFor(1,TimeUnit.SECONDS))transportProcess.destroyForcibly().waitFor(1,TimeUnit.SECONDS);
+        } catch(InterruptedException e) { Thread.currentThread().interrupt();transportProcess.destroyForcibly(); }
+        transportProcess=null;
+    }
+
     private void closeResources() {
         started = false;
         dpiActive = false;
@@ -576,6 +609,7 @@ public class BridgeService extends VpnService {
         }
         if (tun != null) { try { tun.close(); } catch (IOException ignored) { } tun = null; }
         if (engine != null) { try { engine.callAttr("stop"); } catch (Exception ignored) { } engine = null; }
+        stopTransport();
         if(instagramProcess!=null) {
             instagramProcess.destroy();
             try { if(!instagramProcess.waitFor(1,TimeUnit.SECONDS))instagramProcess.destroyForcibly(); }

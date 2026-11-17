@@ -68,6 +68,7 @@ class ProxyConfig:
     buffer_size: int = 256 * 1024
     # Device-local DPI engine. Telegram still connects to its own endpoints.
     telegram_dpi_port: int = 0
+    relay_dpi_port: int = 0
     # Android enables protocol-verified route selection; legacy CLI remains compatible.
     verified_routes: bool = False
     pool_size: int = 4

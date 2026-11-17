@@ -52,11 +52,11 @@ async def check_detail(client,target):
     return detail
 
 
-async def probe_async(port, control, transport=None, verify=True, timeout=3, bootstrap=True,full_discord=False,addresses=None,gateway_check=None):
+async def probe_async(port, control, transport=None, verify=True, timeout=3, bootstrap=True,full_discord=False,addresses=None,gateway_check=None,fallback_port=None):
     if transport is None and bootstrap:
         # Use the same verified DoH path as the VPN. SOCKS remote DNS would
         # otherwise resolve target names using the operator's system DNS.
-        resolver=Resolver(port)
+        resolver=Resolver(port,fallback_port=fallback_port) if fallback_port else Resolver(port)
         hosts={httpx.URL(target[1]).host for target in TARGETS}
         if full_discord:hosts.update((GATEWAY_HOST,httpx.URL(CDN_TARGET[1]).host))
         tasks={host:asyncio.create_task(resolver.resolve(host)) for host in hosts}
@@ -65,7 +65,7 @@ async def probe_async(port, control, transport=None, verify=True, timeout=3, boo
             try:
                 # DNS bootstrap is a separate bounded phase. A stalled
                 # provider must not consume the entire Java selection loop.
-                async with asyncio.timeout(timeout+0.3):
+                async with asyncio.timeout(max(timeout+0.3,9) if fallback_port else timeout+0.3):
                     while not all(task.done() for task in tasks.values()):
                         if not control.keepRunning(): raise asyncio.CancelledError()
                         await asyncio.sleep(.05)
@@ -138,9 +138,9 @@ async def probe_async(port, control, transport=None, verify=True, timeout=3, boo
                 await asyncio.gather(group, return_exceptions=True)
 
 
-def probe(port, control):
+def probe(port, control, fallback_port=None):
     try:
-        return json.dumps(asyncio.run(probe_async(port, control,full_discord=True)))
+        return json.dumps(asyncio.run(probe_async(port, control,full_discord=True,fallback_port=fallback_port)))
     except asyncio.CancelledError:
         return json.dumps({"cancelled": True, "passed": 0, "total": len(TARGETS), "complete": False})
 

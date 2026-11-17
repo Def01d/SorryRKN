@@ -27,12 +27,13 @@ class TelegramEndpoints:
 
     async def addresses(self, domain, pinned=None):
         if self.resolver is None:
-            self.resolver = Resolver(None)
+            from .config import proxy_config
+            self.resolver = Resolver(None, fallback_port=proxy_config.relay_dpi_port)
         result = []
         attempt = Attempt('dns', domain)
         attempt.stage('dns')
         try:
-            first = await asyncio.wait_for(self.resolver.resolve(domain), 3.5)
+            first = await asyncio.wait_for(self.resolver.resolve(domain), 9)
             if first:
                 result.extend((first, *self.resolver.last_addresses.get(domain, ())))
                 attempt.success(answers=min(256, len(set(result))))

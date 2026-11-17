@@ -61,21 +61,42 @@ def classify(service_id, status, headers, body):
     return state
 
 
-async def probe(profile, service):
+async def probe(profile, service, fallback_port=None):
+    if not fallback_port:
+        return await _probe(profile,service)
+    async def attempt(protected):
+        if protected: await asyncio.sleep(.25)
+        return await _probe(profile,service,fallback_port if protected else None,fallback_port)
+    tasks=[asyncio.create_task(attempt(False)),asyncio.create_task(attempt(True))]
+    results=[]
+    try:
+        for completed in asyncio.as_completed(tasks):
+            result=await completed
+            results.append(result)
+            if result['state'] in ('reachable_public','login_unchecked'):return result
+        return next((r for r in results if r['state'] in ('challenge','rate_limited','regional_refusal')),results[-1])
+    finally:
+        for task in tasks:task.cancel()
+        await asyncio.gather(*tasks,return_exceptions=True)
+
+
+async def _probe(profile, service, proxy_port=None, fallback_port=None):
     identifier, name, url = service
     host = httpx.URL(url).host
     result = {'service': identifier, 'name': name, 'state': 'dns_error',
-              'authenticated_access': False,'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')}
+              'authenticated_access': False,'route':'dpi' if proxy_port else 'direct',
+              'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')}
     started = time.monotonic()
-    resolver = Resolver(None, providers=providers(profile))
+    resolver = Resolver(None, providers=providers(profile),fallback_port=fallback_port) if fallback_port else Resolver(None, providers=providers(profile))
     try:
-        async with asyncio.timeout(7):
+        async with asyncio.timeout(16 if fallback_port else 7):
             first = await resolver.resolve(host)
             addresses = resolver.last_addresses.get(host, ())[:3]
             if not first:
                 return result
             for address in addresses:
                 transport = PinnedTransport(httpx.AsyncHTTPTransport(
+                    proxy=f'socks5://127.0.0.1:{proxy_port}' if proxy_port else None,
                     verify=verified_context(), trust_env=False, retries=0,
                     limits=httpx.Limits(max_connections=1, max_keepalive_connections=0)), {host: address})
                 try:
@@ -141,7 +162,7 @@ def catalog_json(directory):
     return json.dumps(load_catalog(directory), ensure_ascii=False)
 
 
-def scan_json(directory, refresh=True, force=True, selected='{}', network_key=''):
+def scan_json(directory, refresh=True, force=True, selected='{}', network_key='',fallback_port=None):
     async def run():
         value=json.loads(selected)
         chosen=selection(value.get('default','comss'),value.get('services',{}))
@@ -152,7 +173,8 @@ def scan_json(directory, refresh=True, force=True, selected='{}', network_key=''
             await refresh_catalog(directory)
         catalog=load_catalog(directory)
         if force:
-            report=await scan(catalog)
+            from functools import partial
+            report=await scan(catalog,check=partial(probe,fallback_port=fallback_port)) if fallback_port else await scan(catalog)
             report['coverage']='full'
         else:
             slots=asyncio.Semaphore(4)
@@ -163,7 +185,7 @@ def scan_json(directory, refresh=True, force=True, selected='{}', network_key=''
                     identifier=chosen['services'].get(service[0]) or chosen['default']
                     if identifier=='auto':identifier=best_profile(old,service[0],chosen['default'],catalog,network_key)
                     profile=next((p for p in catalog['profiles'] if p['id']==identifier),catalog['profiles'][0])
-                    result=await probe(profile,service)
+                    result=await probe(profile,service,fallback_port=fallback_port) if fallback_port else await probe(profile,service)
                     next(r for r in rows if r['id']==profile['id'])['results'][index]=result
             tasks=[asyncio.create_task(one(i,s)) for i,s in enumerate(SERVICES)]
             try:

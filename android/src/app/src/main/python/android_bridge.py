@@ -108,6 +108,7 @@ async def _serve(secret, telegram, dpi):
             proxy_config.cfproxy_h2_media = False
             proxy_config.cfproxy_worker_domains = []
             proxy_config.telegram_dpi_port = int((_routes or {}).get('telegram_dpi', 0))
+            proxy_config.relay_dpi_port = int(routes.get('transport_dpi', 0))
             if _data_directory:
                 apply_data(_data_directory)
             telegram_task = asyncio.create_task(tg_ws_proxy._run(_stop_event))

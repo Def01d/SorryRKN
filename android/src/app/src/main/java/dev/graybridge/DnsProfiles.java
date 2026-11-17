@@ -58,7 +58,7 @@ final class DnsProfiles {
                 JSONObject selected=new JSONObject().put("default",Settings.prefs(app).getString("dns_profile","comss"))
                     .put("services",new JSONObject(Settings.prefs(app).getString("service_dns","{}")));
                 String result=Python.getInstance().getModule("dns_matrix").callAttr("scan_json",
-                    app.getFilesDir().getPath(),Settings.prefs(app).getBoolean("auto_updates",true),force,selected.toString(),network).toString();
+                    app.getFilesDir().getPath(),Settings.prefs(app).getBoolean("auto_updates",true),force,selected.toString(),network,BridgeService.TRANSPORT_PORT).toString();
                 if(!network.equals(networkKey(app)))throw new IllegalStateException("Network changed");
                 new JSONObject(result);
                 Settings.prefs(app).edit().putString("dns_scan_report",result)

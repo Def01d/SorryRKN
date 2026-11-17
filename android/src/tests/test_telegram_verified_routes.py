@@ -233,6 +233,12 @@ async def test_existing_local_socks_and_scoped_fronting_connector_are_preserved(
     await routes.open_route(route)
     assert connect.await_args.kwargs['direct'] is True
     assert connect.await_args.kwargs['sni'] == 'sprinthost.ru'
+    monkeypatch.setattr(proxy_config, 'relay_dpi_port', 31085)
+    await routes.open_route(routes.Route('cf', 'kws2.relay.example', domain='kws2.relay.example'))
+    assert connect.await_args.kwargs['dpi_port'] == 31085
+    assert connect.await_args.kwargs['direct'] is False
+    await routes.open_route(routes.Route('cf', 'kws2.relay.example', domain='kws2.relay.example', direct=True))
+    assert connect.await_args.kwargs['direct'] is True
 
 
 @pytest.mark.asyncio
