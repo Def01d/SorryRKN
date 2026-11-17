@@ -20,6 +20,13 @@ import org.json.JSONArray;
 
 public class BridgeService extends VpnService {
     public static final String START = "dev.graybridge.START", STOP = "dev.graybridge.STOP", RETEST = "dev.graybridge.RETEST";
+    // Loopback sockets are shared across Android packages. Use a different
+    // range from the old dev.graybridge app, including for startup probes.
+    static final int DPI_PORT = 31080;
+    static final int GATEWAY_PORT = 31081;
+    static final int PROBE_PORT = 31082;
+    static final int DISCORD_PORT = 31083;
+    static final int EXTRAS_PORT = 31084;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile boolean desired;
@@ -184,11 +191,11 @@ public class BridgeService extends VpnService {
                 Strategies.Profile chosen = chooseStrategy();
                 if (!desired) { closeResources(); return; }
                 if(chosen!=null) {
-                    tpws = launch(chosen, 1080, true);
-                    awaitPort(1080); dpiActive = true;
+                    tpws = launch(chosen, DPI_PORT, true);
+                    awaitPort(DPI_PORT); dpiActive = true;
                     if(discordProfile!=null && !discordProfile.id.equals(chosen.id)) {
-                        discordProcess=launch(discordProfile,1083,true);
-                        awaitPort(1083,discordProcess);
+                        discordProcess=launch(discordProfile,DISCORD_PORT,true);
+                        awaitPort(DISCORD_PORT,discordProcess);
                     }
                 } else if(!Settings.telegram(this) && !Settings.extras(this) && !UserRules.geo(this)) throw new IOException("Рабочая стратегия DPI не найдена. Откройте диагностику.");
             }
@@ -197,7 +204,7 @@ public class BridgeService extends VpnService {
                 DataUpdates.module(this).callAttr("materialize",getFilesDir().getPath());
                 Strategies.Profile instagram=Strategies.load(this).stream().filter(p->p.id.equals("bye-disorder")).findFirst()
                     .orElseThrow(()->new IOException("Не найден метод для дополнительных сайтов"));
-                instagramProcess=launch(instagram,1084,true,true);awaitPort(1084,instagramProcess);
+                instagramProcess=launch(instagram,EXTRAS_PORT,true,true);awaitPort(EXTRAS_PORT,instagramProcess);
                 if(Settings.extras(this) || UserRules.geo(this)) {
                     String detail=Settings.prefs(this).getString("probe_result","");
                     Settings.prefs(this).edit().putString("probe_result",(detail.isEmpty()?"":detail+"\n")+
@@ -209,22 +216,24 @@ public class BridgeService extends VpnService {
             vpnActive=dpiActive || Settings.extras(this) || UserRules.geo(this);
             if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
             engine = Python.getInstance().getModule("android_bridge");
-            JSONObject routes=new JSONObject();
-            if(Settings.telegram(this))routes.put("telegram_dpi",1084).put("telegram_relay",Settings.telegramRelay(this));
-            if(dpiActive)routes.put("youtube",1080).put("discord",discordProcess==null?1080:1083);
-            if(Settings.extras(this))routes.put("smart_dns",true).put("instagram",1084).put("ai",1084);
-            if(UserRules.geo(this))routes.put("smart_dns",true).put("ai",1084);
+            JSONObject routes=new JSONObject().put("gateway_port",GATEWAY_PORT);
+            boolean telegram=Settings.telegram(this);
+            if(telegram)routes.put("telegram_port",Settings.prepareTelegramPort(this))
+                .put("telegram_dpi",EXTRAS_PORT).put("telegram_relay",Settings.telegramRelay(this));
+            if(dpiActive)routes.put("youtube",DPI_PORT).put("discord",discordProcess==null?DPI_PORT:DISCORD_PORT);
+            if(Settings.extras(this))routes.put("smart_dns",true).put("instagram",EXTRAS_PORT).put("ai",EXTRAS_PORT);
+            if(UserRules.geo(this))routes.put("smart_dns",true).put("ai",EXTRAS_PORT);
             routes.put("dns_profile",Settings.prefs(this).getString("dns_profile","comss")).put("dns_directory",getFilesDir().getPath());
             routes.put("service_dns",new JSONObject(Settings.prefs(this).getString("service_dns","{}")))
                 .put("dns_network_key",DnsProfiles.networkKey(this));
             routes.put("own_ip",!Settings.aiRelay(this)).put("builtin_extras",Settings.extras(this)).put("geo_domains",UserRules.domains(this,"geo_domains"))
                 .put("direct_domains",UserRules.domains(this,"direct_domains"));
-            engine.callAttr("start", Settings.secret(this), Settings.telegram(this), vpnActive, getFilesDir().getPath(),routes.toString());
+            engine.callAttr("start", telegram ? Settings.secret(this) : "", telegram, vpnActive, getFilesDir().getPath(),routes.toString());
             if (!desired) { closeResources(); return; }
             if (vpnActive) {
                 File config = new File(getFilesDir(), "tunnel.yml");
                 String yaml = "tunnel:\n  mtu: 1500\n  ipv4: 198.18.0.1\n  ipv6: 'fd00:1::1'\n" +
-                    "socks5:\n  address: 127.0.0.1\n  port: 1081\n  udp: 'udp'\n" +
+                    "socks5:\n  address: 127.0.0.1\n  port: " + GATEWAY_PORT + "\n  udp: 'udp'\n" +
                     "misc:\n  task-stack-size: 86016\n  tcp-buffer-size: 65536\n  max-session-count: 512\n" +
                     "  connect-timeout: 10000\n  tcp-read-write-timeout: 300000\n  udp-read-write-timeout: 60000\n  log-level: error\n";
                 try (OutputStream out = new FileOutputStream(config)) { out.write(yaml.getBytes(StandardCharsets.UTF_8)); }
@@ -353,10 +362,10 @@ public class BridgeService extends VpnService {
             Settings.prefs(this).edit().putString("probe_status", progress).apply();
             foreground(progress);
             try {
-                tpws = launch(p, 1082, false);
-                awaitPort(1082);
+                tpws = launch(p, PROBE_PORT, false);
+                awaitPort(PROBE_PORT);
                 if (!desired) return null;
-                JSONObject result = new JSONObject(probe.callAttr("probe", 1082, this).toString());
+                JSONObject result = new JSONObject(probe.callAttr("probe", PROBE_PORT, this).toString());
                 if (result.optBoolean("cancelled")) return null;
                 result.put("strategy",p.name);
                 reports.put(result);
@@ -420,10 +429,10 @@ public class BridgeService extends VpnService {
     }
 
     private JSONObject verifyProfile(Strategies.Profile profile) throws Exception {
-        Process candidate=launch(profile,1082,false);
+        Process candidate=launch(profile,PROBE_PORT,false);
         try {
-            awaitPort(1082,candidate);
-            return new JSONObject(Python.getInstance().getModule("strategy_probe").callAttr("probe",1082,this).toString());
+            awaitPort(PROBE_PORT,candidate);
+            return new JSONObject(Python.getInstance().getModule("strategy_probe").callAttr("probe",PROBE_PORT,this).toString());
         } finally {
             candidate.destroy();
             if(!candidate.waitFor(1,TimeUnit.SECONDS))candidate.destroyForcibly();

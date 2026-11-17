@@ -38,7 +38,7 @@ async def test_unavailable_partial_reachable_and_recovery_do_not_interrupt_user_
     monkeypatch.setattr(bridge, '_telegram_check', {'state': 'checking'})
     monkeypatch.setattr(bridge, '_stop_event', asyncio.Event())
     async def observe(port, secret, dc=2, is_media=False, timeout=None):
-        assert port == 1443 and secret == SECRET and is_media is False
+        assert port == 31443 and secret == SECRET and is_media is False
         assert timeout == 15
         ok = rounds[calls[dc]][dc - 1]
         calls[dc] += 1
@@ -63,7 +63,7 @@ async def test_unavailable_partial_reachable_and_recovery_do_not_interrupt_user_
             ended.set()
     server = await asyncio.start_server(user_session, '127.0.0.1', 0)
     reader, writer = await asyncio.open_connection('127.0.0.1', server.sockets[0].getsockname()[1])
-    task = asyncio.create_task(bridge._check_telegram(SECRET))
+    task = asyncio.create_task(bridge._check_telegram(31443, SECRET))
     try:
         for expected, interval, passed in [('unavailable', 30, 0), ('partial', 30, 2), ('reachable', 120, 5), ('unavailable', 30, 0)]:
             delay, result = await asyncio.wait_for(clock.rounds.get(), .5)
@@ -103,7 +103,7 @@ async def test_unexpected_probe_exception_is_unavailable_without_secret_or_stale
             raise RuntimeError('private secret=' + secret)
         return {'state': 'unavailable', 'dc': dc, 'error': 'TimeoutError'}
     monkeypatch.setattr(telegram_probe, 'check_telegram', faulty)
-    task = asyncio.create_task(bridge._check_telegram(SECRET))
+    task = asyncio.create_task(bridge._check_telegram(31443, SECRET))
     try:
         delay, result = await asyncio.wait_for(clock.rounds.get(), .5)
         assert result['state'] == 'unavailable' and delay == 30
@@ -126,8 +126,9 @@ async def test_startup_is_ready_while_observations_wait_and_shutdown_cancels_the
     never = asyncio.Event()
     runs = []
     class Gateway:
-        port = 1081
-        def __init__(self, **kwargs):
+        def __init__(self, port, **kwargs):
+            assert port == 31081
+            self.port = port
             self.stats = {}
             self.resolver = SimpleNamespace(provider='local test')
         async def start(self):order.append('gateway started')
@@ -138,12 +139,13 @@ async def test_startup_is_ready_while_observations_wait_and_shutdown_cancels_the
     class Pool:
         async def close(self):order.append('pool closed')
     async def run_proxy(stop):
+        assert config.proxy_config.port == 31443
         runs.append(True)
         tg_ws_proxy._server_instance = Server()
         try:await stop.wait()
         finally:order.append('proxy stopped')
     async def hanging(port, secret, dc=2, is_media=False, timeout=None):
-        assert port == 1443 and secret == SECRET
+        assert port == 31443 and secret == SECRET
         assert timeout == 15
         entered.add(dc)
         if entered == set(range(1, 6)):probes_started.set()
@@ -154,7 +156,8 @@ async def test_startup_is_ready_while_observations_wait_and_shutdown_cancels_the
     monkeypatch.setattr(bridge, 'Gateway', Gateway)
     monkeypatch.setattr(bridge, '_ready', threading.Event())
     monkeypatch.setattr(bridge, '_data_directory', None)
-    monkeypatch.setattr(bridge, '_routes', {'own_ip': True, 'telegram_dpi': 1084, 'builtin_extras': False})
+    monkeypatch.setattr(bridge, '_routes', {'own_ip': True, 'telegram_dpi': 31084, 'telegram_port': 31443,
+                                         'gateway_port': 31081, 'builtin_extras': False})
     for name in ('_loop', '_stop_event', '_gateway'):
         monkeypatch.setattr(bridge, name, None)
     monkeypatch.setattr(bridge, '_active', False)

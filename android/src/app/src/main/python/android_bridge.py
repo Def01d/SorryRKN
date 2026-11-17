@@ -19,13 +19,13 @@ _chatgpt_check = {"state": "disabled", "authenticated_access": False}
 _telegram_check = {"state": "disabled", "authenticated_access": False}
 
 
-async def _check_telegram(secret):
+async def _check_telegram(port, secret):
     """Observe protocol replies without restarting sessions or blocking startup."""
     global _telegram_check
     from telegram_probe import check_telegram
     while True:
         results = await asyncio.gather(*(
-            check_telegram(1443, secret, dc=dc, timeout=15) for dc in range(1, 6)),
+            check_telegram(port, secret, dc=dc, timeout=15) for dc in range(1, 6)),
             return_exceptions=True)
         targets = [result if isinstance(result, dict) else {
             'state': 'unavailable', 'dc': dc, 'stage': 'probe',
@@ -79,7 +79,9 @@ async def _serve(secret, telegram, dpi):
     global _loop, _stop_event, _active, _gateway, _chatgpt_check, _telegram_check
     _loop = asyncio.get_running_loop()
     _stop_event = asyncio.Event()
-    gateway = Gateway(directory=_data_directory,routes=_routes) if dpi else None
+    routes = _routes or {}
+    gateway = Gateway(port=routes.get("gateway_port", 1081), directory=_data_directory,
+                      routes=_routes) if dpi else None
     _gateway = gateway
     telegram_task = None
     service_task = None
@@ -96,7 +98,7 @@ async def _serve(secret, telegram, dpi):
         if telegram:
             from proxy.config import proxy_config
             from proxy import tg_ws_proxy
-            proxy_config.host, proxy_config.port = "127.0.0.1", 1443
+            proxy_config.host, proxy_config.port = "127.0.0.1", routes.get("telegram_port", 1443)
             proxy_config.secret = secret
             proxy_config.pool_size = 4
             # Only synthetic req_pq probes select routes. User ciphertext is
@@ -121,7 +123,7 @@ async def _serve(secret, telegram, dpi):
         _active = True
         if telegram:
             _telegram_check = {"state": "checking", "authenticated_access": False}
-            telegram_check_task = asyncio.create_task(_check_telegram(secret))
+            telegram_check_task = asyncio.create_task(_check_telegram(proxy_config.port, secret))
         if gateway and _routes and _routes.get('builtin_extras'):
             _chatgpt_check = {"state": "checking", "authenticated_access": False}
             service_task = asyncio.create_task(_check_chatgpt(gateway.port, gateway))

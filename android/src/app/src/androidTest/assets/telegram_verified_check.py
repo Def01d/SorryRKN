@@ -18,9 +18,9 @@ from proxy.stats import stats
 from telegram_probe import check_telegram
 
 
-async def _run(secret):
+async def _run(secret, port, dpi_port):
     assert proxy_config.verified_routes, 'Verified route selection is not enabled'
-    assert proxy_config.telegram_dpi_port == 1084, 'Native local DPI engine missing'
+    assert proxy_config.telegram_dpi_port == dpi_port, 'Native local DPI engine missing'
     assert hasattr(_aes, '_JavaCipher'), 'Packaged Android AES provider not active'
     assert raw_websocket._ssl_ctx.verify_mode == ssl.CERT_REQUIRED
     assert raw_websocket._ssl_ctx.check_hostname
@@ -29,7 +29,7 @@ async def _run(secret):
 
     async def check(dc, media):
         async with limit:
-            result = await check_telegram(1443, secret, dc=dc, is_media=media, timeout=20)
+            result = await check_telegram(port, secret, dc=dc, is_media=media, timeout=20)
             cached = verified_routes._cache.get((dc, media, False))
             if cached:
                 route = cached[0]
@@ -43,7 +43,7 @@ async def _run(secret):
         transport = None
         started = time.monotonic()
         domain = f'kws{dc}.web.telegram.org'
-        result = {'dc': dc, 'domain': domain, 'local_dpi_port': 1084,
+        result = {'dc': dc, 'domain': domain, 'local_dpi_port': dpi_port,
                   'certificate_validation_required': True, 'hostname_validation_required': True,
                   'certificate_chain_verified': False, 'hostname_verified': False,
                   'state': 'unavailable', 'error': ''}
@@ -79,10 +79,10 @@ async def _run(secret):
             'scope': 'Real Android service, synthetic MTProto only; no account login, message, file, or call checks'}
 
 
-def run(secret):
+def run(secret, port, dpi_port):
     assert android_bridge.is_running() and android_bridge._loop is not None
     assert threading.current_thread() is not android_bridge._thread
-    future = asyncio.run_coroutine_threadsafe(_run(secret), android_bridge._loop)
+    future = asyncio.run_coroutine_threadsafe(_run(secret, port, dpi_port), android_bridge._loop)
     try:
         return json.dumps(future.result(timeout=75))
     finally:

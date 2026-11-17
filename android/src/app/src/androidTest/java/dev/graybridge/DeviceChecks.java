@@ -158,7 +158,7 @@ public class DeviceChecks extends Instrumentation {
             if(profiles.size()<6) throw new AssertionError("Incomplete strategy catalog");
             // Exercise the Java/Python cancellation bridge without external connectivity.
             DataUpdates.Control cancelled = new DataUpdates.Control(); cancelled.cancel();
-            String probe = Python.getInstance().getModule("strategy_probe").callAttr("probe",1082,cancelled).toString();
+            String probe = Python.getInstance().getModule("strategy_probe").callAttr("probe",BridgeService.PROBE_PORT,cancelled).toString();
             if(!new org.json.JSONObject(probe).optBoolean("cancelled")) throw new AssertionError("Probe cancellation failed");
             report.putString("data","PASS: bundled snapshot, strategy catalog, Java/Python cancellation");
             if(arguments!=null && Boolean.parseBoolean(arguments.getString("dataPath","false"))) {
@@ -201,8 +201,8 @@ public class DeviceChecks extends Instrumentation {
                 BridgeService.start(target); waitFor(target,"partial",15000);
                 Thread.sleep(3500);
                 if(!Settings.state(target).equals("partial")) throw new AssertionError("Telegram fallback was not stable");
-                try(java.net.Socket socket=new java.net.Socket("127.0.0.1",1443)) { }
-                for(int port:new int[]{1080,1081,1082}) {
+                try(java.net.Socket socket=new java.net.Socket("127.0.0.1",Settings.telegramPort(target))) { }
+                for(int port:new int[]{BridgeService.DPI_PORT,BridgeService.GATEWAY_PORT,BridgeService.PROBE_PORT}) {
                     try(java.net.Socket socket=new java.net.Socket("127.0.0.1",port)) {
                         throw new AssertionError("Unverified DPI listener remained active: "+port);
                     } catch(java.io.IOException expected) { }
@@ -224,7 +224,7 @@ public class DeviceChecks extends Instrumentation {
             Thread.sleep(300);
             BridgeService.stop(target);
             waitFor(target,"off",15000);
-            for(int port: new int[]{1080,1082,1443}) {
+            for(int port: new int[]{BridgeService.DPI_PORT,BridgeService.PROBE_PORT,Settings.telegramPort(target)}) {
                 try(java.net.Socket socket=new java.net.Socket()) {
                     socket.connect(new java.net.InetSocketAddress("127.0.0.1",port),100);
                     throw new AssertionError("Port remained open after cancellation: "+port);
@@ -273,13 +273,13 @@ public class DeviceChecks extends Instrumentation {
             BridgeService.start(target);waitForEngine(target,30000);
             // Service startup must launch its packaged native ByeDPI, even in Telegram-only mode.
             try(java.net.Socket socket=new java.net.Socket()) {
-                socket.connect(new java.net.InetSocketAddress("127.0.0.1",1084),1000);
+                socket.connect(new java.net.InetSocketAddress("127.0.0.1",BridgeService.EXTRAS_PORT),1000);
             }
             com.chaquo.python.PyObject globals=Python.getInstance().getModule("builtins").callAttr("dict");
             try(java.io.InputStream input=getContext().getAssets().open("telegram_verified_check.py")) {
                 Python.getInstance().getModule("builtins").callAttr("exec",readUtf8(input),globals);
             }
-            String value=globals.callAttr("__getitem__","run").call(Settings.secret(target)).toString();
+            String value=globals.callAttr("__getitem__","run").call(Settings.secret(target),Settings.telegramPort(target),BridgeService.EXTRAS_PORT).toString();
             report.putString("telegram_verified",value);
             org.json.JSONObject result=new org.json.JSONObject(value);
             if(!result.optString("result").equals("PASS") || result.optInt("passed")!=10 || !result.optBoolean("engine_preserved"))
@@ -290,7 +290,7 @@ public class DeviceChecks extends Instrumentation {
                 BridgeService.stop(target);waitFor(target,"off",20000);
                 if(Python.getInstance().getModule("android_bridge").callAttr("is_running").toBoolean())
                     throw new AssertionError("Telegram engine remained active after verified check");
-                for(int port:new int[]{1084,1443}) {
+                for(int port:new int[]{BridgeService.EXTRAS_PORT,Settings.telegramPort(target)}) {
                     try(java.net.Socket socket=new java.net.Socket()) {
                         socket.connect(new java.net.InetSocketAddress("127.0.0.1",port),100);
                         throw new AssertionError("Check listener remained open: "+port);
@@ -354,7 +354,7 @@ public class DeviceChecks extends Instrumentation {
             target.unregisterReceiver(receiver);
             try {
                 BridgeService.stop(target);waitFor(target,"off",20000);
-                for(int port:new int[]{1080,1081,1082,1083,1084,1443}) {
+                for(int port:new int[]{BridgeService.DPI_PORT,BridgeService.GATEWAY_PORT,BridgeService.PROBE_PORT,BridgeService.DISCORD_PORT,BridgeService.EXTRAS_PORT,Settings.telegramPort(target)}) {
                     try(java.net.Socket socket=new java.net.Socket()) {
                         socket.connect(new java.net.InetSocketAddress("127.0.0.1",port),100);
                         throw new AssertionError("Public check listener remained open: "+port);
@@ -418,7 +418,7 @@ public class DeviceChecks extends Instrumentation {
                 throw new AssertionError("Media recovery restarted whole connection");
             if(!Python.getInstance().getModule("builtins").callAttr("id",Python.getInstance().getModule("android_bridge").get("_thread")).toString().equals(thread))
                 throw new AssertionError("Media recovery replaced network engine");
-            try(java.net.Socket socket=new java.net.Socket("127.0.0.1",1443)) { }
+            try(java.net.Socket socket=new java.net.Socket("127.0.0.1",Settings.telegramPort(target))) { }
             report.putString("telegram_media",value);
             report.putString("isolation","PASS: original service/engine remained on, Telegram listener available, no reconnect");
         } finally {
@@ -521,7 +521,7 @@ public class DeviceChecks extends Instrumentation {
             int restarts=globals.callAttr("__getitem__","_start_calls").toInt();
             if(restarts!=0)throw new AssertionError("Failed background probe restarted working engine: "+restarts);
             if(!prefs.getString("probe_result","").contains("есть ошибки"))throw new AssertionError("Failed probe not recorded");
-            try(java.net.Socket socket=new java.net.Socket("127.0.0.1",1443)) { }
+            try(java.net.Socket socket=new java.net.Socket("127.0.0.1",Settings.telegramPort(target))) { }
             report.putString("background_failure","PASS: failed background targets recorded; 23 s, no engine restart, Telegram available");
             int count=prefs.getInt("reconnect_count",0);
             Python.getInstance().getModule("android_bridge").callAttr("stop");
@@ -531,7 +531,7 @@ public class DeviceChecks extends Instrumentation {
                 Thread.sleep(100);
             }
             if(!Python.getInstance().getModule("android_bridge").callAttr("is_running").toBoolean())throw new AssertionError("Recovered engine not running");
-            try(java.net.Socket socket=new java.net.Socket("127.0.0.1",1443)) { }
+            try(java.net.Socket socket=new java.net.Socket("127.0.0.1",Settings.telegramPort(target))) { }
             report.putString("recovery","PASS: killed network engine restored automatically; Telegram listener available");
             report.putString("memory","PASS: isolated network choices; unrelated revision preserved, changed args rejected");
         } finally {
@@ -578,7 +578,7 @@ public class DeviceChecks extends Instrumentation {
             if(!UserRules.text(target,"geo_domains").equals("example.com")||!UserRules.text(target,"direct_domains").equals("chatgpt.com"))throw new AssertionError("GUI rules not saved");
             Settings.prefs(target).edit().putBoolean("dpi",false).putBoolean("telegram",false).putBoolean("extra_sites",false).apply();
             if(!Settings.vpn(target))throw new AssertionError("Custom geo-only mode did not request VPN");
-            org.json.JSONObject routes=new org.json.JSONObject().put("smart_dns",true).put("own_ip",true).put("telegram_relay",false).put("ai",1084).put("builtin_extras",false)
+            org.json.JSONObject routes=new org.json.JSONObject().put("smart_dns",true).put("own_ip",true).put("telegram_relay",false).put("ai",BridgeService.EXTRAS_PORT).put("builtin_extras",false)
                 .put("geo_domains",UserRules.domains(target,"geo_domains")).put("direct_domains",UserRules.domains(target,"direct_domains"));
             com.chaquo.python.PyObject globals=Python.getInstance().getModule("builtins").callAttr("dict");globals.callAttr("__setitem__","routes",routes.toString());
             Python.getInstance().getModule("builtins").callAttr("exec","import json\nfrom user_rules import DomainRules\nr=json.loads(routes)\np=DomainRules(r['geo_domains'],r['direct_domains'],r['builtin_extras'])\nassert p.is_geo('api.example.com') and not p.is_geo('chatgpt.com') and p.is_direct('api.chatgpt.com')\n",globals);
@@ -587,7 +587,7 @@ public class DeviceChecks extends Instrumentation {
             BridgeService.start(target);waitFor(target,"on",30000);
             if(!Settings.prefs(target).getBoolean("vpn_active",false))throw new AssertionError("Custom-only VPN is not active");
             org.json.JSONObject policy=new org.json.JSONObject(Python.getInstance().getModule("android_bridge").callAttr("diagnostics").toString());
-            if(!policy.optBoolean("own_ip") || policy.optBoolean("telegram_external_relays") || policy.has("smart_dns_provider") || policy.getJSONObject("routes").getInt("ai")!=1084)
+            if(!policy.optBoolean("own_ip") || policy.optBoolean("telegram_external_relays") || policy.has("smart_dns_provider") || policy.getJSONObject("routes").getInt("ai")!=BridgeService.EXTRAS_PORT)
                 throw new AssertionError("Custom rules do not use own-IP route");
             BridgeService.stop(target);waitFor(target,"off",20000);
             report.putString("user_rules","PASS: native editor, invalid input rejection, normalization, preferences, materialization preservation, custom-only VPN lifecycle and Java/Python policy");
@@ -639,7 +639,7 @@ public class DeviceChecks extends Instrumentation {
                 throw new AssertionError("Failed Discord gateway was incorrectly reported as successful");
             if(localTls && !extrasOnly) {
                 tlsGlobals.callAttr("__setitem__","_test_ca",arguments.getString("tlsCa"));
-                tlsGlobals.callAttr("__setitem__","_discord_port",mixed?1083:1080);
+                tlsGlobals.callAttr("__setitem__","_discord_port",mixed?BridgeService.DISCORD_PORT:BridgeService.DPI_PORT);
                 Python.getInstance().getModule("builtins").callAttr("exec",
                     "import asyncio,ssl,base64,discord_gateway\n"+
                     "context=ssl.create_default_context()\n"+
@@ -664,12 +664,12 @@ public class DeviceChecks extends Instrumentation {
                     throw new AssertionError("Own-IP service traffic used a relay");
                 if(traffic.optInt("direct_tcp")<1 || (!extrasOnly && (traffic.optInt("youtube_tcp")<1 || traffic.optInt("discord_tcp")<1)))
                     throw new AssertionError("HTTPS service routing counters incomplete: "+traffic);
-                if(extraSites && (traffic.optInt("ai_tcp")<3 || traffic.optInt("instagram_tcp")<2 || traffic.getJSONObject("routes").getInt("instagram")!=1084))
+                if(extraSites && (traffic.optInt("ai_tcp")<3 || traffic.optInt("instagram_tcp")<2 || traffic.getJSONObject("routes").getInt("instagram")!=BridgeService.EXTRAS_PORT))
                     throw new AssertionError("Extra service routing counters incomplete: "+traffic);
                 if(extrasOnly && (traffic.optInt("youtube_tcp")!=0 || traffic.optInt("discord_tcp")!=0))
                     throw new AssertionError("Disabled DPI routes were active: "+traffic);
                 report.putString("routing",traffic.toString());
-                if(mixed && traffic.getJSONObject("routes").getInt("discord")!=1083)
+                if(mixed && traffic.getJSONObject("routes").getInt("discord")!=BridgeService.DISCORD_PORT)
                     throw new AssertionError("Discord was not routed to its separate native process");
             }
         } finally {
@@ -681,7 +681,7 @@ public class DeviceChecks extends Instrumentation {
             if(mixed)clearStrategyMemory(target);
         if(mixed)Python.getInstance().getModule("builtins").callAttr("exec",
                 "strategy_probe.probe=_saved_probe\n",tlsGlobals);
-            for(int port:new int[]{1080,1081,1082,1083,1084,1443}) {
+            for(int port:new int[]{BridgeService.DPI_PORT,BridgeService.GATEWAY_PORT,BridgeService.PROBE_PORT,BridgeService.DISCORD_PORT,BridgeService.EXTRAS_PORT,Settings.telegramPort(target)}) {
                 try(java.net.Socket socket=new java.net.Socket("127.0.0.1",port)) {
                     throw new AssertionError("Port remained open after dataPath test: "+port);
                 } catch(java.io.IOException expected) { }
@@ -699,14 +699,14 @@ public class DeviceChecks extends Instrumentation {
             BridgeService.start(target);waitFor(target,"on",30000);
             com.chaquo.python.PyObject globals=Python.getInstance().getModule("builtins").callAttr("dict");
             Python.getInstance().getModule("builtins").callAttr("exec",
-                "from proxy.config import proxy_config\nfrom proxy import tg_ws_proxy\nassert not proxy_config.fallback_cfproxy and not proxy_config.cfproxy_worker_domains\nassert tg_ws_proxy.cf_h2_pool is None and proxy_config.telegram_dpi_port==1084\n",globals);
+                "from proxy.config import proxy_config\nfrom proxy import tg_ws_proxy\nassert not proxy_config.fallback_cfproxy and not proxy_config.cfproxy_worker_domains\nassert tg_ws_proxy.cf_h2_pool is None and proxy_config.telegram_dpi_port=="+BridgeService.EXTRAS_PORT+"\n",globals);
             try(java.io.InputStream input=getContext().getAssets().open("telegram_dpi_check.py")) {
                 Python.getInstance().getModule("builtins").callAttr("exec",readUtf8(input),globals);
             }
             String pem;
             try(java.io.InputStream input=new java.io.FileInputStream(certificate)){pem=readUtf8(input);}
             com.chaquo.python.PyObject result=Python.getInstance().getModule("asyncio").callAttr("run",
-                globals.callAttr("__getitem__","run").call(1084,pem));
+                globals.callAttr("__getitem__","run").call(BridgeService.EXTRAS_PORT,pem));
             report.putString("telegram_dpi",Python.getInstance().getModule("json").callAttr("dumps",result).toString());
             if(!Python.getInstance().getModule("android_bridge").callAttr("is_running").toBoolean())
                 throw new AssertionError("Telegram engine stopped during WSS transfer");

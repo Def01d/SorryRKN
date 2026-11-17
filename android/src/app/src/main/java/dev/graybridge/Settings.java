@@ -2,9 +2,12 @@ package dev.graybridge;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import java.security.SecureRandom;
 
 final class Settings {
+    private static final int LEGACY_TELEGRAM_PORT = 1443;
+    private static final int TELEGRAM_PORT = 31443;
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences("bridge", Context.MODE_PRIVATE); }
     static String state(Context c) { return prefs(c).getString("state", "off"); }
     static boolean busy(Context c) { return !state(c).equals("off") && !state(c).equals("error"); }
@@ -25,5 +28,20 @@ final class Settings {
         }
         return value;
     }
-    static String link(Context c) { return "tg://proxy?server=127.0.0.1&port=1443&secret=dd" + secret(c); }
+    static int telegramPort(Context c) { return prefs(c).getInt("telegram_port", TELEGRAM_PORT); }
+    static int prepareTelegramPort(Context c) {
+        SharedPreferences p = prefs(c);
+        int port = p.getInt("telegram_port", p.contains("secret") ? LEGACY_TELEGRAM_PORT : TELEGRAM_PORT);
+        if (port == LEGACY_TELEGRAM_PORT) {
+            try {
+                c.getPackageManager().getPackageInfo("dev.graybridge", 0);
+                port = TELEGRAM_PORT;
+            } catch (PackageManager.NameNotFoundException ignored) { }
+        }
+        p.edit().putInt("telegram_port", port).apply();
+        return port;
+    }
+    static String link(Context c) {
+        return "tg://proxy?server=127.0.0.1&port=" + telegramPort(c) + "&secret=dd" + secret(c);
+    }
 }

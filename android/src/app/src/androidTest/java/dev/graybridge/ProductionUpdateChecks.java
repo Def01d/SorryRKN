@@ -22,14 +22,16 @@ final class ProductionUpdateChecks {
             RemoteVault.write(c,"upgrade-check",new JSONObject().put("marker",marker));
             report.putString("seed","Production baseline state and AndroidKeyStore-encrypted vault saved");return;
         }
+        int versionCode=Integer.parseInt(args.getString("versionCode",Integer.toString(BuildConfig.VERSION_CODE)));
+        String versionName=args.getString("versionName",BuildConfig.VERSION_NAME);
         if("candidate".equals(mode)) {
             File candidate=copy(test,c,args.getString("candidate"),"update.part");
-            AppUpdates.verifyArchive(c,candidate,10000);candidate.delete();
+            AppUpdates.verifyArchive(c,candidate,versionCode);candidate.delete();
             android.content.pm.ProviderInfo provider=c.getPackageManager().resolveContentProvider(c.getPackageName()+".updates",0);
             if(provider==null || provider.exported || !provider.grantUriPermissions || provider.applicationInfo.uid!=c.getApplicationInfo().uid)
                 throw new AssertionError("Invalid production APK update provider");
             File wrong=copy(test,c,args.getString("wrongSigner"),"wrong-signer.apk");
-            try{AppUpdates.verifyArchive(c,wrong,10000);throw new AssertionError("Different APK signer accepted");}
+            try{AppUpdates.verifyArchive(c,wrong,versionCode);throw new AssertionError("Different APK signer accepted");}
             catch(IOException expected){}finally{wrong.delete();}
             report.putString("archive","Production signer accepted; same-package APK with a different signer rejected");return;
         }
@@ -37,12 +39,12 @@ final class ProductionUpdateChecks {
             String marker=Settings.prefs(c).getString("lineage_marker","");
             if(marker.isEmpty() || !marker.equals(RemoteVault.read(c,"upgrade-check").getString("marker")) ||
                 !Settings.prefs(c).getString("lineage_secret_sha","").equals(hash(Settings.secret(c))) ||
-                Settings.prefs(c).getInt("lineage_uid",-1)!=c.getApplicationInfo().uid || c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionCode!=10000)
+                Settings.prefs(c).getInt("lineage_uid",-1)!=c.getApplicationInfo().uid || c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionCode!=versionCode)
                 throw new AssertionError("State, signing identity or UID did not survive upgrade");
             report.putString("upgrade","In-place production APK upgrade preserved UID, Telegram secret, preferences and AndroidKeyStore vault");return;
         }
         if("offer".equals(mode) || "download".equals(mode)) {
-            if(c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionCode>=10000)throw new AssertionError("Install the signed baseline first");
+            if(c.getPackageManager().getPackageInfo(c.getPackageName(),0).versionCode>=versionCode)throw new AssertionError("Install the signed baseline first");
             Settings.prefs(c).edit().remove("apk_update_url").putBoolean("auto_updates",false)
                 .putLong("apk_update_checked",System.currentTimeMillis()).commit();
             Activity activity=null;
@@ -50,7 +52,7 @@ final class ProductionUpdateChecks {
                 activity=test.startActivitySync(new Intent(c,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 if("download".equals(mode)) {
                     File apk=new File(c.getCacheDir(),"update.apk");apk.delete();
-                    offer(test);click(test,"Обновить");
+                    offer(test,versionName);click(test,"Обновить");
                     long end=System.currentTimeMillis()+210000;
                     while(!apk.exists() && System.currentTimeMillis()<end)Thread.sleep(200);
                     if(!apk.exists())throw new AssertionError("Production APK download did not finish");
@@ -59,16 +61,16 @@ final class ProductionUpdateChecks {
                     MessageDigest digest=MessageDigest.getInstance("SHA-256");
                     try(InputStream in=new FileInputStream(apk)){byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1)digest.update(b,0,n);}
                     if(!wanted.equals(AppUpdates.hex(digest.digest())))throw new AssertionError("Downloaded APK differs from tagged release");
-                    AppUpdates.verifyArchive(c,apk,10000);
+                    AppUpdates.verifyArchive(c,apk,versionCode);
                     report.putString("download","Real startup update downloaded the immutable tagged APK and verified hash, package, version and production signer");return;
                 }
-                offer(test);dismiss(test);
+                offer(test,versionName);dismiss(test);
                 long checked=Settings.prefs(c).getLong("apk_update_checked",0);
                 shell(test,"input keyevent 3");Thread.sleep(200);
                 shell(test,"am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10000000 -n "+c.getPackageName()+"/dev.graybridge.MainActivity");
-                offer(test);dismiss(test);
+                offer(test,versionName);dismiss(test);
                 if(Settings.prefs(c).getLong("apk_update_checked",0)<=checked)throw new AssertionError("Reopen did not check again");
-                report.putString("startup_offer","Real signed android-update.json offered production 1.0.0 on launch and HOME/reopen despite a recent check");
+                report.putString("startup_offer","Real signed android-update.json offered production "+versionName+" on launch and HOME/reopen despite a recent check");
             }finally{if(activity!=null){Activity a=activity;test.runOnMainSync(a::finish);}}
             return;
         }
@@ -92,9 +94,9 @@ final class ProductionUpdateChecks {
         AccessibilityNodeInfo root=test.getUiAutomation().getRootInActiveWindow();if(root==null)return null;
         java.util.List<AccessibilityNodeInfo> list=root.findAccessibilityNodeInfosByText(text);return list.isEmpty()?null:list.get(0);
     }
-    private static void offer(Instrumentation test)throws Exception {
+    private static void offer(Instrumentation test,String versionName)throws Exception {
         long end=System.currentTimeMillis()+25000;
-        while(System.currentTimeMillis()<end){if(node(test,"SorryRKN 1.0.0")!=null)return;Thread.sleep(100);}
+        while(System.currentTimeMillis()<end){if(node(test,"SorryRKN "+versionName)!=null)return;Thread.sleep(100);}
         throw new AssertionError("Missing production update offer");
     }
     private static void dismiss(Instrumentation test)throws Exception {

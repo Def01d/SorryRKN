@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scope": "Android source export; excludes generated build outputs and private local configuration",
   "manifest_self_excluded": true,
   "files": [
@@ -36,7 +36,7 @@
     {
       "path": "app/build.gradle",
       "size": 3437,
-      "sha256": "bddc9eba0a7da323748bce76ddc0fd621a5f9d5477dbe01b4b1ade5fee967cca"
+      "sha256": "c8524e31f8b756fcc6d477f25199b86a4002fe4ceca70553179441d789970a2d"
     },
     {
       "path": "app/src/androidTest/assets/crypto_benchmark.py",
@@ -80,8 +80,8 @@
     },
     {
       "path": "app/src/androidTest/assets/telegram_verified_check.py",
-      "size": 4415,
-      "sha256": "b794c3febc2909f846f0ac562481e269d85e94322125cb9311e465bd2266e75c"
+      "size": 4471,
+      "sha256": "6dba0a7734a591bd933c88ddb60b326a75fbb44d7cd7162adb7df8d162f8bcaa"
     },
     {
       "path": "app/src/androidTest/assets/telegram_wire_check.py",
@@ -90,8 +90,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 60421,
-      "sha256": "64357c2eeb27e21bc1070af0dd76771864731a6c5755ad0e57eabc54a928218e"
+      "size": 61214,
+      "sha256": "18bd8e870d4156dd288c3f98f34166a1e1c1f77972eb6369b52a40dd0e7b4c4f"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",
@@ -110,8 +110,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/ProductionUpdateChecks.java",
-      "size": 7948,
-      "sha256": "fd34f2d9eccf93df189cd5edf9406001e4d9ab71433cbbf0f97da7a48e7e1262"
+      "size": 8249,
+      "sha256": "757d049833ed74aa4b22dc9d1ed9c5f871c28fd5ecaffa029f4c0ecbee3046d6"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/RemoteDeviceChecks.java",
@@ -130,8 +130,8 @@
     },
     {
       "path": "app/src/main/AndroidManifest.xml",
-      "size": 3580,
-      "sha256": "0d0aca768e52c6f4c2c3d6da0dfa1f18a457760c4ab1e0c3d6b33d9715f009db"
+      "size": 3659,
+      "sha256": "fc0a756276ed7f8c8fd1d7222bed200d67b61c1bc9d16843f36c65a936eb969c"
     },
     {
       "path": "app/src/main/assets/bundled-data.json",
@@ -290,8 +290,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeService.java",
-      "size": 36788,
-      "sha256": "59e46114e3e6735ad9c3b14458465332e206ce4ad9a0088e531d08822a1692d9"
+      "size": 37428,
+      "sha256": "1997da0eed4d91036451541cec8199e9663e67e048bb76d469ceb10c9c13308e"
     },
     {
       "path": "app/src/main/java/dev/graybridge/BridgeTile.java",
@@ -315,8 +315,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/MainActivity.java",
-      "size": 47423,
-      "sha256": "957802acf89623ed286050d566c172ee53ba3bc07f0d7c48a2d6e938a4ffeb1e"
+      "size": 47465,
+      "sha256": "250db253a75199275caa33552a4cc40a5e2b65a2bae2f4abdaa2020e26b4a8e3"
     },
     {
       "path": "app/src/main/java/dev/graybridge/NaiveEngine.java",
@@ -365,8 +365,8 @@
     },
     {
       "path": "app/src/main/java/dev/graybridge/Settings.java",
-      "size": 1620,
-      "sha256": "901bd2a78ce53e83c3bcbdc5bee3f358bc2c0e906d85f225bf54a1b5029431da"
+      "size": 2436,
+      "sha256": "6c953e2862e7e65c22e4a9717334efdd9de1c31aacd21ae43312ae70836bd9ab"
     },
     {
       "path": "app/src/main/java/dev/graybridge/SshForward.java",
@@ -400,8 +400,8 @@
     },
     {
       "path": "app/src/main/python/android_bridge.py",
-      "size": 12002,
-      "sha256": "54a1ff9896b47041a3135716ac6af9cdbc2ff6c0d08c577b89dd619451ca1a75"
+      "size": 12145,
+      "sha256": "29ec9ab774732f15dd4a3182493d933e22f54059cb5463599ceb718164bbf9fa"
     },
     {
       "path": "app/src/main/python/bridge_data.py",
@@ -895,8 +895,8 @@
     },
     {
       "path": "tests/test_telegram_observation.py",
-      "size": 9892,
-      "sha256": "f94959f8b09ba3cba4e81f176e061c0324e9c951463ae9b374f7482a8eda2c3d"
+      "size": 10094,
+      "sha256": "540c42d4125721569455edd4b494fe26d9bc8cdc5b85cbb60b8ac702323c3feb"
     },
     {
       "path": "tests/test_telegram_probe.py",
@@ -915,8 +915,8 @@
     },
     {
       "path": "tests/test_telegram_shutdown.py",
-      "size": 7524,
-      "sha256": "077b8e4444651d39632ee1906865588e8ef94b55a58d9d5838bb9f0917d3fe7d"
+      "size": 7530,
+      "sha256": "ab3b1580207e3865ff7203e48d252325a3cdcb94d528fb2081be0c24939de0e4"
     },
     {
       "path": "tests/test_telegram_startup_routes.py",

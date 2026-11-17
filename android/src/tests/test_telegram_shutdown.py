@@ -107,7 +107,7 @@ async def test_android_worker_restarts_after_prestart_handler_cancellation(liste
     for key in ('_routes', '_data_directory'):
         monkeypatch.setattr(bridge, key, None)
     monkeypatch.setattr(bridge, '_active', False)
-    async def quiet_observer(secret):await asyncio.Future()
+    async def quiet_observer(port, secret):await asyncio.Future()
     monkeypatch.setattr(bridge, '_check_telegram', quiet_observer)
     try:
         for _ in range(3):
