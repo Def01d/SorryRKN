@@ -1,17 +1,17 @@
 {
   "platform": "android",
   "applicationId": "io.github.def01d.sorryrkn",
-  "versionCode": 10001,
-  "versionName": "1.0.1",
+  "versionCode": 10002,
+  "versionName": "1.0.2",
   "minSdk": 26,
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.1/android/SorryRKN-Android-1.0.1.apk",
-  "size": 54535413,
-  "sha256": "c29d8fda1268ab9e181151735ea1e43c59d52c2f7d7380378c85ec663cf07cfe",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.2/android/SorryRKN-Android-1.0.2.apk",
+  "size": 54539509,
+  "sha256": "201ada65e4ad2383c3857f685239dd0d189542f7374ed5526392d3fe0a5b6ca6",
   "certificateSha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
-  "notes": "Устранён конфликт локальных портов с прежним Android-приложением. Если старая версия ещё установлена, после обновления включите локальный обход и заново выберите «Подключить Telegram». Настройки и секрет новой версии сохраняются.",
-  "signed": "eyJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJhcHBsaWNhdGlvbklkIjoiaW8uZ2l0aHViLmRlZjAxZC5zb3JyeXJrbiIsInZlcnNpb25Db2RlIjoxMDAwMSwidmVyc2lvbk5hbWUiOiIxLjAuMSIsIm1pblNkayI6MjYsInVybCI6Imh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9EZWYwMWQvU29ycnlSS04vYW5kcm9pZC12MS4wLjEvYW5kcm9pZC9Tb3JyeVJLTi1BbmRyb2lkLTEuMC4xLmFwayIsInNpemUiOjU0NTM1NDEzLCJzaGEyNTYiOiJjMjlkOGZkYTEyNjhhYjllMTgxMTUxNzM1ZWExZTQzYzU5ZDUyYzJmN2Q3MzgwMzc4Yzg1ZWM2NjNjZjA3Y2ZlIiwiY2VydGlmaWNhdGVTaGEyNTYiOiI2MmQwNjc1M2VhYjk3YWExOTMwNGQ4YWRjZGNkY2Y2YmY1ZmU0ZTcyZTU4MzM2ZGQ3MDg1ZGU0MjM2ODgwZjFmIiwibm90ZXMiOiLQo9GB0YLRgNCw0L3RkdC9INC60L7QvdGE0LvQuNC60YIg0LvQvtC60LDQu9GM0L3Ri9GFINC/0L7RgNGC0L7QsiDRgSDQv9GA0LXQttC90LjQvCBBbmRyb2lkLdC/0YDQuNC70L7QttC10L3QuNC10LwuINCV0YHQu9C4INGB0YLQsNGA0LDRjyDQstC10YDRgdC40Y8g0LXRidGRINGD0YHRgtCw0L3QvtCy0LvQtdC90LAsINC/0L7RgdC70LUg0L7QsdC90L7QstC70LXQvdC40Y8g0LLQutC70Y7Rh9C40YLQtSDQu9C+0LrQsNC70YzQvdGL0Lkg0L7QsdGF0L7QtCDQuCDQt9Cw0L3QvtCy0L4g0LLRi9Cx0LXRgNC40YLQtSDCq9Cf0L7QtNC60LvRjtGH0LjRgtGMIFRlbGVncmFtwrsuINCd0LDRgdGC0YDQvtC50LrQuCDQuCDRgdC10LrRgNC10YIg0L3QvtCy0L7QuSDQstC10YDRgdC40Lgg0YHQvtGF0YDQsNC90Y/RjtGC0YHRjy4ifQ==",
+  "notes": "Telegram-реле, DNS по HTTPS и маршруты нейросервисов получили дополнительный локальный обход DPI. Сохранены прямой резервный маршрут и проверка сертификатов. Настройки и Telegram-прокси сохраняются при обновлении с 1.0.0 и 1.0.1.",
+  "signed": "eyJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJhcHBsaWNhdGlvbklkIjoiaW8uZ2l0aHViLmRlZjAxZC5zb3JyeXJrbiIsInZlcnNpb25Db2RlIjoxMDAwMiwidmVyc2lvbk5hbWUiOiIxLjAuMiIsIm1pblNkayI6MjYsInVybCI6Imh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9EZWYwMWQvU29ycnlSS04vYW5kcm9pZC12MS4wLjIvYW5kcm9pZC9Tb3JyeVJLTi1BbmRyb2lkLTEuMC4yLmFwayIsInNpemUiOjU0NTM5NTA5LCJzaGEyNTYiOiIyMDFhZGE2NWU0YWQyMzgzYzM4NTdmNjg1MjM5ZGQwZDE4OTU0MmY3Mzc0ZWQ1NTI2MzkyZDNmZTBhNWI2Y2E2IiwiY2VydGlmaWNhdGVTaGEyNTYiOiI2MmQwNjc1M2VhYjk3YWExOTMwNGQ4YWRjZGNkY2Y2YmY1ZmU0ZTcyZTU4MzM2ZGQ3MDg1ZGU0MjM2ODgwZjFmIiwibm90ZXMiOiJUZWxlZ3JhbS3RgNC10LvQtSwgRE5TINC/0L4gSFRUUFMg0Lgg0LzQsNGA0YjRgNGD0YLRiyDQvdC10LnRgNC+0YHQtdGA0LLQuNGB0L7QsiDQv9C+0LvRg9GH0LjQu9C4INC00L7Qv9C+0LvQvdC40YLQtdC70YzQvdGL0Lkg0LvQvtC60LDQu9GM0L3Ri9C5INC+0LHRhdC+0LQgRFBJLiDQodC+0YXRgNCw0L3QtdC90Ysg0L/RgNGP0LzQvtC5INGA0LXQt9C10YDQstC90YvQuSDQvNCw0YDRiNGA0YPRgiDQuCDQv9GA0L7QstC10YDQutCwINGB0LXRgNGC0LjRhNC40LrQsNGC0L7Qsi4g0J3QsNGB0YLRgNC+0LnQutC4INC4IFRlbGVncmFtLdC/0YDQvtC60YHQuCDRgdC+0YXRgNCw0L3Rj9GO0YLRgdGPINC/0YDQuCDQvtCx0L3QvtCy0LvQtdC90LjQuCDRgSAxLjAuMCDQuCAxLjAuMS4ifQ==",
   "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
-  "signedAt": 1794927210,
-  "expires": 1810479210,
-  "signature": "MEUCIQDqEq8Rw4ynsSE22Js15IGZTdCuqwvCuFwhHlbYJ9zbcgIgYcYgo6wKhkvojsaG8GjUXHyaw65ZJkwTdXiMU2QEkAk="
+  "signedAt": 1794937976,
+  "expires": 1810489976,
+  "signature": "MEQCIFfE8y0Ny242vlPf6Gkgl8+12A0dqvJJMBgqd1mB+YNiAiBeNOmtNoETAbS3F2qHJ7l2DFTqhwP7l8iqGv9g/mG2xA=="
 }
