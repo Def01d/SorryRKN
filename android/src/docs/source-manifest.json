@@ -90,8 +90,8 @@
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DeviceChecks.java",
-      "size": 60582,
-      "sha256": "4761b88fa9c47d2d2e17e6640b064b9408737bc939701c7fb95120a8b65ae818"
+      "size": 60601,
+      "sha256": "a03c4f4f7d25c899567f58c39f6af59c01fc1873cbd9e552d6b72c3e2f5d9450"
     },
     {
       "path": "app/src/androidTest/java/dev/graybridge/DnsProfileChecks.java",

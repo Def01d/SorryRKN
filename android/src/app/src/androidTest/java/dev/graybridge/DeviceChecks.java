@@ -613,7 +613,7 @@ public class DeviceChecks extends Instrumentation {
         if(mixed)clearStrategyMemory(target);
         if(mixed)Python.getInstance().getModule("builtins").callAttr("exec",
             "import strategy_probe,json\n_saved_probe=strategy_probe.probe\n"+
-            "def mixed_probe(port,control):\n"+
+            "def mixed_probe(port,control,fallback_port=None):\n"+
             " label=control.getSharedPreferences('bridge',0).getString('probe_status','')\n"+
             " youtube=label.endswith(' · TLS')\n candidate=label.endswith(' · ByeDPI / Disorder')\n"+
             " discord=candidate and "+(discordUnavailable?"False":"True")+"\n"+
