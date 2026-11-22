@@ -1,14 +1,14 @@
 {
   "platform": "windows-x64",
-  "versionCode": 10600,
-  "versionName": "1.6.0",
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0-Setup.exe",
-  "notes": "HTTPS теперь передаёт TCP и UDP через один TCP 443. После обновления отключите VPN и повторите «Свой сервер → Установить HTTPS и добавить узел». Добавлены проверки Discord WebSocket, UDP/STUN и системного маршрута с DNS. Перед установкой выйдите из SorryRKN через трей.",
-  "size": 42900011,
-  "sha256": "eb0ee4a4ca4138b0c4a84597058b17526a82bf4afcd407ff197569fccbbcc984",
-  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEwNjAwLCJ2ZXJzaW9uTmFtZSI6IjEuNi4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RlZjAxZC9Tb3JyeVJLTi93aW5kb3dzLXYxLjYuMC93aW5kb3dzL1NvcnJ5UktOLVdpbmRvd3MtMS42LjAtU2V0dXAuZXhlIiwibm90ZXMiOiJIVFRQUyDRgtC10L/QtdGA0Ywg0L/QtdGA0LXQtNCw0ZHRgiBUQ1Ag0LggVURQINGH0LXRgNC10Lcg0L7QtNC40L0gVENQIDQ0My4g0J/QvtGB0LvQtSDQvtCx0L3QvtCy0LvQtdC90LjRjyDQvtGC0LrQu9GO0YfQuNGC0LUgVlBOINC4INC/0L7QstGC0L7RgNC40YLQtSDCq9Ch0LLQvtC5INGB0LXRgNCy0LXRgCDihpIg0KPRgdGC0LDQvdC+0LLQuNGC0YwgSFRUUFMg0Lgg0LTQvtCx0LDQstC40YLRjCDRg9C30LXQu8K7LiDQlNC+0LHQsNCy0LvQtdC90Ysg0L/RgNC+0LLQtdGA0LrQuCBEaXNjb3JkIFdlYlNvY2tldCwgVURQL1NUVU4g0Lgg0YHQuNGB0YLQtdC80L3QvtCz0L4g0LzQsNGA0YjRgNGD0YLQsCDRgSBETlMuINCf0LXRgNC10LQg0YPRgdGC0LDQvdC+0LLQutC+0Lkg0LLRi9C50LTQuNGC0LUg0LjQtyBTb3JyeVJLTiDRh9C10YDQtdC3INGC0YDQtdC5LiIsInNpemUiOjQyOTAwMDExLCJzaGEyNTYiOiJlYjBlZTRhNGNhNDEzOGIwYzRhODQ1OTcwNThiMTc1MjZhODJiZjRhZmNkNDA3ZmYxOTc1NjlmY2NiYmNjOTg0In0=",
+  "versionCode": 10700,
+  "versionName": "1.7.0",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.7.0/windows/SorryRKN-Windows-1.7.0-Setup.exe",
+  "notes": "Новый интерфейс «Тактический пульт», переключение сервисов и DNS на лету без отключения, правило «Обход DPI · свой IP», автозапуск в трей и повышение надёжности SmartDNS/WinDivert.",
+  "size": 43023638,
+  "sha256": "04eefc15e28dd28777ab5b4d250caa32a614f8a4813c139471e87beb49fc9b44",
+  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEwNzAwLCJ2ZXJzaW9uTmFtZSI6IjEuNy4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RlZjAxZC9Tb3JyeVJLTi93aW5kb3dzLXYxLjcuMC93aW5kb3dzL1NvcnJ5UktOLVdpbmRvd3MtMS43LjAtU2V0dXAuZXhlIiwibm90ZXMiOiLQndC+0LLRi9C5INC40L3RgtC10YDRhNC10LnRgSDCq9Ci0LDQutGC0LjRh9C10YHQutC40Lkg0L/Rg9C70YzRgsK7LCDQv9C10YDQtdC60LvRjtGH0LXQvdC40LUg0YHQtdGA0LLQuNGB0L7QsiDQuCBETlMg0L3QsCDQu9C10YLRgyDQsdC10Lcg0L7RgtC60LvRjtGH0LXQvdC40Y8sINC/0YDQsNCy0LjQu9C+IMKr0J7QsdGF0L7QtCBEUEkgwrcg0YHQstC+0LkgSVDCuywg0LDQstGC0L7Qt9Cw0L/Rg9GB0Log0LIg0YLRgNC10Lkg0Lgg0L/QvtCy0YvRiNC10L3QuNC1INC90LDQtNGR0LbQvdC+0YHRgtC4IFNtYXJ0RE5TL1dpbkRpdmVydC4iLCJzaXplIjo0MzAyMzYzOCwic2hhMjU2IjoiMDRlZWZjMTVlMjhkZDI4Nzc3YWI1YjRkMjUwY2FhMzJhNjE0ZjhhNDgxM2MxMzk0NzFlODdiZWI0OWZjOWI0NCJ9",
   "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
-  "signedAt": 1794138323,
-  "expires": 1809690323,
-  "signature": "MEQCIFx6+GpjyvohT3lWzaogzan9oUxSeyCUM/avy5nL8xKQAiAIhwtWQcBd2vA/7PRTN+X1Q7N2H/3fiqgCY/obJx6nvg=="
+  "signedAt": 1795387332,
+  "expires": 1810939332,
+  "signature": "MEYCIQCng6uk6yAuuv6f8xOOCMtjPOGrtJzneuaqqDONC+9TqQIhAOmIZGFeu8W75UTlKVVHxa4m88BPuuYpO1tPjTkSFpAI"
 }

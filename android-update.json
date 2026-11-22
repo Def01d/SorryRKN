@@ -1,17 +1,17 @@
 {
   "platform": "android",
   "applicationId": "io.github.def01d.sorryrkn",
-  "versionCode": 10002,
-  "versionName": "1.0.2",
+  "versionCode": 10100,
+  "versionName": "1.1.0",
   "minSdk": 26,
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.2/android/SorryRKN-Android-1.0.2.apk",
-  "size": 54539509,
-  "sha256": "201ada65e4ad2383c3857f685239dd0d189542f7374ed5526392d3fe0a5b6ca6",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.1.0/android/SorryRKN-Android-1.1.0.apk",
+  "size": 54551797,
+  "sha256": "ff75ac5182445ba9188c7dfb8182f91f0658f7affcb77c0fbbbdb37a32fa1251",
   "certificateSha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
-  "notes": "Telegram-реле, DNS по HTTPS и маршруты нейросервисов получили дополнительный локальный обход DPI. Сохранены прямой резервный маршрут и проверка сертификатов. Настройки и Telegram-прокси сохраняются при обновлении с 1.0.0 и 1.0.1.",
-  "signed": "eyJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJhcHBsaWNhdGlvbklkIjoiaW8uZ2l0aHViLmRlZjAxZC5zb3JyeXJrbiIsInZlcnNpb25Db2RlIjoxMDAwMiwidmVyc2lvbk5hbWUiOiIxLjAuMiIsIm1pblNkayI6MjYsInVybCI6Imh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9EZWYwMWQvU29ycnlSS04vYW5kcm9pZC12MS4wLjIvYW5kcm9pZC9Tb3JyeVJLTi1BbmRyb2lkLTEuMC4yLmFwayIsInNpemUiOjU0NTM5NTA5LCJzaGEyNTYiOiIyMDFhZGE2NWU0YWQyMzgzYzM4NTdmNjg1MjM5ZGQwZDE4OTU0MmY3Mzc0ZWQ1NTI2MzkyZDNmZTBhNWI2Y2E2IiwiY2VydGlmaWNhdGVTaGEyNTYiOiI2MmQwNjc1M2VhYjk3YWExOTMwNGQ4YWRjZGNkY2Y2YmY1ZmU0ZTcyZTU4MzM2ZGQ3MDg1ZGU0MjM2ODgwZjFmIiwibm90ZXMiOiJUZWxlZ3JhbS3RgNC10LvQtSwgRE5TINC/0L4gSFRUUFMg0Lgg0LzQsNGA0YjRgNGD0YLRiyDQvdC10LnRgNC+0YHQtdGA0LLQuNGB0L7QsiDQv9C+0LvRg9GH0LjQu9C4INC00L7Qv9C+0LvQvdC40YLQtdC70YzQvdGL0Lkg0LvQvtC60LDQu9GM0L3Ri9C5INC+0LHRhdC+0LQgRFBJLiDQodC+0YXRgNCw0L3QtdC90Ysg0L/RgNGP0LzQvtC5INGA0LXQt9C10YDQstC90YvQuSDQvNCw0YDRiNGA0YPRgiDQuCDQv9GA0L7QstC10YDQutCwINGB0LXRgNGC0LjRhNC40LrQsNGC0L7Qsi4g0J3QsNGB0YLRgNC+0LnQutC4INC4IFRlbGVncmFtLdC/0YDQvtC60YHQuCDRgdC+0YXRgNCw0L3Rj9GO0YLRgdGPINC/0YDQuCDQvtCx0L3QvtCy0LvQtdC90LjQuCDRgSAxLjAuMCDQuCAxLjAuMS4ifQ==",
+  "notes": "Новый интерфейс «Тактический пульт», переключение сервисов и DNS на лету без сброса VPN, правило «Обход DPI · свой IP» и повышение стабильности туннеля и DoH. Настройки и Telegram-прокси сохраняются.",
+  "signed": "eyJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJhcHBsaWNhdGlvbklkIjoiaW8uZ2l0aHViLmRlZjAxZC5zb3JyeXJrbiIsInZlcnNpb25Db2RlIjoxMDEwMCwidmVyc2lvbk5hbWUiOiIxLjEuMCIsIm1pblNkayI6MjYsInVybCI6Imh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9EZWYwMWQvU29ycnlSS04vYW5kcm9pZC12MS4xLjAvYW5kcm9pZC9Tb3JyeVJLTi1BbmRyb2lkLTEuMS4wLmFwayIsInNpemUiOjU0NTUxNzk3LCJzaGEyNTYiOiJmZjc1YWM1MTgyNDQ1YmE5MTg4YzdkZmI4MTgyZjkxZjA2NThmN2FmZmNiNzdjMGZiYmJkYjM3YTMyZmExMjUxIiwiY2VydGlmaWNhdGVTaGEyNTYiOiI2MmQwNjc1M2VhYjk3YWExOTMwNGQ4YWRjZGNkY2Y2YmY1ZmU0ZTcyZTU4MzM2ZGQ3MDg1ZGU0MjM2ODgwZjFmIiwibm90ZXMiOiLQndC+0LLRi9C5INC40L3RgtC10YDRhNC10LnRgSDCq9Ci0LDQutGC0LjRh9C10YHQutC40Lkg0L/Rg9C70YzRgsK7LCDQv9C10YDQtdC60LvRjtGH0LXQvdC40LUg0YHQtdGA0LLQuNGB0L7QsiDQuCBETlMg0L3QsCDQu9C10YLRgyDQsdC10Lcg0YHQsdGA0L7RgdCwIFZQTiwg0L/RgNCw0LLQuNC70L4gwqvQntCx0YXQvtC0IERQSSDCtyDRgdCy0L7QuSBJUMK7INC4INC/0L7QstGL0YjQtdC90LjQtSDRgdGC0LDQsdC40LvRjNC90L7RgdGC0Lgg0YLRg9C90L3QtdC70Y8g0LggRG9ILiDQndCw0YHRgtGA0L7QudC60Lgg0LggVGVsZWdyYW0t0L/RgNC+0LrRgdC4INGB0L7RhdGA0LDQvdGP0Y7RgtGB0Y8uIn0=",
   "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
-  "signedAt": 1794937976,
-  "expires": 1810489976,
-  "signature": "MEQCIFfE8y0Ny242vlPf6Gkgl8+12A0dqvJJMBgqd1mB+YNiAiBeNOmtNoETAbS3F2qHJ7l2DFTqhwP7l8iqGv9g/mG2xA=="
+  "signedAt": 1795387332,
+  "expires": 1810939332,
+  "signature": "MEQCICOLGJH4f9zrlOn1ez51eJPMe1vdSLv8GmEQRir8h1KOAiBJX/TaaliM2p4Q/riDH3rs+2HI8FGH0H0IPFWPAwTHwA=="
 }
