@@ -1,6 +1,7 @@
 package dev.graybridge;
 
 import android.app.*;
+import android.content.Context;
 import android.os.*;
 import android.widget.*;
 import org.json.*;
