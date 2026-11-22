@@ -11,8 +11,11 @@ import (
 	"sorryrkn/internal/core"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
+
+var dnsPacketPool = sync.Pool{New: func() any { b := make([]byte, 65535); return &b }}
 
 type DNS struct {
 	handle   windows.Handle
@@ -94,7 +97,7 @@ func (d *DNS) Start(ctx context.Context, bin string, rules core.DomainRules) (fu
 			d.mu.Unlock()
 			resolver.Close()
 		}()
-		slots := make(chan struct{}, 32)
+		slots := make(chan struct{}, 64)
 		var tasks sync.WaitGroup
 		defer tasks.Wait()
 		defer cancel()
@@ -116,39 +119,50 @@ func (d *DNS) Start(ctx context.Context, bin string, rules core.DomainRules) (fu
 			ok, _, _ := checksums.Call(uintptr(unsafe.Pointer(&reply[0])), uintptr(len(reply)), uintptr(unsafe.Pointer(&address[0])), 0)
 			return ok != 0 && forward(reply, address)
 		}
+		var address [80]byte
 		for {
-			packet := make([]byte, 65535)
-			address := make([]byte, 80)
+			bufPtr := dnsPacketPool.Get().(*[]byte)
+			packet := *bufPtr
 			var count uint32
 			ok, _, _ := recv.Call(handle, uintptr(unsafe.Pointer(&packet[0])), uintptr(len(packet)), uintptr(unsafe.Pointer(&count)), uintptr(unsafe.Pointer(&address[0])))
 			if ok == 0 || count > uint32(len(packet)) {
+				dnsPacketPool.Put(bufPtr)
 				return
 			}
-			packet = packet[:count]
-			query, _, valid := core.DNSPayload(packet)
+			raw := packet[:count]
+			query, _, valid := core.DNSPayload(raw)
 			host, _, _, qe := core.Question(query)
 			if !valid || qe != nil || !rules.ShouldResolveDNS(host) {
-				forward(packet, address)
+				forward(raw, address[:])
+				dnsPacketPool.Put(bufPtr)
 				continue
 			}
 			select {
 			case slots <- struct{}{}:
-			default:
+			case <-time.After(80 * time.Millisecond):
 				d.failed.Add(1)
-				respond(packet, address, core.DNSReply(query, 2))
+				respond(raw, address[:], core.DNSReply(query, 2))
+				dnsPacketPool.Put(bufPtr)
 				continue
+			case <-runCtx.Done():
+				dnsPacketPool.Put(bufPtr)
+				return
 			}
+			pktCopy := append([]byte(nil), raw...)
+			addrCopy := append([]byte(nil), address[:]...)
+			qCopy := append([]byte(nil), query...)
+			dnsPacketPool.Put(bufPtr)
 			tasks.Add(1)
 			go func(packet, address, q []byte) {
 				defer tasks.Done()
 				defer func() { <-slots }()
 				response := resolver.Resolve(runCtx, q)
-				if respond(packet, address, response) && response[3]&15 == 0 {
+				if respond(packet, address, response) && len(response) >= 4 && response[3]&15 == 0 {
 					d.ok.Add(1)
 				} else {
 					d.failed.Add(1)
 				}
-			}(packet, address, append([]byte(nil), query...))
+			}(pktCopy, addrCopy, qCopy)
 		}
 	}()
 	return stop, nil

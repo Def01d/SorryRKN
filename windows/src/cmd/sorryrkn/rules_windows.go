@@ -14,8 +14,9 @@ const GeoEditID = 9001
 const DirectEditID = 9002
 const SaveRulesID = 9003
 const CancelRulesID = 9004
+const DpiEditID = 9005
 
-var rulesWindow, geoEdit, directEdit, ruleBrush uintptr
+var rulesWindow, dpiEdit, geoEdit, directEdit, ruleBrush uintptr
 var rulesClassRegistered bool
 
 func editRules() {
@@ -33,7 +34,7 @@ func editRules() {
 		rulesClassRegistered = true
 	}
 	ruleBrush = call(gdi, "CreateSolidBrush", PANEL)
-	rulesWindow = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u("SorryRKNRules"))), uintptr(unsafe.Pointer(u("Мои ресурсы"))), 0x80c80000, 0x80000000, 0x80000000, uintptr(dp(640)), uintptr(dp(690)), hwnd, 0, instance, 0)
+	rulesWindow = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u("SorryRKNRules"))), uintptr(unsafe.Pointer(u("Мои ресурсы"))), 0x80c80000, 0x80000000, 0x80000000, uintptr(dp(640)), uintptr(dp(648)), hwnd, 0, instance, 0)
 	if rulesWindow == 0 {
 		call(gdi, "DeleteObject", ruleBrush)
 		ruleBrush = 0
@@ -48,16 +49,19 @@ func editRules() {
 		call(user, "SendMessageW", handle, 0x30, font(13, 400), 1)
 		return handle
 	}
+	editStyle := uintptr(0x00800000 | 0x00200000 | 0x0004 | 0x0040 | 0x1000)
 	// Multiline native edits retain keyboard, accessibility and clipboard support.
-	geoEdit = create("EDIT", strings.Join(c.GeoDomains, "\r\n"), GeoEditID, 24, 170, 576, 150, 0x00800000|0x00200000|0x0004|0x0040|0x1000)
-	directEdit = create("EDIT", strings.Join(c.DirectDomains, "\r\n"), DirectEditID, 24, 370, 576, 150, 0x00800000|0x00200000|0x0004|0x0040|0x1000)
+	dpiEdit = create("EDIT", strings.Join(c.DPIDomains, "\r\n"), DpiEditID, 24, 118, 576, 108, editStyle)
+	geoEdit = create("EDIT", strings.Join(c.GeoDomains, "\r\n"), GeoEditID, 24, 264, 576, 108, editStyle)
+	directEdit = create("EDIT", strings.Join(c.DirectDomains, "\r\n"), DirectEditID, 24, 410, 576, 108, editStyle)
+	call(user, "SendMessageW", dpiEdit, 0xc5, core.MaxDomainText, 0)
 	call(user, "SendMessageW", geoEdit, 0xc5, core.MaxDomainText, 0)
 	call(user, "SendMessageW", directEdit, 0xc5, core.MaxDomainText, 0)
-	create("BUTTON", "Сохранить", SaveRulesID, 352, 595, 120, 36, 1)
-	create("BUTTON", "Отмена", CancelRulesID, 480, 595, 120, 36, 0)
+	create("BUTTON", "Сохранить", SaveRulesID, 352, 552, 120, 36, 1)
+	create("BUTTON", "Отмена", CancelRulesID, 480, 552, 120, 36, 0)
 	call(user, "EnableWindow", hwnd, 0)
 	call(user, "ShowWindow", rulesWindow, SW_SHOW)
-	call(user, "SetFocus", geoEdit)
+	call(user, "SetFocus", dpiEdit)
 }
 func editText(handle uintptr) string {
 	count := call(user, "GetWindowTextLengthW", handle)
@@ -76,13 +80,12 @@ func rulesProc(window uintptr, id uint32, w, l uintptr) uintptr {
 		var bounds rect
 		call(user, "GetClientRect", window, uintptr(unsafe.Pointer(&bounds)))
 		fill(dc, bounds, BG)
-		text(dc, "Мои ресурсы", 24, 18, 576, 36, 25, WHITE, 600, false)
-		text(dc, "Домен или ссылка, по одному в строке. Поддомены включены.", 24, 68, 576, 22, 12, GRAY, 400, false)
-		text(dc, "Прямые исключения имеют приоритет. Максимум 256 в каждом списке.", 24, 94, 576, 22, 12, GRAY, 400, false)
-		text(dc, "Через DNS-профиль", 24, 138, 576, 24, 15, WHITE, 600, false)
-		text(dc, "Напрямую · без DPI и DNS-профиля", 24, 338, 576, 24, 15, WHITE, 600, false)
-		text(dc, "DNS-профиль не выдаёт зарубежный IP для любого сайта.", 24, 538, 576, 22, 12, GRAY, 400, false)
-		text(dc, "Изменения применятся при следующем включении соединения.", 24, 563, 576, 22, 12, GRAY, 400, false)
+		text(dc, "Мои ресурсы", 24, 16, 576, 32, 23, WHITE, 600, false)
+		text(dc, "По одному домену или ссылке в строке (включая поддомены). Приоритет: Напрямую → Гео-DNS → Обход DPI.", 24, 56, 576, 20, 11, GRAY, 400, false)
+		text(dc, "Обход DPI · свой IP (сайты, которые тормозят или заблокированы)", 24, 90, 576, 22, 14, WHITE, 600, false)
+		text(dc, "Через DNS-профиль · нейросети и гео-сервисы", 24, 236, 576, 22, 14, WHITE, 600, false)
+		text(dc, "Напрямую · без обработки DPI и DNS-профиля", 24, 382, 576, 22, 14, WHITE, 600, false)
+		text(dc, "При сохранении правила применяются сразу, даже если пульт уже включён.", 24, 526, 576, 20, 11, GRAY, 400, false)
 		call(user, "EndPaint", window, uintptr(unsafe.Pointer(&ps)))
 		return 0
 	case 0x0133, 0x0138:
@@ -92,6 +95,11 @@ func rulesProc(window uintptr, id uint32, w, l uintptr) uintptr {
 	case WM_COMMAND:
 		switch int(w & 0xffff) {
 		case SaveRulesID, 1:
+			dpiList, e := core.ParseDomains(editText(dpiEdit))
+			if e != nil {
+				call(user, "MessageBoxW", window, uintptr(unsafe.Pointer(u(e.Error()))), uintptr(unsafe.Pointer(u("Обход DPI · свой IP"))), 0x30)
+				return 0
+			}
 			geo, e := core.ParseDomains(editText(geoEdit))
 			if e != nil {
 				call(user, "MessageBoxW", window, uintptr(unsafe.Pointer(u(e.Error()))), uintptr(unsafe.Pointer(u("Через DNS-профиль"))), 0x30)
@@ -102,9 +110,18 @@ func rulesProc(window uintptr, id uint32, w, l uintptr) uintptr {
 				call(user, "MessageBoxW", window, uintptr(unsafe.Pointer(u(e.Error()))), uintptr(unsafe.Pointer(u("Напрямую"))), 0x30)
 				return 0
 			}
-			saveConfig(func(c *core.Config) { c.GeoDomains = geo; c.DirectDomains = direct })
+			saveConfig(func(c *core.Config) {
+				if len(dpiList) == 0 {
+					c.DPIDomains = nil
+				} else {
+					c.DPIDomains = dpiList
+				}
+				c.GeoDomains = geo
+				c.DirectDomains = direct
+			})
 			call(user, "DestroyWindow", window)
 			refresh()
+			reloadEngineIfActive()
 			return 0
 		case CancelRulesID, 2:
 			call(user, "DestroyWindow", window)
@@ -115,6 +132,7 @@ func rulesProc(window uintptr, id uint32, w, l uintptr) uintptr {
 		return 0
 	case WM_DESTROY:
 		rulesWindow = 0
+		dpiEdit = 0
 		geoEdit = 0
 		directEdit = 0
 		call(gdi, "DeleteObject", ruleBrush)

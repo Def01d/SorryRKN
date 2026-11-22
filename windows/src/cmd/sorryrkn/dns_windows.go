@@ -76,7 +76,7 @@ func refreshDNSWindow() {
 	busy := dnsCheckBusy
 	report := dnsCheckReport
 	dnsCheckMu.Unlock()
-	status := "Выберите DNS. Изменение применяется при следующем включении соединения."
+	status := "Выберите DNS. При сохранении выбор применяется сразу, без ручного выключения."
 	if busy {
 		status = "Проверяем DNS-профили и восемь сервисов…"
 	}
@@ -106,18 +106,22 @@ func showDNSProfiles() {
 		dnsClassRegistered = true
 	}
 	dnsBrush = call(gdi, "CreateSolidBrush", PANEL)
-	dnsWindow = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u("SorryRKNDNSProfiles"))), uintptr(unsafe.Pointer(u("DNS и нейросети"))), 0x80c80000, 0x80000000, 0x80000000, uintptr(dp(740)), uintptr(dp(760)), hwnd, 0, instance, 0)
+	dnsWindow = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u("SorryRKNDNSProfiles"))), uintptr(unsafe.Pointer(u("DNS и нейросети"))), 0x80c80000, 0x80000000, 0x80000000, uintptr(dp(720)), uintptr(dp(640)), hwnd, 0, instance, 0)
 	if dnsWindow == 0 {
 		call(gdi, "DeleteObject", dnsBrush)
 		dnsBrush = 0
 		return
+	}
+	dark := uint32(1)
+	if p := proc(dwm, "DwmSetWindowAttribute"); p.Find() == nil {
+		p.Call(dnsWindow, 20, uintptr(unsafe.Pointer(&dark)), 4)
 	}
 	create := func(class, label string, id, x, y, w, h int, style uintptr) uintptr {
 		handle := call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u(class))), uintptr(unsafe.Pointer(u(label))), 0x50010000|style, uintptr(dp(x)), uintptr(dp(y)), uintptr(dp(w)), uintptr(dp(h)), dnsWindow, uintptr(id), instance, 0)
 		call(user, "SendMessageW", handle, 0x30, font(13, 400), 1)
 		return handle
 	}
-	dnsPicker = create("COMBOBOX", "", dnsPickID, 24, 64, 670, 260, 0x0003|0x00200000)
+	dnsPicker = create("COMBOBOX", "", dnsPickID, 24, 62, 656, 260, 0x0003|0x00200000)
 	dnsChoices = core.LoadDNSCatalog(data).Profiles
 	chosen := currentConfig().DNSProfile
 	for i, p := range dnsChoices {
@@ -126,16 +130,16 @@ func showDNSProfiles() {
 			call(user, "SendMessageW", dnsPicker, 0x014e, uintptr(i), 0)
 		}
 	}
-	auto := create("BUTTON", "Проверять при запуске", dnsAutoID, 24, 108, 350, 32, 3)
-	full := create("BUTTON", "Вся матрица DNS", dnsFullID, 440, 108, 250, 32, 3)
+	auto := create("BUTTON", "Проверять при запуске", dnsAutoID, 24, 104, 340, 30, 3)
+	full := create("BUTTON", "Вся матрица DNS", dnsFullID, 430, 104, 250, 30, 3)
 	call(user, "SendMessageW", full, 0x00f1, boolInt(dnsShowAll), 0)
 	call(user, "SendMessageW", auto, 0x00f1, boolInt(currentConfig().DNSAutoCheck()), 0)
-	dnsStatus = create("STATIC", "", 0, 24, 148, 670, 46, 0)
-	dnsResults = create("EDIT", "", 0, 24, 202, 670, 420, 0x00800000|0x00200000|0x0004|0x0040|0x0800)
-	create("BUTTON", "Проверить", dnsScanID, 24, 642, 140, 36, 0)
-	create("BUTTON", "Маршруты", serviceRoutesID, 180, 642, 140, 36, 0)
-	create("BUTTON", "Сохранить DNS", dnsSaveID, 328, 642, 190, 36, 1)
-	create("BUTTON", "Закрыть", dnsCloseID, 532, 642, 162, 36, 0)
+	dnsStatus = create("STATIC", "", 0, 24, 140, 656, 40, 0)
+	dnsResults = create("EDIT", "", 0, 24, 186, 656, 340, 0x00800000|0x00200000|0x0004|0x0040|0x0800)
+	create("BUTTON", "Проверить", dnsScanID, 24, 542, 136, 36, 0)
+	create("BUTTON", "Маршруты", serviceRoutesID, 172, 542, 136, 36, 0)
+	create("BUTTON", "Сохранить DNS", dnsSaveID, 320, 542, 188, 36, 1)
+	create("BUTTON", "Закрыть", dnsCloseID, 520, 542, 160, 36, 0)
 	dnsCheckMu.Lock()
 	if len(dnsCheckReport.Profiles) == 0 {
 		if b, err := os.ReadFile(filepath.Join(data, "dns-scan.json")); err == nil && len(b) < 131072 {
@@ -181,6 +185,7 @@ func dnsWindowProc(window uintptr, id uint32, w, l uintptr) uintptr {
 				saveConfig(func(c *core.Config) { c.DNSProfile = dnsChoices[index].ID })
 				call(user, "DestroyWindow", window)
 				refresh()
+				reloadEngineIfActive()
 			}
 		case dnsCloseID, 2:
 			call(user, "DestroyWindow", window)

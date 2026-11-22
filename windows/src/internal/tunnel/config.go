@@ -1,13 +1,19 @@
 package tunnel
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
+	"net/http"
 	"net/netip"
 	"net/url"
+	"strings"
 	"time"
+
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 // Resolve only the tunnel gateway before installing any routes. Normal DNS is sent
@@ -19,6 +25,7 @@ func configFor(ctx context.Context, p Profile) (object, error) {
 	if err != nil {
 		return nil, err
 	}
+	outboundType, _ := out["type"].(string)
 	cfg["outbounds"] = []object{out}
 	host := out["server"].(string)
 	if transport, ok := out["transport"].(object); ok {
@@ -46,36 +53,100 @@ func configFor(ctx context.Context, p Profile) (object, error) {
 	// VLESS frames both TCP and UDP inside Chromium HTTPS CONNECT. The virtual
 	// target is interpreted by the server's authenticated loopback gateway and
 	// is never resolved or dialed on the client network.
-	if out["type"] == "naive" {
+	if outboundType == "naive" {
 		u, _ := url.Parse(p.Link)
 		if relay := u.Query().Get("relay"); relay != "" {
 			out["tag"] = "https"
 			cfg["outbounds"] = []object{{"type": "vless", "tag": "vpn", "server": "relay.sorryrkn.invalid", "server_port": 443, "uuid": relay, "detour": "https"}, out}
 		}
 	}
-	tun := object{"type": "tun", "interface_name": "SorryRKN-Tunnel", "address": []string{"172.31.254.1/30", "fd7a:7272:6b6e:1::1/126"}, "auto_route": true, "strict_route": true, "dns_mode": "hijack", "mtu": 1400, "route_exclude_address": []string{netip.PrefixFrom(ip, ip.BitLen()).String()}}
+	excludes := []string{
+		netip.PrefixFrom(ip, ip.BitLen()).String(),
+		"10.0.0.0/8",
+		"192.168.0.0/16",
+		"169.254.0.0/16",
+		"224.0.0.0/4",
+	}
+	tun := object{"type": "tun", "interface_name": "SorryRKN-Tunnel", "address": []string{"172.31.254.1/30", "fd7a:7272:6b6e:1::1/126"}, "auto_route": true, "strict_route": true, "dns_mode": "hijack", "mtu": 1360, "route_exclude_address": excludes}
+	rules := []object{{"port": 53, "action": "hijack-dns"}}
+	// Prevent HTTP/3 QUIC-over-TCP congestion collapse while keeping real UDP
+	// (WebRTC voice, STUN, gaming) intact on TCP-based tunnels.
+	if outboundType != "hysteria2" {
+		rules = append(rules, object{"network": "udp", "port": 443, "action": "reject"})
+	}
 	cfg["log"] = object{"level": "info"}
 	cfg["inbounds"] = []object{tun}
 	cfg["dns"] = object{"servers": []object{dns}, "final": "remote"}
-	cfg["route"] = object{"auto_detect_interface": true, "final": "vpn", "rules": []object{{"port": 53, "action": "hijack-dns"}}}
+	cfg["route"] = object{"auto_detect_interface": true, "final": "vpn", "rules": rules}
 	return cfg, nil
 }
 func resolveGateway(ctx context.Context, host string) (netip.Addr, error) {
 	if ip, err := netip.ParseAddr(host); err == nil {
 		return ip.Unmap(), nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
-	if err != nil || len(ips) == 0 {
-		return netip.Addr{}, errors.New("DNS не нашёл адрес VPN-сервера")
+	lookupCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ips, err := net.DefaultResolver.LookupNetIP(lookupCtx, "ip", host)
+	cancel()
+	if err == nil && len(ips) > 0 {
+		for _, ip := range ips {
+			if ip.Is4() || ip.Is4In6() {
+				return ip.Unmap(), nil
+			}
+		}
+		return ips[0], nil
 	}
-	for _, ip := range ips {
-		if ip.Is4() || ip.Is4In6() {
-			return ip.Unmap(), nil
+	if ip, dohErr := resolveGatewayDoH(ctx, host); dohErr == nil {
+		return ip, nil
+	}
+	return netip.Addr{}, errors.New("DNS не нашёл адрес VPN-сервера")
+}
+func resolveGatewayDoH(ctx context.Context, host string) (netip.Addr, error) {
+	name, err := dnsmessage.NewName(strings.TrimSuffix(host, ".") + ".")
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	msg := dnsmessage.Message{Header: dnsmessage.Header{RecursionDesired: true}, Questions: []dnsmessage.Question{{Name: name, Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET}}}
+	wire, err := msg.Pack()
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	for _, provider := range []struct{ host, ip string }{{"cloudflare-dns.com", "1.1.1.1"}, {"dns.google", "8.8.8.8"}} {
+		tr := &http.Transport{Proxy: nil, TLSHandshakeTimeout: 2 * time.Second, DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return (&net.Dialer{Timeout: 2 * time.Second}).DialContext(ctx, network, net.JoinHostPort(provider.ip, "443"))
+		}}
+		client := &http.Client{Transport: tr, Timeout: 3 * time.Second}
+		req, reqErr := http.NewRequestWithContext(ctx, "POST", "https://"+provider.host+"/dns-query", bytes.NewReader(wire))
+		if reqErr != nil {
+			tr.CloseIdleConnections()
+			continue
+		}
+		req.Header.Set("Content-Type", "application/dns-message")
+		req.Header.Set("Accept", "application/dns-message")
+		resp, doErr := client.Do(req)
+		if doErr != nil {
+			tr.CloseIdleConnections()
+			continue
+		}
+		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		resp.Body.Close()
+		tr.CloseIdleConnections()
+		if readErr != nil || resp.StatusCode != 200 {
+			continue
+		}
+		var reply dnsmessage.Message
+		if reply.Unpack(body) != nil || reply.RCode != dnsmessage.RCodeSuccess {
+			continue
+		}
+		for _, ans := range reply.Answers {
+			if a, ok := ans.Body.(*dnsmessage.AResource); ok {
+				ip := netip.AddrFrom4(a.A)
+				if ip.IsGlobalUnicast() && !ip.IsPrivate() {
+					return ip, nil
+				}
+			}
 		}
 	}
-	return ips[0], nil
+	return netip.Addr{}, errors.New("DoH lookup failed")
 }
 func engineConfig(ctx context.Context, p Profile) ([]byte, error) {
 	cfg, err := configFor(ctx, p)

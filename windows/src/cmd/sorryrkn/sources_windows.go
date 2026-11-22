@@ -26,7 +26,7 @@ const (
 
 func createSourcePage() {
 	caption("Ссылка подписки HTTPS или ссылка на узел", 20, 62, 560)
-	input(subInput, "", 20, 88, 400, 0x20)
+	input(subInput, "", 20, 88, 400, 0)
 	button(subImport, "Добавить", 433, 85, 144)
 	caption("Источник", 20, 145, 560)
 	field("COMBOBOX", "", subList, 20, 170, 557, 250, 0x00210003)
@@ -66,9 +66,11 @@ func rebuildNodes() {
 		}
 		comboSelect(h, sel)
 	}
-	call(user, "EnableWindow", fields[subRefresh], boolInt(canRefresh))
-	call(user, "EnableWindow", fields[subDelete], boolInt(valid))
-	call(user, "EnableWindow", fields[subUse], boolInt(valid))
+	active := vpnSession.Active()
+	call(user, "EnableWindow", fields[subImport], boolInt(!active))
+	call(user, "EnableWindow", fields[subRefresh], boolInt(canRefresh && !active))
+	call(user, "EnableWindow", fields[subDelete], boolInt(valid && !active))
+	call(user, "EnableWindow", fields[subUse], boolInt(valid && !active))
 	call(user, "EnableWindow", fields[subProbe], boolInt(valid))
 }
 func replaceSource(lib *tunnel.Library, src tunnel.Source, index int) {

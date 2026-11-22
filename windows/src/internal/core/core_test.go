@@ -280,3 +280,66 @@ func TestSnapshotRejectsPathTraversal(t *testing.T) {
 		t.Fatal("unsafe snapshot accepted")
 	}
 }
+func TestDNSSingleflightCoalescesConcurrentQueries(t *testing.T) {
+	var upstreamCalls atomic.Int32
+	gate := make(chan struct{})
+	s := NewSmartDNS()
+	defer s.Close()
+	s.fallbacks = nil
+	s.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		upstreamCalls.Add(1)
+		<-gate
+		q := make([]byte, r.ContentLength)
+		r.Body.Read(q)
+		return &http.Response{StatusCode: 200, Body: http.NoBody, Header: make(http.Header)}, nil
+	})}
+	s.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		upstreamCalls.Add(1)
+		<-gate
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(r.Body)
+		ans := dnsAnswer(buf.Bytes(), 60)
+		return &http.Response{StatusCode: 200, Body: ioCloser{bytes.NewReader(ans)}, Header: make(http.Header)}, nil
+	})}
+	s.chatGPTProbe = func(context.Context, string) error { return nil }
+	const workers = 8
+	done := make(chan []byte, workers)
+	for i := 0; i < workers; i++ {
+		id := uint16(100 + i)
+		go func(txid uint16) {
+			q := query("api.openai.com", 1)
+			binary.BigEndian.PutUint16(q[:2], txid)
+			done <- s.Resolve(context.Background(), q)
+		}(id)
+	}
+	time.Sleep(40 * time.Millisecond)
+	close(gate)
+	for i := 0; i < workers; i++ {
+		resp := <-done
+		if len(resp) < 12 || resp[3]&15 != 0 {
+			t.Fatalf("coalesced query failed: %x", resp)
+		}
+	}
+	if upstreamCalls.Load() != 1 {
+		t.Fatalf("expected 1 coalesced upstream DoH call, got %d", upstreamCalls.Load())
+	}
+}
+
+type ioCloser struct{ *bytes.Reader }
+
+func (ioCloser) Close() error { return nil }
+
+func TestDNSExcludeListsProtectAllCatalogBootstrapAndDoHHosts(t *testing.T) {
+	domains := string(buildDNSExcludeDomains(""))
+	ips := string(buildDNSExcludeIPs(""))
+	for _, wantHost := range []string{"dns.comss.one", "dns.google", "cloudflare-dns.com", "geohide.ru", "dns.malw.link"} {
+		if !strings.Contains(domains, wantHost+"\n") {
+			t.Fatalf("missing DoH host exclusion %s in:\n%s", wantHost, domains)
+		}
+	}
+	for _, wantIP := range []string{"195.133.25.16", "212.109.195.93", "83.220.169.155", "1.1.1.1", "8.8.8.8", "9.9.9.9"} {
+		if !strings.Contains(ips, wantIP+"\n") {
+			t.Fatalf("missing DoH IP exclusion %s in:\n%s", wantIP, ips)
+		}
+	}
+}

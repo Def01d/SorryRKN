@@ -169,6 +169,7 @@ class Resolver:
         self.preferred = None
         self.provider = ""
         self.cache = OrderedDict()
+        self.host_cache = OrderedDict()
         self.inflight = {}
         self.last_addresses = OrderedDict()
 
@@ -250,6 +251,7 @@ class Resolver:
         payload = bytes(payload)
         key = payload[2:]
         cached = self.cache.get(key)
+        stale = None
         now = time.monotonic()
         if cached:
             stored, expires, answer, records = cached
@@ -257,8 +259,10 @@ class Resolver:
                 self.cache.move_to_end(key)
                 wire = bytearray(answer); wire[:2] = payload[:2]
                 for offset, ttl in records:
-                    struct.pack_into('!I', wire, offset, max(0, ttl - int(now-stored)))
+                    struct.pack_into('!I', wire, offset, max(1, ttl - int(now-stored)))
                 return bytes(wire)
+            if now < expires + 120:
+                stale = (answer, records)
             self.cache.pop(key, None)
         entry = self.inflight.get(key)
         if entry is None:
@@ -267,9 +271,27 @@ class Resolver:
                 records = cache_records(payload, answer) if answer else []
                 if records:
                     stored = time.monotonic()
-                    self.cache[key] = (stored, stored+min(30, min(ttl for _, ttl in records)), answer, records)
+                    window = min(180, max(30, min(ttl for _, ttl in records)))
+                    self.cache[key] = (stored, stored+window, answer, records)
                     self.cache.move_to_end(key)
                     while len(self.cache) > 256: self.cache.popitem(last=False)
+                    try:
+                        _, _, (qname, qkind, qcls), _ = dns_message(payload)
+                        if qkind == 1 and qcls == 1:
+                            addrs = ipv4_answers(payload, answer)
+                            if addrs:
+                                host_str = qname.decode('ascii').lower().rstrip('.')
+                                self.host_cache[host_str] = (stored + window, tuple(dict.fromkeys(addrs)))
+                                self.host_cache.move_to_end(host_str)
+                                while len(self.host_cache) > 256: self.host_cache.popitem(last=False)
+                    except (ValueError, UnicodeError):
+                        pass
+                elif stale is not None:
+                    stale_answer, stale_records = stale
+                    wire = bytearray(stale_answer)
+                    for offset, _ in stale_records:
+                        struct.pack_into('!I', wire, offset, 5)
+                    return bytes(wire)
                 return answer
             entry = [asyncio.create_task(lookup()), 0]
             self.inflight[key] = entry
@@ -288,6 +310,7 @@ class Resolver:
         if self.fallback:
             self.fallback.invalidate(host)
         self.last_addresses.pop(host, None)
+        self.host_cache.pop(host.lower().rstrip('.'), None)
         labels=host.encode('idna').split(b'.')
         question=b''.join(bytes([len(label)])+label for label in labels)+b'\0'
         for key in list(self.cache):
@@ -295,7 +318,7 @@ class Resolver:
 
     async def close(self):
         tasks = [entry[0] for entry in self.inflight.values()]
-        self.inflight.clear(); self.cache.clear(); self.last_addresses.clear()
+        self.inflight.clear(); self.cache.clear(); self.host_cache.clear(); self.last_addresses.clear()
         for task in tasks: task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         await self.client.aclose()
@@ -303,8 +326,20 @@ class Resolver:
             await self.fallback.close()
 
     async def resolve(self, host):
-        labels=host.encode('idna').split(b'.')
+        normalized = host.encode('idna').decode('ascii').lower().rstrip('.')
+        labels = normalized.encode('ascii').split(b'.')
         if any(not label or len(label)>63 for label in labels): return None
+        cached_host = self.host_cache.get(normalized)
+        if cached_host is not None:
+            expires, addrs = cached_host
+            if time.monotonic() < expires and addrs:
+                self.host_cache.move_to_end(normalized)
+                self.last_addresses[host] = addrs
+                self.last_addresses.move_to_end(host)
+                while len(self.last_addresses) > 256:
+                    self.last_addresses.popitem(last=False)
+                return addrs[0]
+            self.host_cache.pop(normalized, None)
         query=struct.pack('!6H',secrets.randbits(16),0x0100,1,0,0,0)
         query+=b''.join(bytes([len(label)])+label for label in labels)+b'\0\0\x01\0\x01'
         answer=await self.query(query)

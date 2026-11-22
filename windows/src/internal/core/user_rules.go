@@ -77,6 +77,7 @@ func ParseDomains(text string) ([]string, error) {
 type DomainRules struct {
 	Geo          []string
 	Direct       []string
+	DPI          []string
 	Builtin      bool
 	Secure       bool
 	DNSProfile   string
@@ -97,8 +98,11 @@ func (r DomainRules) IsDirect(host string) bool { return MatchDomains(host, r.Di
 func (r DomainRules) IsGeo(host string) bool {
 	return !r.IsDirect(host) && (MatchDomains(host, r.Geo) || r.Builtin && IsAI(host))
 }
+func (r DomainRules) IsDPI(host string) bool {
+	return !r.IsDirect(host) && !r.IsGeo(host) && MatchDomains(host, r.DPI)
+}
 func (r DomainRules) ShouldResolveDNS(host string) bool {
-	return !r.IsDirect(host) && (r.IsGeo(host) || r.Secure && MatchDomains(host, ProtectedDNSHosts))
+	return !r.IsDirect(host) && (r.IsGeo(host) || r.IsDPI(host) || r.Secure && MatchDomains(host, ProtectedDNSHosts))
 }
 func (c Config) Rules() (DomainRules, error) {
 	if err := ValidateServiceDNS(c.ServiceDNS); err != nil {
@@ -112,7 +116,47 @@ func (c Config) Rules() (DomainRules, error) {
 	if e != nil {
 		return DomainRules{}, e
 	}
-	return DomainRules{Geo: geo, Direct: direct, Builtin: c.Extras, Secure: c.DPI || c.Telegram || c.Extras, DNSProfile: c.DNSProfile, ServiceDNS: c.ServiceDNS}, nil
+	dpi, e := ParseDomains(strings.Join(c.DPIDomains, "\n"))
+	if e != nil {
+		return DomainRules{}, e
+	}
+	return DomainRules{
+		Geo:        geo,
+		Direct:     direct,
+		DPI:        dpi,
+		Builtin:    c.Extras,
+		Secure:     c.DPI || c.Telegram || c.Extras || c.InstagramEnabled() || len(dpi) > 0,
+		DNSProfile: c.DNSProfile,
+		ServiceDNS: c.ServiceDNS,
+	}, nil
+}
+func WriteUserDPIList(data string, r DomainRules) (string, error) {
+	seen := map[string]bool{}
+	var hosts []string
+	for _, host := range r.DPI {
+		if !r.IsDirect(host) && !r.IsGeo(host) && !seen[host] {
+			hosts = append(hosts, host)
+			seen[host] = true
+		}
+	}
+	path := filepath.Join(data, "user-dpi.txt")
+	if len(hosts) == 0 {
+		_ = os.Remove(path)
+		return "", nil
+	}
+	if e := os.MkdirAll(data, 0700); e != nil {
+		return "", e
+	}
+	if e := os.WriteFile(path, []byte(strings.Join(hosts, "\n")+"\n"), 0600); e != nil {
+		return "", e
+	}
+	return path, nil
+}
+func WithUserDPI(args []string, list string) []string {
+	if list == "" {
+		return args
+	}
+	return WithInstagram(args, list)
 }
 func WriteBypassList(data string, r DomainRules) (string, error) {
 	hosts := append(append([]string{}, r.Direct...), r.Geo...)

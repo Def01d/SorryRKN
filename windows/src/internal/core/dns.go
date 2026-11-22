@@ -146,9 +146,14 @@ type cachedDNS struct {
 	stored   time.Time
 	expires  time.Time
 }
+type dnsFlight struct {
+	done   chan struct{}
+	result []byte
+}
 type SmartDNS struct {
 	mu              sync.Mutex
 	cache           map[string]cachedDNS
+	inflight        map[string]*dnsFlight
 	client          *http.Client
 	profileURL      string
 	profileID       string
@@ -336,17 +341,63 @@ func (s *SmartDNS) Resolve(ctx context.Context, q []byte) []byte {
 			return s.preferChatGPT(ctx, host, typ, out)
 		}
 	}
-	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	s.mu.Lock()
+	if s.inflight == nil {
+		s.inflight = make(map[string]*dnsFlight)
+	}
+	if flight, waiting := s.inflight[key]; waiting {
+		s.mu.Unlock()
+		select {
+		case <-flight.done:
+			if flight.result == nil {
+				return DNSReply(q, 2)
+			}
+			reply := append([]byte(nil), flight.result...)
+			if len(reply) >= 2 && len(q) >= 2 {
+				copy(reply[:2], q[:2])
+			}
+			return s.preferChatGPT(ctx, host, typ, reply)
+		case <-ctx.Done():
+			return DNSReply(q, 2)
+		}
+	}
+	flight := &dnsFlight{done: make(chan struct{})}
+	s.inflight[key] = flight
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		if s.inflight[key] == flight {
+			delete(s.inflight, key)
+		}
+		s.mu.Unlock()
+		close(flight.done)
+	}()
+	lookupCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
-	b := s.query(ctx, q, !geo)
+	b := s.query(lookupCtx, q, !geo)
 	if b == nil {
 		return DNSReply(q, 2)
 	}
+	flight.result = append([]byte(nil), b...)
 	if ttl := dnsCacheTTL(b); ttl > 0 {
 		now := time.Now()
 		s.mu.Lock()
 		if len(s.cache) >= 512 {
-			s.cache = make(map[string]cachedDNS)
+			oldestKey := ""
+			var oldestTime time.Time
+			for k, v := range s.cache {
+				if now.After(v.expires) {
+					delete(s.cache, k)
+					continue
+				}
+				if oldestKey == "" || v.stored.Before(oldestTime) {
+					oldestKey = k
+					oldestTime = v.stored
+				}
+			}
+			if len(s.cache) >= 512 && oldestKey != "" {
+				delete(s.cache, oldestKey)
+			}
 		}
 		s.cache[key] = cachedDNS{response: append([]byte(nil), b...), stored: now, expires: now.Add(ttl)}
 		s.mu.Unlock()

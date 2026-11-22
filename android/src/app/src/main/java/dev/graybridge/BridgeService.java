@@ -19,7 +19,7 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 
 public class BridgeService extends VpnService {
-    public static final String START = "dev.graybridge.START", STOP = "dev.graybridge.STOP", RETEST = "dev.graybridge.RETEST";
+    public static final String START = "dev.graybridge.START", STOP = "dev.graybridge.STOP", RETEST = "dev.graybridge.RETEST", RELOAD = "dev.graybridge.RELOAD";
     // Loopback sockets are shared across Android packages. Use a different
     // range from the old dev.graybridge app, including for startup probes.
     static final int DPI_PORT = 31080;
@@ -55,18 +55,20 @@ public class BridgeService extends VpnService {
     private long connectedAt;
     private int recoveryFailures;
     private boolean recovering;
+    private String lastTrafficReport = "";
     private final Runnable reconnect = () -> worker.execute(() -> {
         if(desired && !started && !destroyed)openResources();
     });
     private final Runnable networkChanged = () -> {
         if (desired && started && !networkIdentity().equals(networkHandle))
             worker.execute(() -> {
+                if (!desired || !started || networkIdentity().equals(networkHandle)) return;
                 Settings.prefs(this).edit().putInt("network_reconnect_count",Settings.prefs(this).getInt("network_reconnect_count",0)+1).apply();
-                extended=false; forceSelection=true; retest();
+                extended=false; forceSelection=false; retest();
             });
     };
     private final ConnectivityManager.NetworkCallback networks = new ConnectivityManager.NetworkCallback() {
-        private void changed() { main.removeCallbacks(networkChanged); main.postDelayed(networkChanged, 2500); }
+        private void changed() { main.removeCallbacks(networkChanged); main.postDelayed(networkChanged, 800); }
         @Override public void onAvailable(Network n) { changed(); }
         @Override public void onLost(Network n) { changed(); }
         @Override public void onCapabilitiesChanged(Network n, NetworkCapabilities c) { changed(); }
@@ -86,6 +88,9 @@ public class BridgeService extends VpnService {
     public static void retest(Context context,boolean extended) {
         context.startService(new Intent(context, BridgeService.class).setAction(RETEST).putExtra("extended",extended));
     }
+    public static void reload(Context context) {
+        context.startService(new Intent(context, BridgeService.class).setAction(RELOAD));
+    }
     private final Runnable health = new Runnable() {
         @Override public void run() {
             if (!desired || !started || destroyed) return;
@@ -102,14 +107,18 @@ public class BridgeService extends VpnService {
                         throw new IOException("Локальный прокси остановился");
                     if(engine!=null) {
                         String report=engine.callAttr("diagnostics").toString();
-                        Settings.prefs(BridgeService.this).edit().putString("traffic_report",report).apply();
+                        if(!report.equals(lastTrafficReport)) {
+                            lastTrafficReport=report;
+                            Settings.prefs(BridgeService.this).edit().putString("traffic_report",report).apply();
+                        }
                         JSONObject diagnostics=new JSONObject(report);
                         JSONObject telegram=diagnostics.optJSONObject("telegram_check");
                         JSONObject chatgpt=diagnostics.optJSONObject("chatgpt_check");
                         String tg=telegram==null?"disabled":telegram.optString("state");
                         String ai=chatgpt==null?"disabled":chatgpt.optString("state");
+                        boolean tgDegraded=tg.equals("unavailable") || (tg.equals("partial") && telegram.optInt("passed",0)<2);
                         boolean degraded=(Settings.dpi(BridgeService.this) && !dpiVerified) ||
-                            tg.equals("unavailable") || tg.equals("partial") ||
+                            tgDegraded ||
                             ai.equals("transport_error") || ai.equals("regional_refusal") || ai.equals("denied") || ai.equals("http_error");
                         String observed=degraded?"partial":"on";
                         if(!Settings.state(BridgeService.this).equals(observed)) {
@@ -132,6 +141,13 @@ public class BridgeService extends VpnService {
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         commandId = startId;
+        if (intent != null && RELOAD.equals(intent.getAction())) {
+            extended = false;
+            forceSelection = false;
+            if (desired && started) worker.execute(this::retest);
+            else if (!desired) stopSelfResult(startId);
+            return START_STICKY;
+        }
         if (intent != null && RETEST.equals(intent.getAction())) {
             extended=intent.getBooleanExtra("extended",false);
             forceSelection=true;
@@ -143,6 +159,7 @@ public class BridgeService extends VpnService {
         desired = !stop && (intent != null || Settings.prefs(this).getBoolean("desired", false));
         Settings.prefs(this).edit().putBoolean("desired", desired).apply();
         if (!desired) {
+            foreground("Выключение…");
             publish("stopping", "");
             worker.execute(() -> {
                 closeResources();
@@ -179,15 +196,23 @@ public class BridgeService extends VpnService {
             networkHandle=networkIdentity();
             setUnderlyingNetworks(physical==null?null:new Network[]{physical});
             LinkProperties links=physical==null?null:connectivity.getLinkProperties(physical);
-            JSONObject networkReport=new JSONObject().put("type",networkType());
+            String netType=networkType();
+            boolean hasIpv6=false;
+            int tunMtu="mobile".equals(netType)?1420:1500;
+            JSONObject networkReport=new JSONObject().put("type",netType);
             if(links!=null) {
                 boolean ipv4=false,ipv6=false;
                 for(LinkAddress address:links.getLinkAddresses()) {
                     if(address.getAddress() instanceof Inet4Address)ipv4=true;
                     if(address.getAddress() instanceof Inet6Address && !address.getAddress().isLinkLocalAddress())ipv6=true;
                 }
+                hasIpv6=ipv6;
                 networkReport.put("ipv4",ipv4).put("ipv6",ipv6);
-                if(Build.VERSION.SDK_INT>=29)networkReport.put("mtu",links.getMtu());
+                if(Build.VERSION.SDK_INT>=29) {
+                    int linkMtu=links.getMtu();
+                    networkReport.put("mtu",linkMtu);
+                    if(linkMtu>=1280 && linkMtu<=1500)tunMtu=linkMtu;
+                }
             }
             Settings.prefs(this).edit().putString("network_report",networkReport.toString()).apply();
             transportProcess=launchTransport();
@@ -205,12 +230,16 @@ public class BridgeService extends VpnService {
                 } else if(!Settings.telegram(this) && !Settings.extras(this) && !UserRules.geo(this)) throw new IOException("Рабочая стратегия DPI не найдена. Откройте диагностику.");
             }
             if (!desired) { closeResources(); return; }
-            if(Settings.extras(this) || UserRules.geo(this) || Settings.telegram(this)) {
-                DataUpdates.module(this).callAttr("materialize",getFilesDir().getPath());
+            boolean useInstagram = Settings.instagram(this);
+            boolean useExtras = Settings.extras(this);
+            boolean useUserGeo = UserRules.geo(this);
+            boolean useUserDpi = UserRules.dpi(this);
+            if(useExtras || useInstagram || useUserGeo || useUserDpi || Settings.telegram(this)) {
+                DataUpdates.module(this).callAttr("materialize",getFilesDir().getPath(),UserRules.domains(this,"dpi_domains").toString());
                 Strategies.Profile instagram=Strategies.load(this).stream().filter(p->p.id.equals("bye-disorder")).findFirst()
                     .orElseThrow(()->new IOException("Не найден метод для дополнительных сайтов"));
                 instagramProcess=launch(instagram,EXTRAS_PORT,true,true);awaitPort(EXTRAS_PORT,instagramProcess);
-                if(Settings.extras(this) || UserRules.geo(this)) {
+                if(useExtras || useInstagram || useUserGeo) {
                     String detail=Settings.prefs(this).getString("probe_result","");
                     Settings.prefs(this).edit().putString("probe_result",(detail.isEmpty()?"":detail+"\n")+
                         (Settings.aiRelay(this)?"Нейросети: зарубежный маршрут · Instagram: обход DPI":
@@ -223,7 +252,7 @@ public class BridgeService extends VpnService {
                 transportProcess=launchTransport();
                 awaitPort(TRANSPORT_PORT,transportProcess);
             }
-            vpnActive=dpiActive || Settings.extras(this) || UserRules.geo(this);
+            vpnActive=dpiActive || useExtras || useInstagram || useUserGeo || useUserDpi;
             if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
             engine = Python.getInstance().getModule("android_bridge");
             JSONObject routes=new JSONObject().put("gateway_port",GATEWAY_PORT).put("transport_dpi",TRANSPORT_PORT);
@@ -231,26 +260,34 @@ public class BridgeService extends VpnService {
             if(telegram)routes.put("telegram_port",Settings.prepareTelegramPort(this))
                 .put("telegram_dpi",EXTRAS_PORT).put("telegram_relay",Settings.telegramRelay(this));
             if(dpiActive)routes.put("youtube",DPI_PORT).put("discord",discordProcess==null?DPI_PORT:DISCORD_PORT);
-            if(Settings.extras(this))routes.put("smart_dns",true).put("instagram",EXTRAS_PORT).put("ai",EXTRAS_PORT);
-            if(UserRules.geo(this))routes.put("smart_dns",true).put("ai",EXTRAS_PORT);
+            if(useInstagram)routes.put("instagram",EXTRAS_PORT);
+            if(useExtras)routes.put("smart_dns",true).put("ai",EXTRAS_PORT);
+            if(useUserGeo)routes.put("smart_dns",true).put("ai",EXTRAS_PORT);
+            if(useUserDpi && !dpiActive)routes.put("instagram",EXTRAS_PORT);
             routes.put("dns_profile",Settings.prefs(this).getString("dns_profile","comss")).put("dns_directory",getFilesDir().getPath());
             routes.put("service_dns",new JSONObject(Settings.prefs(this).getString("service_dns","{}")))
                 .put("dns_network_key",DnsProfiles.networkKey(this));
-            routes.put("own_ip",!Settings.aiRelay(this)).put("builtin_extras",Settings.extras(this)).put("geo_domains",UserRules.domains(this,"geo_domains"))
-                .put("direct_domains",UserRules.domains(this,"direct_domains"));
+            routes.put("own_ip",!Settings.aiRelay(this)).put("builtin_extras",useExtras)
+                .put("geo_domains",UserRules.domains(this,"geo_domains"))
+                .put("direct_domains",UserRules.domains(this,"direct_domains"))
+                .put("dpi_domains",UserRules.domains(this,"dpi_domains"));
             engine.callAttr("start", telegram ? Settings.secret(this) : "", telegram, vpnActive, getFilesDir().getPath(),routes.toString());
             if (!desired) { closeResources(); return; }
             if (vpnActive) {
                 File config = new File(getFilesDir(), "tunnel.yml");
-                String yaml = "tunnel:\n  mtu: 1500\n  ipv4: 198.18.0.1\n  ipv6: 'fd00:1::1'\n" +
+                String yaml = "tunnel:\n  mtu: " + tunMtu + "\n  ipv4: 198.18.0.1\n" +
+                    (hasIpv6 ? "  ipv6: 'fd00:1::1'\n" : "") +
                     "socks5:\n  address: 127.0.0.1\n  port: " + GATEWAY_PORT + "\n  udp: 'udp'\n" +
                     "misc:\n  task-stack-size: 86016\n  tcp-buffer-size: 65536\n  max-session-count: 512\n" +
                     "  connect-timeout: 10000\n  tcp-read-write-timeout: 300000\n  udp-read-write-timeout: 60000\n  log-level: error\n";
                 try (OutputStream out = new FileOutputStream(config)) { out.write(yaml.getBytes(StandardCharsets.UTF_8)); }
-                Builder builder = new Builder().setSession("SorryRKN").setMtu(1500)
-                    .addAddress("198.18.0.1", 32).addAddress("fd00:1::1", 128)
-                    .addRoute("0.0.0.0", 0).addRoute("::", 0).addDnsServer("8.8.8.8")
+                Builder builder = new Builder().setSession("SorryRKN").setMtu(tunMtu)
+                    .addAddress("198.18.0.1", 32)
+                    .addRoute("0.0.0.0", 0).addDnsServer("198.18.0.2")
                     .addDisallowedApplication(getPackageName()).setBlocking(false);
+                if (hasIpv6) {
+                    builder.addAddress("fd00:1::1", 128).addRoute("::", 0).addDnsServer("fd00:1::2");
+                }
                 if (Build.VERSION.SDK_INT >= 29) builder.setMetered(false);
                 tun = builder.establish();
                 if (tun == null) throw new IOException("Android не создал VPN-интерфейс");
@@ -290,7 +327,7 @@ public class BridgeService extends VpnService {
             try {
                 com.chaquo.python.PyObject data=Python.getInstance().getModule("bridge_data");
                 String value=(instagram ? data.callAttr("extras_args",profile.id,getFilesDir().getPath(),adaptive,
-                    UserRules.domains(this,"geo_domains").toString(),UserRules.domains(this,"direct_domains").toString(),Settings.extras(this),Settings.telegram(this)) :
+                    UserRules.domains(this,"geo_domains").toString(),UserRules.domains(this,"direct_domains").toString(),Settings.extras(this),Settings.telegram(this),Settings.instagram(this),UserRules.domains(this,"dpi_domains").toString()) :
                     data.callAttr("bye_args",profile.id,getFilesDir().getPath(),adaptive)).toString();
                 org.json.JSONArray options = new org.json.JSONArray(value);
                 for (int i=0; i<options.length(); i++) args.add(options.getString(i));
@@ -329,7 +366,7 @@ public class BridgeService extends VpnService {
 
     private Strategies.Profile chooseStrategy() throws Exception {
         networkHandle = networkIdentity();
-        JSONObject prepared = new JSONObject(DataUpdates.module(this).callAttr("materialize", getFilesDir().getPath()).toString());
+        JSONObject prepared = new JSONObject(DataUpdates.module(this).callAttr("materialize", getFilesDir().getPath(), UserRules.domains(this, "dpi_domains").toString()).toString());
         String revision = prepared.getJSONObject("commits").toString();
         List<Strategies.Profile> profiles = Strategies.parse(prepared.getJSONArray("profiles"));
         String mode = Settings.prefs(this).getString("strategy", "auto");
@@ -349,13 +386,15 @@ public class BridgeService extends VpnService {
             Settings.prefs(this).edit().putString("probe_result","Нет доступной сети · проверка DPI отложена").apply();
             return null;
         }
-        // Scope cached selections to this physical network, not all Wi-Fi or
-        // mobile providers. A changed network also forces active selection.
-        String key = "last_strategy_" + networkType()+"_"+Integer.toHexString(networkIdentity().hashCode());choiceNetworkKey=key;
-        String last = Settings.prefs(this).getString(key, "");
+        // Scope cached selections to this physical network without ephemeral
+        // netId or temporary IPv6 privacy addresses so reconnects hit cache.
+        String key = stableNetworkKey();choiceNetworkKey=key;
+        String fallbackKey = "last_strategy_" + networkType();
+        String last = Settings.prefs(this).getString(key, Settings.prefs(this).getString(fallbackKey, ""));
         boolean force=forceSelection || extended;forceSelection=false;
         if(!force) {
             cachedChoice=StrategyMemory.load(this,key,profiles);
+            if(cachedChoice==null)cachedChoice=StrategyMemory.load(this,fallbackKey,profiles);
             if(cachedChoice!=null) {
                 dpiVerified=true;
                 youtubeProfile=cachedChoice.youtube;discordProfile=cachedChoice.discord;
@@ -459,7 +498,7 @@ public class BridgeService extends VpnService {
             return new JSONObject(Python.getInstance().getModule("strategy_probe").callAttr("probe",PROBE_PORT,this,TRANSPORT_PORT).toString());
         } finally {
             candidate.destroy();
-            if(!candidate.waitFor(1,TimeUnit.SECONDS))candidate.destroyForcibly();
+            if(!candidate.waitFor(1,TimeUnit.SECONDS))candidate.destroyForcibly().waitFor(1,TimeUnit.SECONDS);
         }
     }
     private void verifyCachedStrategy() {
@@ -477,20 +516,16 @@ public class BridgeService extends VpnService {
             if(discord!=youtube)reports.put(discord.put("strategy",saved.discord.name).put("background",true));
             Settings.prefs(this).edit().putString("probe_report",reports.toString())
                 .putString("probe_result",youtubeOK&&quality==6?
-                    "Сохранённый метод проверен в фоне":"Фоновая проверка: есть ошибки · выполняем переподбор").apply();
-            dpiVerified=youtubeOK && quality==6;
-            if(dpiVerified) {
-                StrategyMemory.save(this,key,saved.youtube,saved.discord,quality);return;
+                    "Сохранённый метод проверен в фоне":"Фоновая проверка: есть ошибки · нажмите «↻» для переподбора").apply();
+            if(youtubeOK && quality==6) {
+                dpiVerified=true;
+                StrategyMemory.save(this,key,saved.youtube,saved.discord,quality);
             }
-            // This runs once after a cached startup. Re-select instead of
-            // keeping a stale method forever; ordinary health probes never
-            // restart user sessions.
-            forceSelection=true;retest();
+            // Never tear down live user connections on a failed background check;
+            // record the observation so the user can re-probe with one tap.
         }catch(Exception error) {
             if(desired && started && networkIdentity().equals(networkHandle)) {
-                dpiVerified=false;
-                Settings.prefs(this).edit().putString("probe_result","Проверка сохранённого метода не завершилась · выполняем переподбор").apply();
-                forceSelection=true;retest();
+                Settings.prefs(this).edit().putString("probe_result","Фоновая проверка: есть ошибки · нажмите «↻» для переподбора").apply();
             }
         }
     }
@@ -535,11 +570,32 @@ public class BridgeService extends VpnService {
         LinkProperties links=connectivity.getLinkProperties(n);
         List<String> properties=new ArrayList<>();
         if(links!=null) {
-            for(LinkAddress address:links.getLinkAddresses())properties.add(address.toString());
+            if(links.getInterfaceName()!=null)properties.add("if:"+links.getInterfaceName());
+            // Exclude ephemeral RFC 4941 IPv6 privacy addresses so periodic
+            // router advertisements do not tear down an active VPN session.
+            for(LinkAddress address:links.getLinkAddresses()) {
+                if(address.getAddress() instanceof Inet4Address)properties.add(address.toString());
+            }
             for(InetAddress dns:links.getDnsServers())properties.add(dns.getHostAddress());
             Collections.sort(properties);
         }
         return Long.toString(n.getNetworkHandle())+":"+properties.toString();
+    }
+    private String stableNetworkKey() {
+        Network n=underlying();
+        String type=networkType();
+        if(n==null)return "last_strategy_"+type+"_offline";
+        LinkProperties links=connectivity.getLinkProperties(n);
+        List<String> traits=new ArrayList<>();
+        if(links!=null) {
+            if(links.getInterfaceName()!=null)traits.add("if:"+links.getInterfaceName());
+            for(InetAddress dns:links.getDnsServers())traits.add("dns:"+dns.getHostAddress());
+            for(RouteInfo route:links.getRoutes()) {
+                if(route.isDefaultRoute() && route.getGateway()!=null)traits.add("gw:"+route.getGateway().getHostAddress());
+            }
+            Collections.sort(traits);
+        }
+        return "last_strategy_"+type+"_"+Integer.toHexString(traits.toString().hashCode());
     }
     private String networkType() {
         Network n = underlying();
@@ -552,7 +608,7 @@ public class BridgeService extends VpnService {
     private void stopTpws() {
         if (tpws == null) return;
         tpws.destroy();
-        try { if (!tpws.waitFor(1, TimeUnit.SECONDS)) tpws.destroyForcibly(); }
+        try { if (!tpws.waitFor(1, TimeUnit.SECONDS)) tpws.destroyForcibly().waitFor(1, TimeUnit.SECONDS); }
         catch (InterruptedException e) { Thread.currentThread().interrupt(); tpws.destroyForcibly(); }
         tpws = null;
     }
@@ -561,12 +617,15 @@ public class BridgeService extends VpnService {
         awaitPort(port,tpws);
     }
     private void awaitPort(int port,Process process) throws IOException, InterruptedException {
-        for (int attempt = 0; attempt < 50 && desired; attempt++) {
+        int[] delays = {15, 30, 60};
+        for (int attempt = 0; attempt < 55 && desired; attempt++) {
             if (!process.isAlive()) throw new IOException("Не удалось запустить сетевой модуль");
             try (Socket socket = new Socket()) {
-                socket.connect(new InetSocketAddress("127.0.0.1", port), 100);
+                socket.connect(new InetSocketAddress("127.0.0.1", port), 80);
                 return;
-            } catch (IOException ignored) { Thread.sleep(100); }
+            } catch (IOException ignored) {
+                Thread.sleep(attempt < delays.length ? delays[attempt] : 100);
+            }
         }
         if (desired) throw new IOException("Локальный модуль zapret не отвечает");
     }
@@ -593,6 +652,7 @@ public class BridgeService extends VpnService {
         started = false;
         dpiActive = false;
         vpnActive = false;
+        lastTrafficReport = "";
         main.removeCallbacks(health);
         main.removeCallbacks(reconnect);
         main.removeCallbacks(networkChanged);
@@ -612,13 +672,13 @@ public class BridgeService extends VpnService {
         stopTransport();
         if(instagramProcess!=null) {
             instagramProcess.destroy();
-            try { if(!instagramProcess.waitFor(1,TimeUnit.SECONDS))instagramProcess.destroyForcibly(); }
+            try { if(!instagramProcess.waitFor(1,TimeUnit.SECONDS))instagramProcess.destroyForcibly().waitFor(1,TimeUnit.SECONDS); }
             catch(InterruptedException e) { Thread.currentThread().interrupt();instagramProcess.destroyForcibly(); }
             instagramProcess=null;
         }
         if(discordProcess!=null) {
             discordProcess.destroy();
-            try { if(!discordProcess.waitFor(1,TimeUnit.SECONDS))discordProcess.destroyForcibly(); }
+            try { if(!discordProcess.waitFor(1,TimeUnit.SECONDS))discordProcess.destroyForcibly().waitFor(1,TimeUnit.SECONDS); }
             catch(InterruptedException e) { Thread.currentThread().interrupt();discordProcess.destroyForcibly(); }
             discordProcess=null;
         }

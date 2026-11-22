@@ -17,6 +17,7 @@ _gateway = None
 _routes = None
 _chatgpt_check = {"state": "disabled", "authenticated_access": False}
 _telegram_check = {"state": "disabled", "authenticated_access": False}
+_tls_diagnostics_cache = None
 
 
 async def _check_telegram(port, secret):
@@ -202,16 +203,19 @@ def diagnostics():
     from proxy.route_diagnostics import snapshot as route_snapshot
     result["telegram_routes"] = route_snapshot()
     if _telegram_check.get('state') != 'disabled':
-        import ssl
-        from proxy.raw_websocket import _ssl_ctx, _ssl_ctx_fronting
-        result['telegram_tls'] = {
-            'openssl': ssl.OPENSSL_VERSION,
-            'ca_certificates': _ssl_ctx.cert_store_stats().get('x509_ca', 0),
-            'certificate_required': _ssl_ctx.verify_mode == ssl.CERT_REQUIRED,
-            'hostname_verified': _ssl_ctx.check_hostname,
-            'legacy_certificate_required': _ssl_ctx_fronting.verify_mode == ssl.CERT_REQUIRED,
-            'legacy_hostname_verified': _ssl_ctx_fronting.check_hostname,
-        }
+        global _tls_diagnostics_cache
+        if _tls_diagnostics_cache is None:
+            import ssl
+            from proxy.raw_websocket import _ssl_ctx, _ssl_ctx_fronting
+            _tls_diagnostics_cache = {
+                'openssl': ssl.OPENSSL_VERSION,
+                'ca_certificates': _ssl_ctx.cert_store_stats().get('x509_ca', 0),
+                'certificate_required': _ssl_ctx.verify_mode == ssl.CERT_REQUIRED,
+                'hostname_verified': _ssl_ctx.check_hostname,
+                'legacy_certificate_required': _ssl_ctx_fronting.verify_mode == ssl.CERT_REQUIRED,
+                'legacy_hostname_verified': _ssl_ctx_fronting.check_hostname,
+            }
+        result['telegram_tls'] = dict(_tls_diagnostics_cache)
     from proxy.media_health import diagnostics as media_diagnostics
     result['telegram_media'] = media_diagnostics()
     result["engine_running"]=is_running()
@@ -220,7 +224,7 @@ def diagnostics():
                                               and (_routes or {}).get('telegram_relay', True))
     result['chatgpt_check'] = dict(_chatgpt_check)
     result['telegram_check'] = dict(_telegram_check)
-    if _gateway and _routes:result['routes']={key:value for key,value in _routes.items() if key not in ('geo_domains','direct_domains')}
+    if _gateway and _routes:result['routes']={key:value for key,value in _routes.items() if key not in ('geo_domains','direct_domains','dpi_domains')}
     return json.dumps(result,ensure_ascii=False)
 
 

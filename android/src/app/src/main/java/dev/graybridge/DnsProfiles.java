@@ -91,9 +91,18 @@ final class DnsProfiles {
         LinearLayout body=new LinearLayout(activity);body.setOrientation(LinearLayout.VERTICAL);
         int pad=(int)(20*activity.getResources().getDisplayMetrics().density);body.setPadding(pad,pad,pad,pad);
         TextView note=new TextView(activity);
-        note.setText("Выберите DNS по результатам HTTPS-проверок в вашей сети. Для сравнения отправляются отдельные публичные запросы через каждый профиль; аккаунты и отправка сообщений не проверяются. Проверки не меняют DNS. Сохранённый профиль применяется при следующем включении соединения.");
+        note.setText("Выберите DNS по результатам HTTPS-проверок в вашей сети. Публичные запросы отправляются отдельно и не проверяют вход в аккаунт. При сохранении выбор применяется сразу, даже если соединение активно.");
         body.addView(note);
-        Button services=new Button(activity);services.setText("Маршруты сервисов");body.addView(services);
+        CheckBox aiRelayToggle=new CheckBox(activity);
+        aiRelayToggle.setText("Зарубежное реле (Гео-DNS) для нейросетей");
+        aiRelayToggle.setChecked(Settings.aiRelay(activity));
+        aiRelayToggle.setOnCheckedChangeListener((b,val)->{
+            Settings.prefs(activity).edit().putBoolean("ai_relay",val).apply();
+            String st=Settings.state(activity);
+            if(st.equals("on") || st.equals("partial")) BridgeService.reload(activity);
+        });
+        body.addView(aiRelayToggle);
+        Button services=new Button(activity);services.setText("Маршруты по отдельным сервисам");body.addView(services);
         services.setOnClickListener(v->ServiceRoutes.show(activity));
         Spinner picker=new Spinner(activity);picker.setEnabled(false);body.addView(picker);
         ArrayList<String> ids=new ArrayList<>();ArrayList<String> names=new ArrayList<>();
@@ -158,7 +167,13 @@ final class DnsProfiles {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
                 if(picker.getSelectedItemPosition()>=0 && picker.getSelectedItemPosition()<ids.size()) {
                     Settings.prefs(activity).edit().putString("dns_profile",ids.get(picker.getSelectedItemPosition())).apply();
-                    Toast.makeText(activity,"DNS сохранён. Применится при следующем включении соединения.",Toast.LENGTH_LONG).show();
+                    String st=Settings.state(activity);
+                    if(st.equals("on") || st.equals("partial")) {
+                        BridgeService.reload(activity);
+                        Toast.makeText(activity,"DNS сохранён и применён к активному подключению.",Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(activity,"DNS сохранён.",Toast.LENGTH_SHORT).show();
+                    }
                     dialog.dismiss();
                 }
             });refresh.run();

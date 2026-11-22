@@ -228,10 +228,10 @@ func UpdateData(ctx context.Context, data string) (string, error) {
 		if strings.HasSuffix(file, "-user.txt") {
 			b = []byte{}
 			if strings.Contains(file, "list-exclude-") {
-				b = []byte("dns.comss.one\n")
+				b = buildDNSExcludeDomains(data)
 			}
 			if strings.Contains(file, "ipset-exclude-") {
-				b = []byte("195.133.25.16\n")
+				b = buildDNSExcludeIPs(data)
 			}
 		} else {
 			b, e = Fetch(ctx, client, raw+file, limit)
@@ -258,6 +258,48 @@ func UpdateData(ctx context.Context, data string) (string, error) {
 	}
 
 	return commit.SHA, nil
+}
+func buildDNSExcludeDomains(data string) []byte {
+	seen := map[string]bool{}
+	var lines []string
+	add := func(host string) {
+		host = strings.ToLower(strings.TrimSpace(host))
+		if host != "" && !seen[host] {
+			seen[host] = true
+			lines = append(lines, host)
+		}
+	}
+	for _, host := range []string{"dns.comss.one", "dns.google", "cloudflare-dns.com", "dns.quad9.net"} {
+		add(host)
+	}
+	for _, p := range LoadDNSCatalog(data).Profiles {
+		if u, err := url.Parse(p.URL); err == nil {
+			add(u.Hostname())
+		}
+	}
+	sort.Strings(lines)
+	return []byte(strings.Join(lines, "\n") + "\n")
+}
+func buildDNSExcludeIPs(data string) []byte {
+	seen := map[string]bool{}
+	var lines []string
+	add := func(ip string) {
+		ip = strings.TrimSpace(ip)
+		if ip != "" && !seen[ip] {
+			seen[ip] = true
+			lines = append(lines, ip)
+		}
+	}
+	for _, ip := range []string{"195.133.25.16", "212.109.195.93", "83.220.169.155", "1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4", "9.9.9.9"} {
+		add(ip)
+	}
+	for _, p := range LoadDNSCatalog(data).Profiles {
+		for _, ip := range p.Bootstrap {
+			add(ip)
+		}
+	}
+	sort.Strings(lines)
+	return []byte(strings.Join(lines, "\n") + "\n")
 }
 func DecodeDomains(text string) []string {
 	pattern := regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{0,250})\.[a-z]{2,20}$`)

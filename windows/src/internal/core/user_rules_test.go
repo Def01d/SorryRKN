@@ -110,3 +110,40 @@ func TestMaximumListsMaterializeTogether(t *testing.T) {
 		t.Fatal("maximum lists not accepted together", e)
 	}
 }
+
+func TestUserDPIDomainsAndInstagramSeparation(t *testing.T) {
+	dir := t.TempDir()
+	igFalse := false
+	c := DefaultConfig()
+	c.Extras = true
+	c.Instagram = &igFalse
+	c.GeoDomains = []string{"geo.example.com"}
+	c.DirectDomains = []string{"direct.example.com"}
+	c.DPIDomains = []string{"dpi.example.com", "geo.example.com", "direct.example.com"}
+	if c.InstagramEnabled() {
+		t.Fatal("expected Instagram disabled independently of Extras")
+	}
+	r, err := c.Rules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.IsDPI("sub.dpi.example.com") || r.IsDPI("geo.example.com") || r.IsDPI("direct.example.com") {
+		t.Fatal("unexpected DPI precedence", r)
+	}
+	if !r.ShouldResolveDNS("sub.dpi.example.com") || r.IsGeo("sub.dpi.example.com") {
+		t.Fatal("DPI domain should use verified public DoH, not Geo-DNS")
+	}
+	dpiList, err := WriteUserDPIList(dir, r)
+	if err != nil || dpiList == "" {
+		t.Fatal("expected user-dpi.txt", err)
+	}
+	raw, _ := os.ReadFile(dpiList)
+	if string(raw) != "dpi.example.com\n" {
+		t.Fatalf("unexpected user-dpi.txt contents: %q", string(raw))
+	}
+	args := WithDirect(WithUserDPI([]string{"--wf-tcp=80,443", "--wf-udp=443"}, dpiList), filepath.Join(dir, "user-no-desync.txt"))
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "--hostlist="+dpiList) {
+		t.Fatalf("missing user DPI hostlist in args: %s", joined)
+	}
+}

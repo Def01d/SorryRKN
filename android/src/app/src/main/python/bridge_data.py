@@ -188,7 +188,7 @@ def transport_args(preferred=''):
     return json.dumps([*args, "--auto=none"])
 
 
-def extras_args(profile_id,directory,adaptive=True,geo_domains=(),direct_domains=(),builtins=True,telegram=False):
+def extras_args(profile_id,directory,adaptive=True,geo_domains=(),direct_domains=(),builtins=True,telegram=False,instagram=None,dpi_domains=()):
     """Local DPI only: canonical DNS destinations, no DNS relay endpoint.
 
     The gateway applies direct exclusions before forwarding to this listener.
@@ -202,9 +202,10 @@ def extras_args(profile_id,directory,adaptive=True,geo_domains=(),direct_domains
         if not isinstance(value,(list,tuple)) or any(not isinstance(v,str) for v in value):
             raise ValueError('Invalid domain list')
         return value
-    rules=DomainRules(values(geo_domains),values(direct_domains),bool(builtins))
+    use_instagram = bool(builtins) if instagram is None else bool(instagram)
+    rules=DomainRules(values(geo_domains),values(direct_domains),bool(builtins),values(dpi_domains))
     excluded=load(directory)['exclude']
-    selected=[*(AI_HOSTS+INSTAGRAM_HOSTS if builtins else ()),*rules.geo,
+    selected=[*(AI_HOSTS if builtins else ()),*(INSTAGRAM_HOSTS if use_instagram else ()),*rules.geo,*rules.dpi,
               *(TELEGRAM_WS_HOSTS if telegram else ())]
     hosts=[h for h in dict.fromkeys(selected) if not rules.is_direct(h) and not matches(h,excluded)]
     path=Path(directory,'bye-extras-hosts.txt');temp=path.with_suffix('.tmp')
@@ -212,12 +213,14 @@ def extras_args(profile_id,directory,adaptive=True,geo_domains=(),direct_domains
     return bye_args(profile_id,directory,adaptive,'bye-extras-hosts.txt')
 
 
-def materialize(directory):
+def materialize(directory, dpi_domains=()):
     data = load(directory)
     from extra_sites import YOUTUBE_HOSTS, DISCORD_HOSTS
+    from user_rules import parse_domains
+    extra_dpi = parse_domains('\n'.join(json.loads(dpi_domains) if isinstance(dpi_domains, str) else dpi_domains)) if dpi_domains else []
     # Essential service roots survive stale remote lists. Exclusions still
     # take precedence in both native engines and gateway routing.
-    data = dict(data, hosts=list(dict.fromkeys([*data['hosts'], *YOUTUBE_HOSTS, *DISCORD_HOSTS])))
+    data = dict(data, hosts=list(dict.fromkeys([*data['hosts'], *YOUTUBE_HOSTS, *DISCORD_HOSTS, *extra_dpi])))
     root = Path(directory)
     for name, field in (("hosts.txt", "hosts"), ("exclude.txt", "exclude")):
         temp = root / (name + ".tmp")

@@ -74,7 +74,8 @@ func ParseBAT(name, text string) (Profile, error) {
 	}
 	id := strings.ToLower(strings.TrimSuffix(name, ".bat"))
 	id = strings.ReplaceAll(id, " ", "-")
-	return Profile{ID: id, Name: strings.TrimSuffix(strings.TrimPrefix(name, "general"), ".bat"), Args: args}, nil
+	display := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(name, "general"), ".bat"))
+	return Profile{ID: id, Name: display, Args: args}, nil
 }
 func splitArgs(text string) ([]string, error) {
 	var out []string

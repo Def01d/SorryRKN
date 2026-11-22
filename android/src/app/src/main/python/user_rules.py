@@ -35,15 +35,18 @@ def parse_domains(text):
     return result
 
 class DomainRules:
-    def __init__(self,geo=(),direct=(),builtins=True):
+    def __init__(self,geo=(),direct=(),builtins=True,dpi=()):
         self.geo=tuple(parse_domains('\n'.join(geo)))
         self.direct=tuple(parse_domains('\n'.join(direct)))
+        self.dpi=tuple(parse_domains('\n'.join(dpi)))
         self.builtins=builtins
         self.addresses={}
         self.protected_addresses={}
     def is_direct(self,host):return matches(host,self.direct)
     def is_geo(self,host):
         return not self.is_direct(host) and (matches(host,self.geo) or self.builtins and matches(host,AI_HOSTS))
+    def is_dpi(self,host):
+        return not self.is_direct(host) and not self.is_geo(host) and matches(host,self.dpi)
     def direct_address(self,address):
         return self._known_address(address,self.addresses,self.is_direct)
     def protected_address(self,address):

@@ -36,6 +36,10 @@ func editServiceRoutes() {
 		serviceBrush = 0
 		return
 	}
+	dark := uint32(1)
+	if p := proc(dwm, "DwmSetWindowAttribute"); p.Find() == nil {
+		p.Call(serviceWindow, 20, uintptr(unsafe.Pointer(&dark)), 4)
+	}
 	create := func(class, label string, id, x, y, w, h int, style uintptr) uintptr {
 		handle := call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u(class))), uintptr(unsafe.Pointer(u(label))), 0x50010000|style, uintptr(dp(x)), uintptr(dp(y)), uintptr(dp(w)), uintptr(dp(h)), serviceWindow, uintptr(id), instance, 0)
 		call(user, "SendMessageW", handle, 0x30, font(13, 400), 1)
@@ -99,6 +103,7 @@ func serviceRoutesProc(window uintptr, id uint32, w, l uintptr) uintptr {
 			saveConfig(func(c *core.Config) { c.ServiceDNS = choices })
 			call(user, "DestroyWindow", window)
 			refreshDNSWindow()
+			reloadEngineIfActive()
 		case 9302, 2:
 			call(user, "DestroyWindow", window)
 		}

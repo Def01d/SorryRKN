@@ -91,7 +91,8 @@ class Routes:
         self.ports=ports
         self.own_ip=bool(ports.get('own_ip'))
         self.rules=DomainRules(ports.get('geo_domains',()),ports.get('direct_domains',()),
-                               bool(ports.get('builtin_extras',ports.get('smart_dns') or ports.get('ai'))))
+                               bool(ports.get('builtin_extras',ports.get('smart_dns') or ports.get('ai'))),
+                               ports.get('dpi_domains',()))
         self.hosts=Path(directory,'hosts.txt').read_text().splitlines()
         self.excluded=Path(directory,'exclude.txt').read_text().splitlines()
     @staticmethod
@@ -100,6 +101,8 @@ class Routes:
     def group(self,host):
         if isinstance(host,str):host=host.lower().rstrip('.')
         if not host or self.rules.is_direct(host) or any(self.matches(host,p) for p in self.excluded):return 'direct'
+        if self.rules.is_dpi(host) and (self.ports.get('youtube') or self.ports.get('instagram') or self.ports.get('ai')):
+            return 'youtube' if self.ports.get('youtube') else ('instagram' if self.ports.get('instagram') else 'ai')
         if self.rules.is_geo(host) and (self.ports.get('ai') if self.own_ip else self.ports.get('smart_dns')):return 'ai'
         if self.ports.get('instagram') and matches(host,INSTAGRAM_HOSTS):return 'instagram'
         # Essential API/media domains must survive an incomplete downloaded list.

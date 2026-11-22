@@ -63,6 +63,15 @@ def set_sock_opts(transport, buffer_size):
         sock.setsockopt(_socket.IPPROTO_TCP, _socket.TCP_NODELAY, 1)
     except (OSError, AttributeError):
         pass
+
+    try:
+        sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_KEEPALIVE, 1)
+        for name, value in (('TCP_KEEPIDLE', 15), ('TCP_KEEPINTVL', 5), ('TCP_KEEPCNT', 3), ('TCP_USER_TIMEOUT', 20000)):
+            opt = getattr(_socket, name, None)
+            if opt is not None:
+                sock.setsockopt(_socket.IPPROTO_TCP, opt, value)
+    except (OSError, AttributeError):
+        pass
     
     try:
         sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_RCVBUF, buffer_size)

@@ -69,14 +69,20 @@ func ReadTelegramHealth(path string, now time.Time) TelegramHealth {
 func applyServiceHealth(s *State, baseStatus, baseDetail string) {
 	s.Status, s.Detail = baseStatus, baseDetail
 	if s.Telegram && s.TelegramHealth.State != "ready" {
-		s.Status = "partial"
-		switch s.TelegramHealth.State {
-		case "degraded":
-			s.Detail = "Telegram: доступны не все дата-центры"
-		case "unavailable":
-			s.Detail = "Telegram не отвечает · ищем маршрут"
-		default:
-			s.Detail = "Проверяем ответ Telegram"
+		primaryOK := s.TelegramHealth.State == "degraded" &&
+			len(s.TelegramHealth.Datacenters) >= 4 &&
+			s.TelegramHealth.Datacenters["2"].OK &&
+			s.TelegramHealth.Datacenters["4"].OK
+		if !primaryOK {
+			s.Status = "partial"
+			switch s.TelegramHealth.State {
+			case "degraded":
+				s.Detail = "Telegram: доступны не все дата-центры"
+			case "unavailable":
+				s.Detail = "Telegram не отвечает · ищем маршрут"
+			default:
+				s.Detail = "Проверяем ответ Telegram"
+			}
 		}
 	}
 	for _, target := range s.Services {

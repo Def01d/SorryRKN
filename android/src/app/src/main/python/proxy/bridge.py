@@ -70,14 +70,17 @@ class MsgSplitter:
         self._plain_buf = bytearray()
         self._disabled = False
 
-    def split(self, chunk: bytes) -> List[bytes]:
+    def split(self, chunk: bytes, plain: Optional[bytes] = None) -> List[bytes]:
         if not chunk:
             return []
         if self._disabled:
             return [chunk]
 
         self._cipher_buf.extend(chunk)
-        self._plain_buf.extend(self._dec.update(chunk))
+        if plain is not None and len(plain) == len(chunk):
+            self._plain_buf.extend(plain)
+        else:
+            self._plain_buf.extend(self._dec.update(chunk))
 
         parts = []
         offset = 0
@@ -520,7 +523,7 @@ async def bridge_ws_reencrypt(reader, writer, ws: RawWebSocket, label,
                 plain = ctx.clt_dec.update(chunk)
                 chunk = ctx.tg_enc.update(plain)
                 if splitter:
-                    parts = splitter.split(chunk)
+                    parts = splitter.split(chunk, plain)
                     if not parts:
                         continue
                     if health:

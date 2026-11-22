@@ -20,9 +20,11 @@ log = logging.getLogger('tg-mtproto-proxy')
 CONNECT_TIMEOUT = 4.0
 PROBE_TIMEOUT = 5.0
 SELECT_TIMEOUT = 9.0
-CACHE_SECONDS = 60.0
+CACHE_SECONDS = 180.0
+FAILED_SECONDS = 15.0
 _cache = {}
 _locks = {}
+_failed_until = {}
 
 
 @dataclass(frozen=True)
@@ -37,10 +39,16 @@ class Route:
 def reset():
     _cache.clear()
     _locks.clear()
+    _failed_until.clear()
 
 
 def invalidate(dc, is_media, is_test_dc):
-    _cache.pop((dc, is_media, is_test_dc), None)
+    key = (dc, is_media, is_test_dc)
+    old = _cache.pop(key, None)
+    if old is not None:
+        _failed_until[(*key, old[0])] = time.monotonic() + FAILED_SECONDS
+        while len(_failed_until) > 128:
+            _failed_until.pop(next(iter(_failed_until)))
 
 
 def candidates(dc, is_media, is_test_dc):
@@ -62,9 +70,17 @@ def candidates(dc, is_media, is_test_dc):
         routes.append(Route('worker', domain, domain=domain,
                             path='/apiws?' + urlencode({'dst': ip, 'dc': dc})))
     if proxy_config.fallback_cfproxy and not is_test_dc:
-        for base in islice(balancer.get_domains_for_dc(dc), 2):
+        now = time.monotonic()
+        cf_added = 0
+        for base in balancer.get_domains_for_dc(dc):
             domain = f'kws{dc}.{base}'
-            routes.append(Route('cf', domain, domain=domain))
+            route = Route('cf', domain, domain=domain)
+            if _failed_until.get((dc, is_media, is_test_dc, route), 0) > now:
+                continue
+            routes.append(route)
+            cf_added += 1
+            if cf_added >= 2:
+                break
     return routes
 
 
@@ -101,13 +117,17 @@ async def _probe(route, dc, delay):
 
 
 async def _select(dc, is_media, is_test_dc):
-    routes = candidates(dc, is_media, is_test_dc)
-    tasks = [asyncio.create_task(_probe(route, -dc if is_media else dc, index * .2))
+    now = time.monotonic()
+    all_routes = candidates(dc, is_media, is_test_dc)
+    routes = [r for r in all_routes if _failed_until.get((dc, is_media, is_test_dc, r), 0) <= now] or all_routes
+    tasks = [asyncio.create_task(_probe(route, -dc if is_media else dc, index * .12))
              for index, route in enumerate(routes)]
     try:
         for completed in asyncio.as_completed(tasks, timeout=SELECT_TIMEOUT):
             try:
                 route = await completed
+                if route.kind == 'cf' and '.' in route.domain:
+                    balancer.update_domain_for_dc(dc, route.domain.split('.', 1)[1])
                 log.info('DC%d%s verified route=%s port=%d', dc,
                          ' media' if is_media else '', route.kind, route.port)
                 return route
@@ -125,16 +145,27 @@ async def _select(dc, is_media, is_test_dc):
 
 async def connect(dc, is_media=False, is_test_dc=False):
     key = (dc, is_media, is_test_dc)
-    # Prevent concurrent Telegram sessions from independently probing every route.
-    async with _locks.setdefault(key, asyncio.Lock()):
-        cached = _cache.get(key)
-        if cached and cached[1] > time.monotonic():
-            route = cached[0]
-            try:
-                return await open_route(route), route.kind
-            except Exception:
-                _cache.pop(key, None)
-        route = await _select(dc, is_media, is_test_dc)
-        transport = await open_route(route)
-        _cache[key] = (route, time.monotonic() + CACHE_SECONDS)
-        return transport, route.kind
+    for attempt in range(2):
+        # Coalesce route discovery only; dial cached routes outside the lock so
+        # parallel media streams never block one another.
+        async with _locks.setdefault(key, asyncio.Lock()):
+            cached = _cache.get(key)
+            if cached and cached[1] > time.monotonic():
+                route = cached[0]
+            else:
+                route = await _select(dc, is_media, is_test_dc)
+                _cache[key] = (route, time.monotonic() + CACHE_SECONDS)
+        try:
+            transport = await open_route(route)
+            current = _cache.get(key)
+            if current and current[0] == route:
+                _cache[key] = (route, time.monotonic() + CACHE_SECONDS)
+            return transport, route.kind
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            current = _cache.get(key)
+            if current and current[0] == route:
+                invalidate(dc, is_media, is_test_dc)
+            if attempt:
+                raise

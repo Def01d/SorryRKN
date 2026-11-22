@@ -21,8 +21,12 @@ const (
 	vpnServerID
 	vpnSourcesID
 )
+const modeServerTabID = 1106
+const modeSubsTabID = 1107
 const vpnDoneMessage = WM_APP + 44
 const vpnTimer = 1105
+
+var vpnTabFocus = "subs"
 
 var vpnSession tunnel.Session
 var vpnLibrary tunnel.Library
@@ -66,22 +70,28 @@ func copyLibrary() tunnel.Library {
 	return next
 }
 func createModeControls() {
-	createButton(vpnModeID, "Режим работы", 28, 15, 325, 31)
-	createButton(vpnServerID, "Свой сервер", 44, 390, 372, 77)
-	createButton(vpnSourcesID, "Подписки и узлы", 44, 475, 372, 77)
+	createButton(modeLocalID, "Локальный", 26, 64, 132, 30)
+	createButton(modeServerTabID, "Свой сервер", 160, 64, 132, 30)
+	createButton(modeSubsTabID, "Подписки", 294, 64, 132, 30)
+	createButton(vpnServerID, "Свой сервер", 38, 224, 376, 70)
+	createButton(vpnSourcesID, "Подписки и узлы", 38, 306, 376, 70)
 	loadLibrary()
 	applyMode()
 }
 func showControl(id int, on bool) {
+	h := controls[id]
+	if h == 0 {
+		return
+	}
 	var show uintptr
 	if on {
 		show = SW_SHOW
 	}
-	call(user, "ShowWindow", controls[id], show)
+	call(user, "ShowWindow", h, show)
 }
 func applyMode() {
 	v := currentConfig().VPNMode
-	for _, id := range []int{DpiID, TelegramID, ExtrasID, ProfileID, LinkID} {
+	for _, id := range []int{DpiID, InstagramID, TelegramID, ExtrasID, ProfileID, InstaRowID, DnsRowID, LinkID, DiagBtnID} {
 		showControl(id, !v)
 	}
 	for _, id := range []int{vpnServerID, vpnSourcesID} {
@@ -89,25 +99,62 @@ func applyMode() {
 	}
 	refresh()
 }
+func switchVPNMode(enableVPN bool, tab string) {
+	if cancelWork != nil {
+		return
+	}
+	prev := currentConfig().VPNMode
+	if enableVPN && tab != "" {
+		vpnTabFocus = tab
+	}
+	if prev == enableVPN {
+		if enableVPN {
+			if tab == "server" {
+				openVPNPage(vpnServerID)
+			} else if tab == "subs" {
+				openVPNPage(vpnSourcesID)
+			}
+		}
+		refresh()
+		return
+	}
+	if !enableVPN && vpnSession.Active() {
+		go vpnSession.Stop()
+		wasActive = false
+		call(user, "KillTimer", hwnd, vpnTimer)
+	}
+	if enableVPN && engine != nil && engine.Busy() {
+		go engine.Stop()
+	}
+	saveConfig(func(c *core.Config) { c.VPNMode = enableVPN })
+	applyMode()
+}
 func modeCommand(id int) bool {
 	switch id {
 	case vpnModeID:
 		m := call(user, "CreatePopupMenu")
 		v := currentConfig().VPNMode
-		locked := engine.Busy() || vpnSession.Active() || cancelWork != nil
+		locked := cancelWork != nil
 		addItem(m, modeLocalID, "Локальный обход", !v, locked)
 		addItem(m, modeTunnelID, "VPN и подписки", v, locked)
 		popup(m)
-	case modeLocalID, modeTunnelID:
-		if engine.Busy() || vpnSession.Active() || cancelWork != nil {
-			message("Режим работы", "Сначала отключите соединение.")
-			return true
-		}
-		saveConfig(func(c *core.Config) { c.VPNMode = id == modeTunnelID })
-		applyMode()
+	case modeLocalID:
+		switchVPNMode(false, "")
+	case modeTunnelID:
+		switchVPNMode(true, "subs")
+	case modeServerTabID:
+		switchVPNMode(true, "server")
+	case modeSubsTabID:
+		switchVPNMode(true, "subs")
 	case vpnServerID, vpnSourcesID:
 		if currentConfig().VPNMode {
+			if id == vpnServerID {
+				vpnTabFocus = "server"
+			} else {
+				vpnTabFocus = "subs"
+			}
 			openVPNPage(id)
+			refresh()
 		}
 	default:
 		return false
@@ -115,42 +162,68 @@ func modeCommand(id int) bool {
 	return true
 }
 func paintVPN(dc uintptr) {
-	title, detail := "VPN выключен", "Добавьте свой сервер или подписку"
+	title, detail := "VPN выключен", "Выберите свой сервер или подписку ниже"
+	dotColor := DIM
+	heroStroke := BORDER
 	if p, ok := selectedNode(); ok {
 		detail = p.Name
 	}
 	if vpnSession.Active() {
 		title = "VPN включён"
+		dotColor = GREEN
+		heroStroke = GREEN
+	}
+	if cancelWork != nil {
+		dotColor = AMBER
+		heroStroke = AMBER
 	}
 	if vpnStatus != "" {
 		detail = vpnStatus
 	}
-	text(dc, title, 28, 311, 404, 32, 24, WHITE, 600, true)
-	text(dc, detail, 24, 348, 412, 28, 12, GRAY, 400, true)
-	rounded(dc, logicalRect(28, 386, 404, 181), PANEL, BORDER, 20)
-	line(dc, 44, 473, 416, 473, BORDER)
-	text(dc, "Закрытие окна — свернуть в трей", 28, 649, 404, 22, 11, GRAY, 400, true)
-	text(dc, "WINDOWS  /  VPN", 28, 682, 404, 18, 9, GRAY, 400, true)
+	rounded(dc, logicalRect(22, 110, 408, 96), PANEL, heroStroke, 18)
+	ellipse(dc, logicalRect(118, 141, 8, 8), dotColor, dotColor)
+	text(dc, title, 132, 132, 270, 26, 18, WHITE, 600, false)
+	text(dc, detail, 118, 160, 290, 22, 12, GRAY, 400, false)
+
+	rounded(dc, logicalRect(22, 218, 408, 164), PANEL, BORDER, 18)
+	line(dc, 38, 300, 414, 300, BORDER)
+	text(dc, "Закрытие окна сворачивает пульт в системный трей", 22, 533, 408, 20, 11, DIM, 400, true)
 }
 func drawVPNButton(d *drawitem, w, h int) bool {
 	dc := d.Hdc
-	switch d.ID {
-	case vpnModeID:
-		fill(dc, d.Rect, BG)
-		label := "ЛОКАЛЬНЫЙ ОБХОД   ▾"
-		if currentConfig().VPNMode {
-			label = "VPN И ПОДПИСКИ   ▾"
+	c := currentConfig()
+	switch int(d.ID) {
+	case modeLocalID, modeServerTabID, modeSubsTabID:
+		fill(dc, d.Rect, PANEL)
+		active := false
+		label := "Локальный"
+		switch int(d.ID) {
+		case modeLocalID:
+			active = !c.VPNMode
+		case modeServerTabID:
+			label = "Свой сервер"
+			active = c.VPNMode && vpnTabFocus == "server"
+		case modeSubsTabID:
+			label = "Подписки"
+			active = c.VPNMode && vpnTabFocus != "server"
 		}
-		text(dc, label, 0, 6, w, h, 12, GRAY, 600, false)
+		fg := GRAY
+		weight := 500
+		if active {
+			rounded(dc, logicalRect(0, 0, w, h), PANEL_ELEV, BORDER_STRONG, 8)
+			fg = WHITE
+			weight = 600
+		}
+		text(dc, label, 0, 6, w, h-8, 12, fg, weight, true)
 	case vpnServerID, vpnSourcesID:
 		fill(dc, d.Rect, PANEL)
-		label, note := "Свой сервер", "HTTPS, резервный TCP и SOCKS5"
+		label, note := "Свой сервер", "HTTPS, VLESS / REALITY и SOCKS5 по SSH"
 		if d.ID == vpnSourcesID {
-			label, note = "Подписки и узлы", "Импорт, обновление и выбор подключения"
+			label, note = "Подписки и узлы", "Импорт ссылок, проверка и выбор узла"
 		}
-		text(dc, label, 0, 10, w-30, 25, 16, WHITE, 600, false)
-		text(dc, note, 0, 40, w-30, 22, 12, GRAY, 400, false)
-		text(dc, "›", w-23, 19, 23, 29, 20, GRAY, 400, true)
+		text(dc, label, 0, 10, w-30, 24, 15, WHITE, 600, false)
+		text(dc, note, 0, 38, w-30, 20, 11, GRAY, 400, false)
+		text(dc, "›", w-24, 18, 22, 28, 20, GRAY, 400, true)
 	default:
 		return false
 	}
@@ -274,8 +347,8 @@ func openVPNPage(id int) {
 	if cancelWork != nil {
 		return
 	}
-	if vpnSession.Active() {
-		message("VPN", "Для изменения профилей отключите VPN.")
+	if id == vpnServerID && vpnSession.Active() {
+		message("VPN", "Для изменения настроек сервера отключите VPN.")
 		return
 	}
 	if id == vpnSourcesID && libraryError != nil {
@@ -299,7 +372,7 @@ func openVPNPage(id int) {
 		height = 505
 	}
 	fields = map[int]uintptr{}
-	vpnBrush = call(gdi, "CreateSolidBrush", BG)
+	vpnBrush = call(gdi, "CreateSolidBrush", PANEL)
 	vpnWindow = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u("SorryRKNVPN"))), uintptr(unsafe.Pointer(u(title))), 0x80c80000, 0x80000000, 0x80000000, uintptr(dp(626)), uintptr(dp(height)), hwnd, 0, instance, 0)
 	if vpnWindow == 0 {
 		call(gdi, "DeleteObject", vpnBrush)
@@ -351,9 +424,9 @@ func vpnProc(window uintptr, id uint32, w, l uintptr) uintptr {
 	case 0x0318: // WM_PRINTCLIENT
 		paintVPNPage(window, w)
 		return 0
-	case 0x0138:
+	case 0x0133, 0x0138:
 		call(gdi, "SetTextColor", w, WHITE)
-		call(gdi, "SetBkColor", w, BG)
+		call(gdi, "SetBkColor", w, PANEL)
 		return vpnBrush
 	case WM_COMMAND:
 		if cancelWork != nil {

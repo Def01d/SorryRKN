@@ -9,8 +9,8 @@ android {
         buildConfigField 'String', 'UPDATE_APPLICATION_ID', '"io.github.def01d.sorryrkn"'
         minSdk 26
         targetSdk 35
-        versionCode providers.gradleProperty('androidVersionCode').map { it.toInteger() }.getOrElse(10002)
-        versionName '1.0.2'
+        versionCode providers.gradleProperty('androidVersionCode').map { it.toInteger() }.getOrElse(10100)
+        versionName '1.1.0'
         ndk { abiFilters 'arm64-v8a', 'x86_64' }
         testInstrumentationRunner 'dev.graybridge.DeviceChecks'
     }

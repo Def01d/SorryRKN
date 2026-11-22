@@ -9,7 +9,7 @@ import org.json.JSONArray;
 /** User lists remain in preferences, separate from downloaded profiles. */
 final class UserRules {
     static final int MAX_TEXT=32768, MAX_DOMAINS=256;
-    static final int GEO_FIELD_ID=1001,DIRECT_FIELD_ID=1002;
+    static final int GEO_FIELD_ID=1001,DIRECT_FIELD_ID=1002,DPI_FIELD_ID=1003;
     static String parse(String text) {
         if(text.length()>MAX_TEXT) throw new IllegalArgumentException("Список слишком длинный");
         LinkedHashSet<String> hosts=new LinkedHashSet<>();
@@ -43,4 +43,5 @@ final class UserRules {
         return array;
     }
     static boolean geo(Context c) {return !text(c,"geo_domains").trim().isEmpty();}
+    static boolean dpi(Context c) {return !text(c,"dpi_domains").trim().isEmpty();}
 }

@@ -122,6 +122,20 @@ class UDPAssociation(asyncio.DatagramProtocol):
         if port==443 and not direct and (not routes or (ip_destination or protected) and quic_datagram(payload)):
             self.gateway.stats['quic_blocked']+=1
             return
+        if port != 53:
+            key = (host, port)
+            existing = self.remotes.get(key)
+            if existing is not None:
+                transport, _ = existing
+                now = time.monotonic()
+                self.remotes[key] = transport, now
+                try:
+                    transport.sendto(payload)
+                    self.gateway.stats['udp_forwarded'] += 1
+                except (OSError, ValueError):
+                    transport.close()
+                    self.remotes.pop(key, None)
+                return
         if len(self.tasks) >= 64:
             return
         task = asyncio.create_task(self.forward(host, port, payload))
@@ -368,6 +382,13 @@ class Gateway:
                 writer.write(b"\x05\0\0" + encode_address("127.0.0.1", bound_port))
                 await writer.drain()
                 await reader.read()
+            elif head[1] == 1 and port == 853:
+                # Reject opportunistic DNS-over-TLS immediately so Android netd
+                # falls back to VPN UDP:53 (SmartDNS) instead of bypassing it
+                # or stalling for 10s on ISP-blocked port 853.
+                writer.write(b"\x05\x05\0" + encode_address("127.0.0.1", 0))
+                await writer.drain()
+                return
             elif head[1] == 1 and port == 53:
                 writer.write(b"\x05\0\0" + encode_address("127.0.0.1", 0))
                 await writer.drain()

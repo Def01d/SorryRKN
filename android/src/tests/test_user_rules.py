@@ -87,3 +87,38 @@ async def test_excluded_udp443_is_forwarded_without_global_quic_drop(tmp_path):
     association.datagram_received(b'\0\0\0'+encode_address('127.0.0.2',443)+b'QUIC',('127.0.0.1',6000))
     assert len(forwarded)==1
     await association.close()
+
+
+def test_user_dpi_domains_precedence_and_route_group(tmp_path):
+    import json
+    from pathlib import Path
+    from bridge_data import extras_args, materialize
+    setup_routes(tmp_path)
+    (tmp_path / 'bundled-data.json').write_text((Path(__file__).resolve().parents[1] / 'app/src/main/assets/bundled-data.json').read_text())
+    rules = DomainRules(
+        geo=['geo.example.com'],
+        direct=['direct.example.com'],
+        dpi=['dpi.example.com', 'geo.example.com', 'direct.example.com'],
+    )
+    assert rules.is_dpi('sub.dpi.example.com')
+    assert not rules.is_dpi('geo.example.com')
+    assert not rules.is_dpi('direct.example.com')
+    routes = Routes(tmp_path, {
+        'instagram': 1085,
+        'smart_dns': True,
+        'ai': 1085,
+        'dpi_domains': ['dpi.example.com'],
+        'geo_domains': ['geo.example.com'],
+        'direct_domains': ['direct.example.com'],
+    })
+    assert routes.group('sub.dpi.example.com') == 'instagram'
+    assert routes.group('geo.example.com') == 'ai'
+    assert routes.group('direct.example.com') == 'direct'
+    materialize(tmp_path, dpi_domains=['dpi.example.com'])
+    assert 'dpi.example.com' in (tmp_path / 'bye-hosts.txt').read_text().splitlines()
+    args_only_custom = json.loads(extras_args('bye-disorder', tmp_path, builtins=False, instagram=False, dpi_domains=['dpi.example.com']))
+    assert any('bye-extras-hosts.txt' in a for a in args_only_custom)
+    extras_hosts = (tmp_path / 'bye-extras-hosts.txt').read_text().splitlines()
+    assert 'dpi.example.com' in extras_hosts
+    assert 'instagram.com' not in extras_hosts
+

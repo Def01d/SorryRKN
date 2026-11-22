@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,10 @@ import (
 type Process interface {
 	Stop()
 	Alive() bool
+}
+type childSpec struct {
+	proc    Process
+	restart func() (Process, error)
 }
 type Runner interface {
 	Start(program string, args []string, dir string, input []byte, log string) (Process, error)
@@ -33,6 +38,7 @@ type State struct {
 	Error          string               `json:"error,omitempty"`
 	Telegram       bool                 `json:"telegram"`
 	DPI            bool                 `json:"dpi"`
+	Instagram      bool                 `json:"instagram,omitempty"`
 	Extras         bool                 `json:"extra_sites"`
 	DNS            bool                 `json:"dns"`
 	TelegramHealth TelegramHealth       `json:"telegram_health"`
@@ -75,9 +81,10 @@ func (e *Engine) Snapshot() State {
 }
 func (e *Engine) set(s State) {
 	e.mu.Lock()
+	unchanged := reflect.DeepEqual(e.state, s)
 	e.state = s
 	e.mu.Unlock()
-	if e.notify != nil {
+	if !unchanged && e.notify != nil {
 		e.notify()
 	}
 }
@@ -124,7 +131,7 @@ func (e *Engine) Stop() {
 	}
 }
 func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool, saved func(string)) {
-	var children []Process
+	var children []childSpec
 	var stopExtra func()
 	var healthPath string
 	s := State{Status: "starting"}
@@ -132,8 +139,10 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		if stopExtra != nil {
 			stopExtra()
 		}
-		for _, p := range children {
-			p.Stop()
+		for _, ch := range children {
+			if ch.proc != nil {
+				ch.proc.Stop()
+			}
 		}
 		if healthPath != "" {
 			os.Remove(healthPath)
@@ -159,7 +168,13 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		fail(ruleError)
 		return
 	}
-	if !c.DPI && !c.Telegram && !c.Extras && len(rules.Geo) == 0 {
+	userDPIList, ruleError := WriteUserDPIList(e.data, rules)
+	if ruleError != nil {
+		fail(ruleError)
+		return
+	}
+	instagramOn := c.InstagramEnabled()
+	if !c.DPI && !c.Telegram && !c.Extras && !instagramOn && len(rules.Geo) == 0 && len(rules.DPI) == 0 {
 		fail(errors.New("выберите сервис для подключения"))
 		return
 	}
@@ -182,20 +197,27 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		}
 		input, _ := json.Marshal(map[string]any{"secret": secret, "domains": domains, "health_path": healthPath})
 		input = append(input, '\n')
-		p, err := e.runner.Start(filepath.Join(e.root, "python", "python.exe"), []string{"-u", filepath.Join(e.root, "app", "tg_runner.py")}, e.root, input, filepath.Join(e.data, "telegram.log"))
+		startTelegram := func() (Process, error) {
+			p, startErr := e.runner.Start(filepath.Join(e.root, "python", "python.exe"), []string{"-u", filepath.Join(e.root, "app", "tg_runner.py")}, e.root, input, filepath.Join(e.data, "telegram.log"))
+			if startErr != nil {
+				return nil, startErr
+			}
+			if waitErr := waitPort(ctx, p, "127.0.0.1:1443", 8*time.Second); waitErr != nil {
+				p.Stop()
+				return nil, fmt.Errorf("Telegram: %w", waitErr)
+			}
+			return p, nil
+		}
+		p, err := startTelegram()
 		if err != nil {
 			fail(err)
 			return
 		}
-		children = append(children, p)
-		if err = waitPort(ctx, p, "127.0.0.1:1443", 8*time.Second); err != nil {
-			fail(fmt.Errorf("Telegram: %w", err))
-			return
-		}
+		children = append(children, childSpec{proc: p, restart: startTelegram})
 		s.Telegram = true
 		s.TelegramHealth = TelegramHealth{State: "checking"}
 	}
-	if rules.Secure || c.Extras || len(rules.Geo) > 0 {
+	if rules.Secure || c.Extras || instagramOn || len(rules.Geo) > 0 || len(rules.DPI) > 0 {
 		var err error
 		stopExtra, err = e.extra.Start(ctx, filepath.Join(e.root, "zapret", "bin"), rules)
 		if err != nil {
@@ -203,6 +225,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			return
 		}
 		s.Extras = c.Extras || len(rules.Geo) > 0
+		s.Instagram = instagramOn
 		s.DNS = true
 	}
 	if c.DPI {
@@ -219,6 +242,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		}
 		var best *Profile
 		bestScore := -1
+		bestSeconds := 1e9
 		selected := false
 		for i := 0; ; i++ {
 			if i >= len(choices) && c.Method == "auto" && !extended {
@@ -241,8 +265,11 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			if err != nil {
 				continue
 			}
-			if c.Extras {
+			if instagramOn {
 				args = WithInstagram(args, filepath.Join(e.root, "zapret", "lists", "instagram.txt"))
+			}
+			if userDPIList != "" {
+				args = WithUserDPI(args, userDPIList)
 			}
 			args = WithDirect(args, directList)
 			process, err := e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), args, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
@@ -250,7 +277,7 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 				fail(err)
 				return
 			}
-			timer := time.NewTimer(350 * time.Millisecond)
+			timer := time.NewTimer(300 * time.Millisecond)
 			select {
 			case <-timer.C:
 			case <-ctx.Done():
@@ -264,13 +291,19 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			}
 			check := e.probe(ctx, p.Name)
 			s.Checks = append(s.Checks, check)
-			if check.Score() > bestScore {
+			if check.Score() > bestScore || (check.Score() == bestScore && best != nil && check.Seconds > 0 && check.Seconds < bestSeconds) {
 				copy := p
 				best = &copy
 				bestScore = check.Score()
+				if check.Seconds > 0 {
+					bestSeconds = check.Seconds
+				}
 			}
 			if check.Complete() || c.Method != "auto" {
-				children = append(children, process)
+				winwsArgs := append([]string(nil), args...)
+				children = append(children, childSpec{proc: process, restart: func() (Process, error) {
+					return e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), winwsArgs, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
+				}})
 				s.DPI = true
 				s.Profile = p.Name
 				selected = true
@@ -289,13 +322,19 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		if !selected && best != nil && bestScore > 0 {
 			args, err := ResolveArgs(*best, dir, filepath.Join(e.root, "zapret", "bin"))
 			if err == nil {
-				if c.Extras {
+				if instagramOn {
 					args = WithInstagram(args, filepath.Join(e.root, "zapret", "lists", "instagram.txt"))
+				}
+				if userDPIList != "" {
+					args = WithUserDPI(args, userDPIList)
 				}
 				args = WithDirect(args, directList)
 				p, err := e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), args, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
 				if err == nil {
-					children = append(children, p)
+					winwsArgs := append([]string(nil), args...)
+					children = append(children, childSpec{proc: p, restart: func() (Process, error) {
+						return e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), winwsArgs, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
+					}})
 					s.DPI = true
 					s.Profile = best.Name
 					s.Status = "partial"
@@ -308,21 +347,30 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			s.Status = "partial"
 			s.Profile = ""
 			s.Detail = "Рабочий DPI не найден · см. диагностику"
-			if !s.Telegram && !s.Extras {
+			if !s.Telegram && !s.Extras && !s.Instagram && userDPIList == "" {
 				fail(errors.New("рабочий метод не найден; откройте расширенный подбор"))
 				return
 			}
 		}
 	} else {
-		if c.Extras {
-			args := WithInstagram([]string{"--wf-tcp=80,443", "--wf-udp=443"}, filepath.Join(e.root, "zapret", "lists", "instagram.txt"))
+		if instagramOn || userDPIList != "" {
+			args := []string{"--wf-tcp=80,443", "--wf-udp=443"}
+			if instagramOn {
+				args = WithInstagram(args, filepath.Join(e.root, "zapret", "lists", "instagram.txt"))
+			}
+			if userDPIList != "" {
+				args = WithUserDPI(args, userDPIList)
+			}
 			args = WithDirect(args, directList)
 			p, err := e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), args, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
 			if err != nil {
 				fail(err)
 				return
 			}
-			children = append(children, p)
+			winwsArgs := append([]string(nil), args...)
+			children = append(children, childSpec{proc: p, restart: func() (Process, error) {
+				return e.runner.Start(filepath.Join(e.root, "zapret", "bin", "winws.exe"), winwsArgs, filepath.Join(e.root, "zapret", "bin"), nil, filepath.Join(e.data, "dpi.log"))
+			}})
 		}
 		s.Status = "on"
 		s.Detail = "Работает в фоне"
@@ -331,10 +379,17 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 		return
 	}
 	baseStatus, baseDetail := s.Status, s.Detail
-	if c.Extras {
-		s.Detail = "Проверяем ChatGPT и Instagram"
+	if c.Extras || instagramOn {
+		switch {
+		case c.Extras && instagramOn:
+			s.Detail = "Проверяем ChatGPT и Instagram"
+		case c.Extras:
+			s.Detail = "Проверяем ChatGPT"
+		default:
+			s.Detail = "Проверяем Instagram"
+		}
 		e.set(s)
-		s.Services = e.probeServices(ctx, e.extra.Resolver())
+		s.Services = filterActiveServices(e.probeServices(ctx, e.extra.Resolver()), c.Extras, instagramOn)
 	}
 	if s.Telegram {
 		s.TelegramHealth = ReadTelegramHealth(healthPath, time.Now())
@@ -353,20 +408,22 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 	serviceTimer := time.NewTicker(60 * time.Second)
 	defer serviceTimer.Stop()
 	serviceChecking := false
+	restarts := 0
+	lastRestart := time.Time{}
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-serviceTimer.C:
-			if (c.Extras || s.DNS && len(c.ServiceDNS) > 0) && !serviceChecking {
+			if (c.Extras || instagramOn || s.DNS && len(c.ServiceDNS) > 0) && !serviceChecking {
 				serviceChecking = true
 				go func() {
 					if resolver := e.extra.Resolver(); resolver != nil && resolver.serviceRouter != nil {
 						resolver.serviceRouter.Recover(ctx)
 					}
 					var result []Target
-					if c.Extras {
-						result = e.probeServices(ctx, e.extra.Resolver())
+					if c.Extras || instagramOn {
+						result = filterActiveServices(e.probeServices(ctx, e.extra.Resolver()), c.Extras, instagramOn)
 					}
 					select {
 					case serviceResults <- result:
@@ -380,17 +437,43 @@ func (e *Engine) run(ctx context.Context, c Config, secret string, extended bool
 			applyServiceHealth(&s, baseStatus, baseDetail)
 			e.set(s)
 		case <-ticker.C:
+			if time.Since(lastRestart) > 2*time.Minute {
+				restarts = 0
+			}
 			if s.DNS {
 				if resolver := e.extra.Resolver(); resolver != nil {
 					s.Routes = resolver.RouteStatus()
 				}
 			}
 			if s.DNS && !e.extra.Alive() {
-				fail(errors.New("DNS-профиль остановился; подключитесь снова"))
-				return
+				if restarts < 3 {
+					restarts++
+					lastRestart = time.Now()
+					if stopExtra != nil {
+						stopExtra()
+					}
+					if nextStop, restartErr := e.extra.Start(ctx, filepath.Join(e.root, "zapret", "bin"), rules); restartErr == nil {
+						stopExtra = nextStop
+					} else {
+						fail(errors.New("DNS-профиль остановился; подключитесь снова"))
+						return
+					}
+				} else {
+					fail(errors.New("DNS-профиль остановился; подключитесь снова"))
+					return
+				}
 			}
-			for _, p := range children {
-				if !p.Alive() {
+			for i := range children {
+				if !children[i].proc.Alive() {
+					children[i].proc.Stop()
+					if children[i].restart != nil && restarts < 3 {
+						restarts++
+						lastRestart = time.Now()
+						if nextProc, restartErr := children[i].restart(); restartErr == nil {
+							children[i].proc = nextProc
+							continue
+						}
+					}
 					fail(errors.New("сетевой процесс остановился; подключитесь снова"))
 					return
 				}
@@ -442,4 +525,21 @@ func WithInstagram(args []string, list string) []string {
 		result = append(result, profiles...)
 	}
 	return result
+}
+
+func filterActiveServices(targets []Target, wantChatGPT, wantInstagram bool) []Target {
+	if wantChatGPT && wantInstagram {
+		return targets
+	}
+	var out []Target
+	for _, t := range targets {
+		if t.Name == "ChatGPT" && !wantChatGPT {
+			continue
+		}
+		if t.Name == "Instagram" && !wantInstagram {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
 }

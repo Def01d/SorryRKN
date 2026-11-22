@@ -2,8 +2,10 @@ package dev.graybridge;
 
 import android.app.*;
 import android.content.*;
+import android.content.pm.ServiceInfo;
 import android.net.VpnService;
 import android.os.*;
+import android.service.quicksettings.TileService;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -25,6 +27,16 @@ public class RemoteVpnService extends VpnService {
     static boolean busy(Context c) { return java.util.Arrays.asList("starting", "on", "stopping").contains(status(c)); }
     static void state(Context c, String value, String error) {
         Settings.prefs(c).edit().putString("remote_state", value).putString("remote_error", error).apply();
+        TileService.requestListeningState(c, new ComponentName(c, BridgeTile.class));
+    }
+    static boolean canStart(Context c) {
+        try {
+            if (Settings.prefs(c).getString("remote_mode", "server").equals("server")) {
+                return RemoteVault.read(c, "server").has("https");
+            }
+            JSONObject book = RemoteSubscriptions.library(c);
+            return book.getJSONArray("groups").length() > 0 && RemoteSubscriptions.selected(book) != null;
+        } catch (Exception e) { return false; }
     }
     static void start(Context c) {
         state(c, "starting", "");
@@ -34,23 +46,34 @@ public class RemoteVpnService extends VpnService {
         state(c, "stopping", "");
         c.startService(new Intent(c, RemoteVpnService.class).setAction("stop"));
     }
-    @Override public int onStartCommand(Intent intent, int flags, int id) {
-        if (intent == null || "stop".equals(intent.getAction())) {
-            worker.execute(() -> finish(id, ""));
-            return START_NOT_STICKY;
-        }
+    private void foreground(String text) {
         NotificationManager nm=getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel("remote", "VPN", NotificationManager.IMPORTANCE_LOW));
         PendingIntent open = PendingIntent.getActivity(this, 5, new Intent(this, RemoteActivity.class),
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        startForeground(213, new Notification.Builder(this,"remote").setSmallIcon(R.drawable.ic_bridge)
-            .setContentTitle("SorryRKN · VPN").setContentText("Защищённое подключение").setContentIntent(open).setOngoing(true).build());
+        PendingIntent close = PendingIntent.getService(this, 8, new Intent(this, RemoteVpnService.class).setAction("stop"),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification n = new Notification.Builder(this,"remote").setSmallIcon(R.drawable.ic_bridge)
+            .setContentTitle("SorryRKN · VPN").setContentText(text).setContentIntent(open)
+            .setOngoing(true).setOnlyAlertOnce(true)
+            .addAction(new Notification.Action.Builder(null, "Отключить", close).build()).build();
+        if (Build.VERSION.SDK_INT >= 34) startForeground(213, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        else startForeground(213, n);
+    }
+    @Override public int onStartCommand(Intent intent, int flags, int id) {
+        if (intent == null || "stop".equals(intent.getAction())) {
+            foreground("Отключение…");
+            worker.execute(() -> finish(id, ""));
+            return START_NOT_STICKY;
+        }
+        foreground("Подключение…");
         worker.execute(() -> {
             if (active) return;
             try {
                 startEngine();
                 active = true;
                 state(this, "on", "");
+                foreground("Защищённое подключение");
                 java.lang.Process child = engine;
                 new Thread(() -> {
                     try { child.waitFor(); worker.execute(() -> {
@@ -130,6 +153,7 @@ public class RemoteVpnService extends VpnService {
         Builder builder = new Builder().setSession(self?"SorryRKN · HTTPS":"SorryRKN · Xray").setMtu(1400)
             .addAddress("198.18.0.1",32).addAddress("fd00:1::1",128).addRoute("0.0.0.0",0).addRoute("::",0)
             .addDnsServer(self?"198.18.0.2":"1.1.1.1").addDisallowedApplication(getPackageName()).setBlocking(false);
+        if (Build.VERSION.SDK_INT >= 29) builder.setMetered(false);
         fd = builder.establish();
         if(fd == null) throw new IOException();
         final int descriptor = fd.getFd();
@@ -167,8 +191,16 @@ public class RemoteVpnService extends VpnService {
     }
     private void close() {
         active = false;
-        if (engine!=null) { engine.destroyForcibly(); engine=null; }
-        if (httpsEngine!=null) { httpsEngine.destroyForcibly(); httpsEngine=null; }
+        if (engine!=null) {
+            engine.destroyForcibly();
+            try { engine.waitFor(1, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            engine=null;
+        }
+        if (httpsEngine!=null) {
+            httpsEngine.destroyForcibly();
+            try { httpsEngine.waitFor(1, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            httpsEngine=null;
+        }
         if (tunnel!=null) {
             while(tunnel.isAlive()) {
                 NativeTunnel.quit();

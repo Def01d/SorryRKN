@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"golang.org/x/sys/windows"
 	"os"
 	"path/filepath"
@@ -44,14 +43,25 @@ const REFRESH = WM_APP + 2
 const UPDATE = WM_APP + 3
 const EXIT = WM_APP + 4
 const launchCheckMessage = WM_APP + 45
-const BG = 0x0c0b0b
-const PANEL = 0x171515
-const WHITE = 0xeeeeee
-const GRAY = 0x8c8585
-const BORDER = 0x302c2c
+const uiAlertMessage = WM_APP + 46
+
+// Win32 COLORREF tokens (0x00BBGGRR)
+const BG = 0x0d0b0b
+const PANEL = 0x181414
+const PANEL_ELEV = 0x221c1c
+const WHITE = 0xf5f2f2
+const GRAY = 0x988e8e
+const DIM = 0x665c5c
+const BORDER = 0x302828
+const BORDER_STRONG = 0x483c3c
+const GREEN = 0x99d334
+const AMBER = 0x24bffb
+const RED = 0x7171f8
+
 const BS_OWNERDRAW = 0x0b
 const SW_SHOW = 5
 const SW_HIDE = 0
+
 const PowerID = 100
 const DpiID = 101
 const TelegramID = 102
@@ -59,6 +69,13 @@ const ExtrasID = 103
 const LinkID = 104
 const MenuID = 105
 const ProfileID = 106
+const InstaRowID = 107
+const InstagramID = 108
+const QuickRulesID = 109
+const QuickRetestID = 110
+const DnsRowID = 111
+const DiagBtnID = 112
+
 const OpenID = 200
 const RetestID = 201
 const ExtendedID = 202
@@ -68,6 +85,7 @@ const DiagnosticsID = 205
 const ExitID = 206
 const AutoDataID = 207
 const AboutID = 208
+const AutoStartID = 211
 
 type point struct{ X, Y int32 }
 type rect struct{ Left, Top, Right, Bottom int32 }
@@ -118,6 +136,7 @@ var dns = &platform.DNS{}
 var root, data, secret string
 var config core.Config
 var configMu sync.Mutex
+var reloadMu sync.Mutex
 var latest core.Release
 var latestMu sync.Mutex
 var updateBusy bool
@@ -127,6 +146,9 @@ var checkMu sync.Mutex
 var trayAvailable bool
 var taskbarMessage uint32
 var quitting bool
+var mainThreadID uint32
+var alertMu sync.Mutex
+var pendingAlerts [][2]string
 
 func dp(v int) int32             { return int32(float64(v)*scale + .5) }
 func currentConfig() core.Config { configMu.Lock(); defer configMu.Unlock(); return config }
@@ -140,11 +162,76 @@ func saveConfig(change func(*core.Config)) {
 	}
 }
 func message(title, text string) {
-	call(user, "MessageBoxW", hwnd, uintptr(unsafe.Pointer(u(text))), uintptr(unsafe.Pointer(u(title))), 0x40)
+	cur := uint32(call(kernel, "GetCurrentThreadId"))
+	if hwnd != 0 && mainThreadID != 0 && cur != mainThreadID {
+		alertMu.Lock()
+		pendingAlerts = append(pendingAlerts, [2]string{title, text})
+		alertMu.Unlock()
+		call(user, "PostMessageW", hwnd, uiAlertMessage, 0, 0)
+		return
+	}
+	owner := hwnd
+	for _, modal := range []uintptr{serviceWindow, dnsWindow, rulesWindow, vpnWindow} {
+		if modal != 0 {
+			owner = modal
+			break
+		}
+	}
+	call(user, "MessageBoxW", owner, uintptr(unsafe.Pointer(u(text))), uintptr(unsafe.Pointer(u(title))), 0x40)
 }
 func errorMessage(text string) { message("SorryRKN", text) }
+
+func reloadEngineIfActive() {
+	if currentConfig().VPNMode || engine == nil {
+		return
+	}
+	st := engine.Snapshot().Status
+	if st != "on" && st != "partial" && st != "starting" {
+		return
+	}
+	go func() {
+		reloadMu.Lock()
+		defer reloadMu.Unlock()
+		engine.Stop()
+		c := currentConfig()
+		rules, err := c.Rules()
+		if err != nil {
+			return
+		}
+		if !c.DPI && !c.Telegram && !c.Extras && !c.InstagramEnabled() && len(rules.Geo) == 0 && len(rules.DPI) == 0 {
+			return
+		}
+		_ = engine.Start(c, secret, false, func(id string) {
+			saveConfig(func(cfg *core.Config) { cfg.SavedProfile = id })
+		})
+	}()
+}
+
+func copyToClipboard(value string) {
+	utf16, err := windows.UTF16FromString(value)
+	if err != nil || call(user, "OpenClipboard", hwnd) == 0 {
+		return
+	}
+	defer call(user, "CloseClipboard")
+	call(user, "EmptyClipboard")
+	size := uintptr(len(utf16) * 2)
+	mem := call(kernel, "GlobalAlloc", 0x0042, size)
+	if mem == 0 {
+		return
+	}
+	ptr := call(kernel, "GlobalLock", mem)
+	if ptr == 0 {
+		call(kernel, "GlobalFree", mem)
+		return
+	}
+	call(kernel, "RtlMoveMemory", ptr, uintptr(unsafe.Pointer(&utf16[0])), size)
+	call(kernel, "GlobalUnlock", mem)
+	call(user, "SetClipboardData", 13, mem)
+}
+
 func main() {
 	runtime.LockOSThread()
+	mainThreadID = uint32(call(kernel, "GetCurrentThreadId"))
 	instance = call(kernel, "GetModuleHandleW", 0)
 	mutex, e := windows.CreateMutex(nil, false, u("Local\\SorryRKN.Windows.1"))
 	if e == windows.ERROR_ALREADY_EXISTS {
@@ -217,6 +304,12 @@ func main() {
 		selfTest()
 		return
 	}
+	startMinimized := false
+	for _, arg := range os.Args[1:] {
+		if arg == "--minimized" {
+			startMinimized = true
+		}
+	}
 	if p := proc(user, "SetProcessDpiAwarenessContext"); p.Find() == nil {
 		p.Call(^uintptr(3))
 	}
@@ -232,7 +325,7 @@ func main() {
 		errorMessage("Не удалось создать окно Windows")
 		return
 	}
-	hwnd = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(wc.Class)), uintptr(unsafe.Pointer(u("SorryRKN"))), 0x00c80000|0x00020000|0x00080000, uintptr(0x80000000), uintptr(0x80000000), uintptr(dp(476)), uintptr(dp(760)), 0, 0, instance, 0)
+	hwnd = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(wc.Class)), uintptr(unsafe.Pointer(u("SorryRKN"))), 0x02000000|0x00c80000|0x00020000|0x00080000, uintptr(0x80000000), uintptr(0x80000000), uintptr(dp(468)), uintptr(dp(608)), 0, 0, instance, 0)
 	if hwnd == 0 {
 		errorMessage("Не удалось открыть интерфейс")
 		return
@@ -243,23 +336,49 @@ func main() {
 	}
 	taskbarMessage = uint32(call(user, "RegisterWindowMessageW", uintptr(unsafe.Pointer(u("TaskbarCreated")))))
 	engine = core.NewEngine(root, data, platform.Runner{}, dns, func() { call(user, "PostMessageW", hwnd, REFRESH, 0, 0) })
-	createButton(PowerID, "Включить соединение", 142, 115, 176, 176)
-	createButton(DpiID, "Обход DPI", 365, 405, 58, 32)
-	createButton(TelegramID, "Telegram", 365, 465, 58, 32)
-	createButton(ExtrasID, "Нейросети и Instagram", 365, 525, 58, 32)
-	createButton(LinkID, "Подключить Telegram", 28, 585, 404, 46)
-	createButton(MenuID, "Настройки", 389, 22, 44, 44)
-	createButton(ProfileID, "Выбрать метод обхода", 44, 390, 286, 53)
+
+	// Tactical Remote Controls
+	createButton(QuickRulesID, "Правила", 312, 16, 74, 34)
+	createButton(MenuID, "Настройки", 392, 16, 38, 34)
+	createButton(PowerID, "Включить соединение", 36, 124, 68, 68)
+	createButton(QuickRetestID, "Подобрать стратегию заново", 378, 139, 38, 38)
+
+	// 4 Live Service Rows
+	createButton(ProfileID, "Выбрать метод обхода", 38, 223, 314, 52)
+	createButton(DpiID, "YouTube, Discord и сайты", 360, 234, 54, 30)
+
+	createButton(InstaRowID, "Instagram и сайты со своим IP", 38, 285, 314, 52)
+	createButton(InstagramID, "Instagram и Meta", 360, 296, 54, 30)
+
+	createButton(TelegramID, "Telegram MTProto", 360, 358, 54, 30)
+
+	createButton(DnsRowID, "DNS и нейросети", 38, 409, 314, 52)
+	createButton(ExtrasID, "Нейросети · Гео-DNS", 360, 420, 54, 30)
+
+	// Bottom Tactical Action Bar
+	createButton(LinkID, "Подключить Telegram", 22, 478, 199, 44)
+	createButton(DiagBtnID, "Диагностика", 231, 478, 199, 44)
+
 	createModeControls()
 	addTray()
-	call(user, "ShowWindow", hwnd, SW_SHOW)
-	call(user, "UpdateWindow", hwnd)
+	if !startMinimized || !trayAvailable {
+		call(user, "ShowWindow", hwnd, SW_SHOW)
+		call(user, "UpdateWindow", hwnd)
+	} else if !currentConfig().VPNMode {
+		c := currentConfig()
+		if rules, err := c.Rules(); err == nil && (c.DPI || c.Telegram || c.Extras || c.InstagramEnabled() || len(rules.Geo) > 0 || len(rules.DPI) > 0) {
+			_ = engine.Start(c, secret, false, func(id string) { saveConfig(func(cfg *core.Config) { cfg.SavedProfile = id }) })
+		}
+	}
 	go updateStartup()
 	if !currentConfig().VPNMode {
 		checkDNSProfiles(false)
 	}
 	var m msg
 	for call(user, "GetMessageW", uintptr(unsafe.Pointer(&m)), 0, 0, 0) != 0 {
+		if serviceWindow != 0 && call(user, "IsDialogMessageW", serviceWindow, uintptr(unsafe.Pointer(&m))) != 0 {
+			continue
+		}
 		if vpnWindow != 0 && call(user, "IsDialogMessageW", vpnWindow, uintptr(unsafe.Pointer(&m))) != 0 {
 			continue
 		}
@@ -290,6 +409,35 @@ func windowProc(window uintptr, messageID uint32, w, l uintptr) uintptr {
 			go checkUpdates(false)
 		}
 		return 0
+	case uiAlertMessage:
+		alertMu.Lock()
+		items := append([][2]string(nil), pendingAlerts...)
+		pendingAlerts = nil
+		alertMu.Unlock()
+		for _, item := range items {
+			if !quitting {
+				message(item[0], item[1])
+			}
+		}
+		return 0
+	case 0x0014: // WM_ERASEBKGND — handled in double-buffered WM_PAINT
+		return 1
+	case 0x02E0: // WM_DPICHANGED
+		newDpi := int(w & 0xffff)
+		if newDpi >= 96 {
+			scale = float64(newDpi) / 96.0
+			for _, f := range fonts {
+				call(gdi, "DeleteObject", f)
+			}
+			fonts = map[int]uintptr{}
+			if l != 0 {
+				var suggested rect
+				call(kernel, "RtlMoveMemory", uintptr(unsafe.Pointer(&suggested)), l, unsafe.Sizeof(suggested))
+				call(user, "SetWindowPos", window, 0, uintptr(suggested.Left), uintptr(suggested.Top), uintptr(suggested.Right-suggested.Left), uintptr(suggested.Bottom-suggested.Top), 0x0014)
+			}
+			refresh()
+		}
+		return 0
 	case vpnDoneMessage:
 		finishVPNWork()
 		return 0
@@ -305,7 +453,11 @@ func windowProc(window uintptr, messageID uint32, w, l uintptr) uintptr {
 		paint(window)
 		return 0
 	case WM_DRAWITEM:
-		drawButton((*drawitem)(unsafe.Pointer(l)))
+		if l != 0 {
+			var item drawitem
+			call(kernel, "RtlMoveMemory", uintptr(unsafe.Pointer(&item)), l, unsafe.Sizeof(item))
+			drawButton(&item)
+		}
 		return 1
 	case WM_COMMAND:
 		command(int(w & 0xffff))
@@ -359,22 +511,22 @@ func refresh() {
 	}
 	s := engine.Snapshot()
 	busy := engine.Busy()
-	for _, id := range []int{DpiID, TelegramID, ExtrasID, ProfileID} {
-		flag := uintptr(1)
-		if busy {
-			flag = 0
-		}
-		call(user, "EnableWindow", controls[id], flag)
+	stopping := s.Status == "stopping"
+	c := currentConfig()
+	for _, id := range []int{DpiID, InstagramID, TelegramID, ExtrasID, ProfileID, InstaRowID, DnsRowID} {
+		call(user, "EnableWindow", controls[id], boolInt(!stopping))
 	}
-	call(user, "EnableWindow", controls[LinkID], boolInt(s.Telegram && (s.Status == "on" || s.Status == "partial")))
+	showRetest := !c.VPNMode && (s.Status == "on" || s.Status == "partial") && c.DPI
+	showControl(QuickRetestID, showRetest)
+	call(user, "EnableWindow", controls[LinkID], 1)
 	label := "Включить соединение"
-	if busy || (currentConfig().VPNMode && vpnSession.Active()) {
+	if busy || (c.VPNMode && vpnSession.Active()) {
 		label = "Выключить соединение"
 	}
 	call(user, "SetWindowTextW", controls[PowerID], uintptr(unsafe.Pointer(u(label))))
-	call(user, "InvalidateRect", hwnd, 0, 1)
+	call(user, "InvalidateRect", hwnd, 0, 0)
 	for _, h := range controls {
-		call(user, "InvalidateRect", h, 0, 1)
+		call(user, "InvalidateRect", h, 0, 0)
 	}
 	modifyTray()
 }
@@ -406,9 +558,11 @@ func retest(extended bool) {
 		return
 	}
 	go func() {
+		reloadMu.Lock()
+		defer reloadMu.Unlock()
 		engine.Stop()
 		saveConfig(func(c *core.Config) { c.Method = "auto"; c.SavedProfile = "" })
-		engine.Start(currentConfig(), secret, extended, func(id string) { saveConfig(func(c *core.Config) { c.SavedProfile = id }) })
+		_ = engine.Start(currentConfig(), secret, extended, func(id string) { saveConfig(func(c *core.Config) { c.SavedProfile = id }) })
 	}()
 }
 func command(id int) {
@@ -416,31 +570,44 @@ func command(id int) {
 		return
 	}
 	switch id {
-	case DNSProfilesID:
+	case DNSProfilesID, DnsRowID:
 		showDNSProfiles()
-	case RulesID:
+	case RulesID, QuickRulesID, InstaRowID:
 		editRules()
 	case PowerID:
 		toggle(false)
-	case DpiID, TelegramID, ExtrasID:
-		if !engine.Busy() {
-			saveConfig(func(c *core.Config) {
-				switch id {
-				case DpiID:
-					c.DPI = !c.DPI
-				case TelegramID:
-					c.Telegram = !c.Telegram
-				case ExtrasID:
-					c.Extras = !c.Extras
-				}
-			})
-			refresh()
-		}
+	case QuickRetestID:
+		retest(false)
+	case DpiID, InstagramID, TelegramID, ExtrasID:
+		saveConfig(func(c *core.Config) {
+			switch id {
+			case DpiID:
+				c.DPI = !c.DPI
+			case InstagramID:
+				next := !c.InstagramEnabled()
+				c.Instagram = &next
+			case TelegramID:
+				c.Telegram = !c.Telegram
+			case ExtrasID:
+				c.Extras = !c.Extras
+			}
+		})
+		refresh()
+		reloadEngineIfActive()
 	case LinkID:
-		if engine.Snapshot().Telegram {
-			link, _ := core.ProxyLink(secret)
-			openURL(link)
+		link, err := core.ProxyLink(secret)
+		if err != nil {
+			return
 		}
+		s := engine.Snapshot()
+		if s.Telegram && (s.Status == "on" || s.Status == "partial") {
+			openURL(link)
+		} else {
+			copyToClipboard(link)
+			message("Telegram MTProto", "Ссылка прокси скопирована в буфер обмена.\nВключите пульт, чтобы локальный прокси 127.0.0.1:1443 начал принимать подключения.")
+		}
+	case DiagBtnID, DiagnosticsID:
+		diagnostics()
 	case MenuID:
 		menu(false)
 	case ProfileID:
@@ -457,14 +624,19 @@ func command(id int) {
 		go dataUpdates(true)
 	case AutoDataID:
 		saveConfig(func(c *core.Config) { c.AutoData = !c.AutoData })
-	case DiagnosticsID:
-		diagnostics()
+	case AutoStartID:
+		next := !platform.IsAutoStartEnabled()
+		if err := platform.SetAutoStart(next, ""); err != nil {
+			errorMessage("Не удалось изменить автозапуск: " + err.Error())
+		} else {
+			saveConfig(func(c *core.Config) { c.AutoStart = next })
+		}
 	case AboutID:
-		message("SorryRKN "+core.Version, "Локальный обход DPI с zapret/winws и Telegram-прокси Flowseal.\n\nНейросети: выбранный DNS-профиль. Сравнение доступно в меню «DNS и нейросети». Браузер должен использовать системный DNS; собственный защищённый DNS может обходить профиль. Доступ зависит от сети и сервиса.\n\nЗакрытие окна сворачивает приложение в трей. «Выход» выключает соединения.\n\nЛицензии открытых компонентов находятся в папке licenses рядом с приложением.")
+		message("SorryRKN "+core.Version, "Локальный обход DPI с zapret/winws, Гео-DNS и Telegram MTProto-прокси.\n\nЛюбые переключатели на пульте и настройки DNS/правил применяются на лету без ручного отключения.\n\nПубличные проверки подтверждают сетевой и HTTPS-ответ, но не проверяют вход в аккаунт, платные подписки, звонки или видеопоток на каждом операторе.\n\nЗакрытие окна сворачивает пульт в трей. «Выход» полностью останавливает соединения.")
 	case ExitID:
 		shutdown()
 	default:
-		if id >= 300 && id < 400 && !currentConfig().VPNMode && !engine.Busy() {
+		if id >= 300 && id < 400 && !currentConfig().VPNMode {
 			catalog, _ := core.LoadCatalog(core.ActiveData(data, filepath.Join(root, "zapret")))
 			method := "auto"
 			if id > 300 && id-301 < len(catalog.Profiles) {
@@ -472,6 +644,9 @@ func command(id int) {
 			}
 			saveConfig(func(c *core.Config) { c.Method = method })
 			refresh()
+			if currentConfig().DPI {
+				reloadEngineIfActive()
+			}
 		}
 	}
 }
@@ -538,9 +713,11 @@ func menu(tray bool) {
 		addItem(m, vpnSourcesID, "Подписки и узлы", false, false)
 	}
 	addItem(m, vpnModeID, "Режим работы…", false, false)
-	addItem(m, UpdatesID, "Обновить приложение", false, false)
-	addItem(m, DataID, "Обновить данные GitHub", false, false)
-	addItem(m, AutoDataID, "Обновлять данные автоматически", currentConfig().AutoData, false)
+	call(user, "AppendMenuW", m, 0x800, 0, 0)
+	addItem(m, AutoStartID, "Запускать вместе с Windows", platform.IsAutoStartEnabled(), false)
+	addItem(m, AutoDataID, "Обновлять списки автоматически", currentConfig().AutoData, false)
+	addItem(m, DataID, "Обновить списки сейчас", false, false)
+	addItem(m, UpdatesID, "Проверить обновление приложения", false, false)
 	addItem(m, DiagnosticsID, "Диагностика", false, false)
 	addItem(m, AboutID, "О приложении", false, false)
 	call(user, "AppendMenuW", m, 0x800, 0, 0)
@@ -548,7 +725,7 @@ func menu(tray bool) {
 	popup(m)
 }
 func chooseProfile() {
-	if engine.Busy() {
+	if engine != nil && engine.Snapshot().Status == "stopping" {
 		return
 	}
 	catalog, e := core.LoadCatalog(core.ActiveData(data, filepath.Join(root, "zapret")))
@@ -558,7 +735,7 @@ func chooseProfile() {
 	}
 	m := call(user, "CreatePopupMenu")
 	selected := currentConfig().Method
-	addItem(m, 300, "Автоматически", selected == "auto", false)
+	addItem(m, 300, "Автоматически — быстрый подбор", selected == "auto", false)
 	for i, p := range catalog.Profiles {
 		addItem(m, 301+i, p.Name, p.ID == selected, false)
 	}
@@ -572,11 +749,11 @@ func trayData() notifyicon {
 		s := engine.Snapshot()
 		switch s.Status {
 		case "on":
-			text = "SorryRKN · Включён"
+			text = "SorryRKN · Подключено"
 		case "partial":
 			text = "SorryRKN · Частично"
 		case "starting":
-			text = "SorryRKN · Подключение"
+			text = "SorryRKN · Подключение…"
 		case "error":
 			text = "SorryRKN · Ошибка"
 		}
@@ -706,17 +883,29 @@ func dataUpdates(force bool) {
 	revision, e := core.UpdateData(ctx, data)
 	if e != nil {
 		if force {
-			message("Данные GitHub", "Не удалось обновить данные. Используется сохранённый каталог.")
+			message("Обновление списков", "Не удалось обновить данные. Используется сохранённый каталог.")
 		}
 		return
 	}
 	core.SaveJSON(filepath.Join(data, "data-check.json"), map[string]any{"time": time.Now().Unix(), "revision": revision})
 	if force {
-		message("Данные GitHub", "Списки и совместимые методы обновлены. Будут использованы при следующем включении.")
+		reloadEngineIfActive()
+		message("Обновление списков", "Списки и совместимые стратегии обновлены.")
 	}
 }
 func diagnostics() {
-	report := map[string]any{"version": core.Version, "platform": "windows-x64", "state": engine.Snapshot(), "dns": dns.Counters()}
+	c := currentConfig()
+	report := map[string]any{
+		"version":            core.Version,
+		"platform":           "windows-x64",
+		"state":              engine.Snapshot(),
+		"dns":                dns.Counters(),
+		"instagram":          c.InstagramEnabled(),
+		"custom_dpi_count":   len(c.DPIDomains),
+		"custom_geo_count":   len(c.GeoDomains),
+		"custom_direct_count": len(c.DirectDomains),
+		"auto_start":         platform.IsAutoStartEnabled(),
+	}
 	var telegram any
 	b, _ := os.ReadFile(filepath.Join(data, "telegram.log"))
 	if len(b) > 65536 {
@@ -729,8 +918,8 @@ func diagnostics() {
 			break
 		}
 	}
-	c, _ := core.LoadCatalog(core.ActiveData(data, filepath.Join(root, "zapret")))
-	report["data_revision"] = c.Revision
+	cat, _ := core.LoadCatalog(core.ActiveData(data, filepath.Join(root, "zapret")))
+	report["data_revision"] = cat.Revision
 	path := filepath.Join(data, "diagnostics.json")
 	core.SaveJSON(path, report)
 	openURL(path)
@@ -750,5 +939,4 @@ func selfTest() {
 	}
 	nativeTests(report)
 	core.SaveJSON(filepath.Join(data, "self-test.json"), report)
-	fmt.Println("self-test", report)
 }

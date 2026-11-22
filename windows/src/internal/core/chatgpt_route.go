@@ -128,8 +128,28 @@ func (s *SmartDNS) preferChatGPT(ctx context.Context, host string, typ uint16, p
 		}
 		s.mu.Lock()
 		cached := s.chatGPTRoute
-		if time.Now().Before(cached.expires) && (cached.address == "" || contains(cached.address)) {
+		now := time.Now()
+		if now.Before(cached.expires) && (cached.address == "" || contains(cached.address)) {
 			preferred = cached.address
+			if cached.address != "" && cached.expires.Sub(now) < 30*time.Second && s.chatGPTFlight == nil {
+				bgPending := make(chan struct{})
+				s.chatGPTFlight = bgPending
+				candidatesCopy := append([]string(nil), addresses...)
+				go func() {
+					bgCtx, bgCancel := context.WithTimeout(context.Background(), 3*time.Second)
+					defer bgCancel()
+					next := s.selectChatGPTRoute(bgCtx, candidatesCopy)
+					s.mu.Lock()
+					if next != "" {
+						s.chatGPTRoute = chatGPTRoute{next, time.Now().Add(chatGPTRouteTTL)}
+					}
+					if s.chatGPTFlight == bgPending {
+						s.chatGPTFlight = nil
+					}
+					close(bgPending)
+					s.mu.Unlock()
+				}()
+			}
 			s.mu.Unlock()
 			break
 		}

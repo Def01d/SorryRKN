@@ -10,21 +10,24 @@ import (
 	"path/filepath"
 )
 
-const Version = "1.6.0"
-const VersionCode = 10600
+const Version = "1.7.0"
+const VersionCode = 10700
 const UpdateURL = "https://raw.githubusercontent.com/Def01d/SorryRKN/main/windows-update.json"
 
 type Config struct {
 	VPNMode         bool              `json:"vpn_mode,omitempty"`
 	DPI             bool              `json:"dpi"`
+	Instagram       *bool             `json:"instagram,omitempty"`
 	Telegram        bool              `json:"telegram"`
 	Extras          bool              `json:"extra_sites"`
 	Method          string            `json:"method"`
 	ProtectedSecret string            `json:"protected_secret"`
 	SavedProfile    string            `json:"last_profile"`
 	AutoData        bool              `json:"auto_data"`
+	AutoStart       bool              `json:"auto_start,omitempty"`
 	GeoDomains      []string          `json:"geo_domains,omitempty"`
 	DirectDomains   []string          `json:"direct_domains,omitempty"`
+	DPIDomains      []string          `json:"dpi_domains,omitempty"`
 	DNSProfile      string            `json:"dns_profile,omitempty"`
 	DNSCheckStartup *bool             `json:"dns_check_startup,omitempty"`
 	ServiceDNS      map[string]string `json:"service_dns,omitempty"`
@@ -33,6 +36,12 @@ type Config struct {
 }
 
 func (c Config) DNSAutoCheck() bool { return c.DNSCheckStartup == nil || *c.DNSCheckStartup }
+func (c Config) InstagramEnabled() bool {
+	if c.Instagram != nil {
+		return *c.Instagram
+	}
+	return c.Extras
+}
 
 func DefaultConfig() Config { return Config{DPI: true, Telegram: true, Method: "auto", AutoData: true} }
 func LoadConfig(path string) Config {

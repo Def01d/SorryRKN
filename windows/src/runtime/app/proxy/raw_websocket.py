@@ -56,6 +56,13 @@ def set_sock_opts(transport, buffer_size):
         sock.setsockopt(_socket.IPPROTO_TCP, _socket.TCP_NODELAY, 1)
     except (OSError, AttributeError):
         pass
+
+    try:
+        sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_KEEPALIVE, 1)
+        if hasattr(sock, 'ioctl') and hasattr(_socket, 'SIO_KEEPALIVE_VALS'):
+            sock.ioctl(_socket.SIO_KEEPALIVE_VALS, (1, 15000, 5000))
+    except (OSError, AttributeError, ValueError):
+        pass
     
     try:
         sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_RCVBUF, buffer_size)
@@ -224,13 +231,13 @@ class RawWebSocket:
             if not was_closed:
                 self.writer.write(
                     self._build_frame(self.OP_CLOSE, b'', mask=True))
-                await self.writer.drain()
-        except Exception:
+                await asyncio.wait_for(self.writer.drain(), 1.5)
+        except (Exception, asyncio.CancelledError):
             pass
         try:
             self.writer.close()
-            await self.writer.wait_closed()
-        except Exception:
+            await asyncio.wait_for(self.writer.wait_closed(), 1.5)
+        except (Exception, asyncio.CancelledError):
             pass
 
     _WS_CLOSE_REASONS = {

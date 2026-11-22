@@ -14,9 +14,13 @@ final class Settings {
     static boolean dpi(Context c) { return prefs(c).getBoolean("dpi", true); }
     static boolean telegram(Context c) { return prefs(c).getBoolean("telegram", true); }
     static boolean extras(Context c) { return prefs(c).getBoolean("extra_sites", true); }
+    static boolean instagram(Context c) {
+        SharedPreferences p = prefs(c);
+        return p.contains("instagram") ? p.getBoolean("instagram", true) : extras(c);
+    }
     static boolean aiRelay(Context c) { return prefs(c).getBoolean("ai_relay", true); }
     static boolean telegramRelay(Context c) { return prefs(c).getBoolean("telegram_relay", true); }
-    static boolean vpn(Context c) { return dpi(c) || extras(c) || UserRules.geo(c); }
+    static boolean vpn(Context c) { return dpi(c) || extras(c) || instagram(c) || UserRules.geo(c) || UserRules.dpi(c); }
     static synchronized String secret(Context c) {
         SharedPreferences p = prefs(c);
         String value = p.getString("secret", null);

@@ -210,3 +210,42 @@ async def test_one_dns_lookup_error_does_not_discard_working_service(monkeypatch
     assert result['passed']==1 and result['targets'][0]['ok']
     assert result['targets'][1]['stage']=='DNS'
     assert result['dns']['resolved']==1 and closed==[True]
+
+
+@pytest.mark.asyncio
+async def test_edns0_wire_query_warms_host_cache_for_resolve_and_port853_rejected():
+    calls = []
+    edns_opt = b'\x00' + struct.pack('!HHIH', 41, 1232, 0, 0)
+    edns_query = struct.pack('!6H', 0x5678, 0x0120, 1, 0, 0, 1) + b'\x03www\x07youtube\x03com\0\0\x01\0\x01' + edns_opt
+    def edns_answer(req):
+        qend = 12 + len(b'\x03www\x07youtube\x03com\0\0\x01\0\x01')
+        return req[:2] + struct.pack('!5H', 0x8180, 1, 1, 0, 1) + req[12:qend] + b'\xc0\x0c' + struct.pack('!HHIH', 1, 1, 120, 4) + b'\x08\x08\x04\x04' + edns_opt
+    async def handle(request):
+        calls.append(request.headers['host'])
+        return httpx.Response(200, content=edns_answer(request.content))
+    resolver = Resolver(1080, httpx.MockTransport(handle))
+    try:
+        wire = await resolver.query(edns_query)
+        assert wire is not None and calls
+        calls.clear()
+        # Subsequent resolve() without EDNS0 must hit host_cache in 0 DoH calls.
+        assert await resolver.resolve('www.youtube.com') == '8.8.4.4'
+        assert calls == []
+    finally:
+        await resolver.close()
+    from gateway import Gateway, encode_address
+    gw = Gateway(port=0)
+    await gw.start()
+    try:
+        r, w = await asyncio.open_connection('127.0.0.1', gw.port)
+        w.write(b'\x05\x01\x00')
+        await w.drain()
+        assert await r.readexactly(2) == b'\x05\x00'
+        w.write(b'\x05\x01\x00' + encode_address('8.8.8.8', 853))
+        await w.drain()
+        reply = await asyncio.wait_for(r.readexactly(10), 0.5)
+        assert reply[:2] == b'\x05\x05'
+        w.close()
+        await w.wait_closed()
+    finally:
+        await gw.close()

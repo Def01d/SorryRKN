@@ -59,7 +59,7 @@ async def monitor_health(path, secret, test_mode=False):
             good = [value['latency_ms'] for value in results.values() if value['ok']]
             health = {'state': 'ready' if len(good) == 5 else 'degraded' if good else 'unavailable',
                       'checked_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                      'latency_ms': max(good) if good else 0,
+                      'latency_ms': min(good) if good else 0,
                       'datacenters': results,
                       'error': '' if len(good) == 5 else 'mtproto_probe_failed'}
         try:
@@ -67,7 +67,7 @@ async def monitor_health(path, secret, test_mode=False):
         except OSError as exc:
             logging.warning('Health file update failed: %s', type(exc).__name__)
         print(json.dumps({'telegram': vars(stats), 'health': health}), flush=True)
-        await asyncio.sleep(30)
+        await asyncio.sleep(45 if len(good) >= 2 else 25)
 
 
 async def main():

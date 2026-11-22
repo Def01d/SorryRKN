@@ -27,7 +27,7 @@ CONNECT_TIMEOUT = 3.0
 PROBE_TIMEOUT = 10.0
 SELECT_TIMEOUT = 12.0
 FIRST_REPLY_TIMEOUT = 8.0
-CACHE_SECONDS = 60.0
+CACHE_SECONDS = 180.0
 FAILED_SECONDS = 15.0
 MAX_CANDIDATES = 18
 MAX_CLIENT_PACKET = 16 * 1024 * 1024
@@ -193,8 +193,11 @@ async def select(dc, media, test):
         tasks.add(running)
         pending.add(running)
 
+    def is_cooled_down(route):
+        return _failed_until.get((dc, media, test, route), 0) > time.monotonic()
+
     def add(route, delay=0.0):
-        if route not in scheduled and len(scheduled) < MAX_CANDIDATES:
+        if route not in scheduled and len(scheduled) < MAX_CANDIDATES and not is_cooled_down(route):
             scheduled.add(route)
             task(_probe(route, signed_dc, delay, test))
 
@@ -228,11 +231,19 @@ async def select(dc, media, test):
             if not test and websocket_dc(dc) is not None:
                 task(discover(domain))
     if proxy_config.fallback_cfproxy and not test:
-        for index, base in enumerate(islice(balancer.get_domains_for_dc(dc), 2)):
+        cf_added = 0
+        for base in balancer.get_domains_for_dc(dc):
             domain = f'kws{dc}.{base}'
-            add(Route('cf', domain, domain=domain), .6 + index * .1)
-            if proxy_config.relay_dpi_port:
-                add(Route('cf', domain, domain=domain, direct=True), .9 + index * .1)
+            cf_route = Route('cf', domain, domain=domain)
+            cf_direct = Route('cf', domain, domain=domain, direct=True) if proxy_config.relay_dpi_port else None
+            if is_cooled_down(cf_route) and (cf_direct is None or is_cooled_down(cf_direct)):
+                continue
+            add(cf_route, .5 + cf_added * .1)
+            if cf_direct is not None:
+                add(cf_direct, .8 + cf_added * .1)
+            cf_added += 1
+            if cf_added >= 3:
+                break
     for index, domain in enumerate(proxy_config.cfproxy_worker_domains[:2]):
         query = urlencode({'dst': native[0][0], 'dc': dc})
         add(Route('worker', domain, domain=domain, path='/apiws?' + query), .6 + index * .1)
@@ -244,6 +255,8 @@ async def select(dc, media, test):
                 for completed in done:
                     result = completed.result()
                     if isinstance(result, Route):
+                        if result.kind == 'cf' and '.' in result.domain:
+                            balancer.update_domain_for_dc(dc, result.domain.split('.', 1)[1])
                         return result
                     if isinstance(result, tuple):
                         domain, addresses = result
@@ -271,7 +284,11 @@ async def connect(dc, media=False, test=False):
         # Discovery is coalesced, sockets/ciphers are never shared. A cached
         # route must support simultaneous media clients without serial dial waits.
         try:
-            return await open_route(route), route
+            transport = await open_route(route)
+            current = _cache.get(key)
+            if current and current[0] == route:
+                _cache[key] = route, time.monotonic() + CACHE_SECONDS
+            return transport, route
         except asyncio.CancelledError:
             raise
         except Exception:
