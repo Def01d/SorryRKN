@@ -100,15 +100,25 @@ func paint(window uintptr) {
 			}
 		}
 	}
-	defer func() {
-		if memDC != 0 {
-			call(gdi, "BitBlt", screenDC, 0, 0, uintptr(w), uintptr(h), memDC, 0, 0, 0x00CC0020)
-			call(gdi, "SelectObject", memDC, oldBM)
-			call(gdi, "DeleteObject", memBM)
-			call(gdi, "DeleteDC", memDC)
-		}
-	}()
+	paintScene(window, dc, bounds)
+	if memDC != 0 {
+		call(gdi, "BitBlt", screenDC, 0, 0, uintptr(w), uintptr(h), memDC, 0, 0, 0x00CC0020)
+		call(gdi, "SelectObject", memDC, oldBM)
+		call(gdi, "DeleteObject", memBM)
+		call(gdi, "DeleteDC", memDC)
+	}
+}
 
+func paintDC(window, dc uintptr) {
+	if dc == 0 {
+		return
+	}
+	var bounds rect
+	call(user, "GetClientRect", window, uintptr(unsafe.Pointer(&bounds)))
+	paintScene(window, dc, bounds)
+}
+
+func paintScene(window, dc uintptr, bounds rect) {
 	fill(dc, bounds, BG)
 
 	// 1. Header: SorryRKN + version badge

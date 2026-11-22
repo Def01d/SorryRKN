@@ -325,7 +325,7 @@ func main() {
 		errorMessage("Не удалось создать окно Windows")
 		return
 	}
-	hwnd = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(wc.Class)), uintptr(unsafe.Pointer(u("SorryRKN"))), 0x02000000|0x00c80000|0x00020000|0x00080000, uintptr(0x80000000), uintptr(0x80000000), uintptr(dp(468)), uintptr(dp(608)), 0, 0, instance, 0)
+	hwnd = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(wc.Class)), uintptr(unsafe.Pointer(u("SorryRKN"))), 0x00c80000|0x00020000|0x00080000, uintptr(0x80000000), uintptr(0x80000000), uintptr(dp(468)), uintptr(dp(608)), 0, 0, instance, 0)
 	if hwnd == 0 {
 		errorMessage("Не удалось открыть интерфейс")
 		return
@@ -420,8 +420,19 @@ func windowProc(window uintptr, messageID uint32, w, l uintptr) uintptr {
 			}
 		}
 		return 0
-	case 0x0014: // WM_ERASEBKGND — handled in double-buffered WM_PAINT
+	case 0x0014: // WM_ERASEBKGND
+		var bounds rect
+		call(user, "GetClientRect", window, uintptr(unsafe.Pointer(&bounds)))
+		fill(w, bounds, BG)
 		return 1
+	case 0x0018: // WM_SHOWWINDOW — synchronously repaint window and owner-draw children on restore
+		if w != 0 {
+			call(user, "RedrawWindow", window, 0, 0, 0x0185)
+		}
+		return 0
+	case 0x0318: // WM_PRINTCLIENT
+		paintDC(window, w)
+		return 0
 	case 0x02E0: // WM_DPICHANGED
 		newDpi := int(w & 0xffff)
 		if newDpi >= 96 {
