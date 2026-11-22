@@ -1,3 +1,4 @@
+ff75ac5182445ba9188c7dfb8182f91f0658f7affcb77c0fbbbdb37a32fa1251  SorryRKN-Android-1.1.0.apk
 201ada65e4ad2383c3857f685239dd0d189542f7374ed5526392d3fe0a5b6ca6  SorryRKN-Android-1.0.2.apk
 c29d8fda1268ab9e181151735ea1e43c59d52c2f7d7380378c85ec663cf07cfe  SorryRKN-Android-1.0.1.apk
 cce64774edab00584155a753b7b6c6d761cae5b9747c8340d2f942eab30f4f28  SorryRKN-Android-1.0.0.apk

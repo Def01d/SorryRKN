@@ -15,21 +15,21 @@
   <a href="https://github.com/Def01d/SorryRKN/releases">Релизы</a>
 </p>
 
-## Android 1.0.1 и Windows 1.6.0
+## Android 1.1.0 и Windows 1.7.0
 
-В Windows выберите режим в верхней части главного окна. **«Локальный обход»** включает DPI, Telegram и DNS для нейросервисов. **«VPN и подписки»** подключает устройство через свой сервер или выбранный узел провайдера. Настройки сервера доступны по SSH, SOCKS5 включается отдельно. Программа проверяет обновления при каждом запуске. [Как настроить VPN и подписки](docs/VPN.md) · [DNS и нейросети](docs/DNS-PROFILES.md).
+Новый интерфейс **«Тактический пульт»** объединяет верхнюю панель режимов (**«Локальный»** · **«Свой сервер»** · **«Подписки»**), компактную карточку состояния с кнопкой быстрого переподбора `↻` и четыре независимых переключателя сервисов (`YouTube, Discord и сайты`, `Instagram и Meta`, `Telegram MTProto`, `Нейросети · Гео-DNS`), которые применяются **на лету** без ручного отключения. [Как настроить VPN и подписки](docs/VPN.md) · [DNS и нейросети](docs/DNS-PROFILES.md).
 
-Основной HTTPS-режим Windows 1.6.0 передаёт TCP и UDP через один TCP 443. После обновления повторите настройку HTTPS своего сервера через SSH. [Проверки и ограничения](docs/VALIDATION-HTTPS-1.6.0.md).
+В «Моих ресурсах» добавлен третий список **«Обход DPI · свой IP»** для сайтов, которым нужен локальный обход блокировок без смены IP-адреса. В Windows `1.7.0` добавлен тихий автозапуск с системой в трей (`··· → Запускать вместе с Windows`). [Проверки и ограничения HTTPS](docs/VALIDATION-HTTPS-1.6.0.md).
 
-Android 1.0.2 — обновление нового приложения с постоянной производственной подписью и пакетом `io.github.def01d.sorryrkn`. Для перехода со старого пакета установите APK один раз. В версиях 1.0.0 и 1.0.1 обновление появится при запуске. [Подпись, канал и выпуск Android](docs/ANDROID-RELEASE.md).
+Android `1.1.0` — обновление приложения с постоянной производственной подписью и пакетом `io.github.def01d.sorryrkn`. На установленных версиях `1.0.x` обновление появится автоматически при открытии. [Подпись, канал и выпуск Android](docs/ANDROID-RELEASE.md).
 
 ## Скачивание
 
 | Платформа | Версия | Скачать | Требования |
 | --- | --- | --- | --- |
-| **Android** | **1.0.2** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.0.2/android/SorryRKN-Android-1.0.2.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
-| **Windows** | **1.6.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
-| **Windows Portable** | **1.6.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.6.0/windows/SorryRKN-Windows-1.6.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
+| **Android** | **1.1.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.1.0/android/SorryRKN-Android-1.1.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
+| **Windows** | **1.7.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.7.0/windows/SorryRKN-Windows-1.7.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
+| **Windows Portable** | **1.7.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.7.0/windows/SorryRKN-Windows-1.7.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 
 [Что изменилось](CHANGELOG.md) · [Контрольные суммы Android](android/SHA256SUMS.txt) · [Контрольные суммы Windows](windows/SHA256SUMS.txt)
 
@@ -105,7 +105,7 @@ Android и Windows используют отдельные источники о
 
 [Исходники Android](android/src) · [Сборка Android](android/src/README.md) · [Исходники Windows](windows/src) · [Сборка Windows](windows/src/BUILD.md)
 
-В основной ветке находятся [исходники Android 1.0.1](android/src) и [Windows 1.6.0](windows/src).
+В основной ветке находятся [исходники Android 1.1.0](android/src) и [Windows 1.7.0](windows/src).
 
 В Android включены Java-интерфейс и служба, Python-прокси, JNI и исходники нативных зависимостей; в Windows — Go-приложение, Telegram-прокси, ресурсы и сценарии сборки. Ключ подписи официального APK и личные конфигурации не публикуются. Для самостоятельной сборки используется собственная подпись.
 
