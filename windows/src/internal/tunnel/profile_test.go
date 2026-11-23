@@ -79,8 +79,8 @@ func TestConfigForExcludedApps(t *testing.T) {
 		t.Fatal(err)
 	}
 	route := withApps["route"].(object)
-	if route["find_process"] != true {
-		t.Fatalf("expected find_process=true, got %v", route["find_process"])
+	if route["find_process"] != true || route["default_domain_resolver"] != "direct-dns" {
+		t.Fatalf("expected find_process=true and default_domain_resolver=direct-dns, got %v / %v", route["find_process"], route["default_domain_resolver"])
 	}
 	rules := route["rules"].([]object)
 	if len(rules) < 3 || rules[0]["action"] != "hijack-dns" || rules[1]["outbound"] != "direct" {

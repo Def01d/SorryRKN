@@ -103,9 +103,12 @@ func configFor(ctx context.Context, p Profile, excludedApps ...string) (object, 
 			},
 			"final": "remote",
 		}
+		cfg["dns"] = dnsBlock
 		routeBlock["find_process"] = true
+		routeBlock["default_domain_resolver"] = "direct-dns"
+	} else {
+		cfg["dns"] = dnsBlock
 	}
-	cfg["dns"] = dnsBlock
 	cfg["route"] = routeBlock
 	return cfg, nil
 }
