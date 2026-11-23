@@ -2,11 +2,43 @@
 import base64
 import binascii
 import json
+import re
 import uuid
 from urllib.parse import parse_qs, unquote, urlsplit
 
 MAX_CONTENT = 1024 * 1024
 MAX_NODES = 256
+HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def decode_hex_pin(raw):
+    if not raw:
+        return ""
+    cleaned = raw.strip().lower()
+    if cleaned.startswith("sha256:"):
+        cleaned = cleaned[7:]
+    elif cleaned.startswith("sha256/"):
+        cleaned = cleaned[7:]
+    cleaned = cleaned.replace(":", "").replace(" ", "")
+    if HEX64_RE.match(cleaned):
+        return cleaned
+    return ""
+
+
+def decode_mirage_secret(raw):
+    raw = (raw or "").strip()
+    for fn in (
+        lambda s: base64.b64decode(s + "=" * (-len(s) % 4), altchars=b"-_", validate=True),
+        lambda s: base64.b64decode(s + "=" * (-len(s) % 4), validate=True),
+        bytes.fromhex,
+    ):
+        try:
+            b = fn(raw)
+            if len(b) == 32:
+                return b
+        except (ValueError, binascii.Error):
+            pass
+    raise ValueError("Invalid Mirage secret")
 
 
 def decode64(value):
@@ -87,6 +119,54 @@ def parse_node(line):
         peer = address(ssurl.hostname, ssurl.port)
         settings = {"servers": [{**peer, "method": method, "password": password}]}
         protocol = "shadowsocks"
+    elif protocol == "mirage":
+        if not link.username:
+            raise ValueError("Missing Mirage secret")
+        decode_mirage_secret(unquote(link.username))
+        peer = address(link.hostname, link.port or 443)
+        pin = decode_hex_pin(params.get("pin") or params.get("sha256", ""))
+        if not pin:
+            raise ValueError("Missing Mirage TLS pin")
+        title = "".join(ch for ch in str(label or f"Мираж · {peer['address']}") if ch.isprintable())[:100]
+        return {"name": title, "outbound": {"tag": "remote", "protocol": "mirage", "settings": {"uri": line}}}
+    elif protocol == "naive+https":
+        if not link.username or link.password is None:
+            raise ValueError("Missing HTTPS credentials")
+        peer = address(link.hostname, link.port or 443)
+        title = "".join(ch for ch in str(label or f"HTTPS · {peer['address']}") if ch.isprintable())[:100]
+        return {"name": title, "outbound": {"tag": "remote", "protocol": "naive", "settings": {"uri": line}}}
+    elif protocol in ("hy2", "hysteria2"):
+        if params.get("allowInsecure", "").lower() in ("true", "1") or params.get("insecure", "").lower() in ("true", "1"):
+            raise ValueError("Invalid TLS policy")
+        if not link.username:
+            raise ValueError("Missing Hysteria2 password")
+        peer = address(link.hostname, link.port or 443)
+        pin_hex = decode_hex_pin(params.get("pinSHA256") or params.get("pin", ""))
+        tls_cfg = {
+            "serverName": params.get("sni") or peer["address"],
+            "alpn": ["h3"],
+            "allowInsecure": False,
+        }
+        if pin_hex:
+            tls_cfg["pinnedPeerCertSha256"] = pin_hex
+        stream_cfg = {
+            "network": "hysteria",
+            "security": "tls",
+            "hysteriaSettings": {"version": 2, "auth": unquote(link.username)},
+            "tlsSettings": tls_cfg,
+        }
+        if params.get("obfs") == "salamander" and params.get("obfs-password"):
+            stream_cfg["finalmask"] = {"udp": [{"type": "salamander", "settings": {"password": params["obfs-password"]}}]}
+        elif params.get("obfs"):
+            raise ValueError("Unsupported obfs")
+        outbound = {
+            "tag": "remote",
+            "protocol": "hysteria",
+            "settings": {"version": 2, "address": peer["address"], "port": peer["port"]},
+            "streamSettings": stream_cfg,
+        }
+        title = "".join(ch for ch in str(label or peer["address"]) if ch.isprintable())[:100]
+        return {"name": title, "outbound": outbound}
     elif protocol in ("trojan", "vless"):
         peer = address(link.hostname, link.port)
         if not link.username:

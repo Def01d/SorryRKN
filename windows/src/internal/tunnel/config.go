@@ -3,6 +3,8 @@ package tunnel
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,10 +12,12 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
+	"sorryrkn/internal/mirage"
 )
 
 // Resolve only the tunnel gateway before installing any routes. Normal DNS is sent
@@ -154,4 +158,61 @@ func engineConfig(ctx context.Context, p Profile) ([]byte, error) {
 		return nil, err
 	}
 	return json.Marshal(cfg)
+}
+
+// attachMirageBridge launches an in-process authenticated SOCKS5 bridge for mirage://
+// profiles and rewires cfg's primary outbound to point at the local bridge while keeping
+// the already-resolved server IP in tun.route_exclude_address to prevent routing loops.
+func attachMirageBridge(ctx context.Context, p Profile, cfg object) (*mirage.Client, error) {
+	if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(p.Link)), "mirage://") {
+		return nil, nil
+	}
+	mc, err := mirage.ParseURI(p.Link)
+	if err != nil {
+		return nil, err
+	}
+	outbounds, _ := cfg["outbounds"].([]object)
+	if len(outbounds) == 0 {
+		return nil, errors.New("отсутствует outbound для Мираж")
+	}
+	if resolvedIP, ok := outbounds[0]["server"].(string); ok && net.ParseIP(resolvedIP) != nil {
+		mc.ServerHost = resolvedIP
+	}
+	var cred [24]byte
+	if _, err := rand.Read(cred[:]); err != nil {
+		return nil, errors.New("не удалось создать учётные данные моста Мираж")
+	}
+	user := "m_" + hex.EncodeToString(cred[:8])
+	pass := hex.EncodeToString(cred[8:])
+
+	mc.ListenAddr = "127.0.0.1:0"
+	mc.AuthUser = user
+	mc.AuthPass = pass
+
+	cli, err := mirage.NewClient(mc)
+	if err != nil {
+		return nil, err
+	}
+	addr, err := cli.Start(ctx)
+	if err != nil {
+		_ = cli.Close()
+		return nil, err
+	}
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		_ = cli.Close()
+		return nil, err
+	}
+	port, _ := strconv.Atoi(portStr)
+	outbounds[0] = object{
+		"type":         "socks",
+		"tag":          "vpn",
+		"server":       host,
+		"server_port":  port,
+		"version":      "5",
+		"username":     user,
+		"password":     pass,
+		"udp_over_tcp": false,
+	}
+	return cli, nil
 }

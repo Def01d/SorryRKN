@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -15,13 +16,15 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"sorryrkn/internal/mirage"
 )
 
 // Session owns exactly one child engine. Credentials reach it only through stdin.
 type Session struct {
-	mu     sync.Mutex
-	child  *engine
-	active atomic.Pointer[engine]
+	mu        sync.Mutex
+	child     *engine
+	mirageCli *mirage.Client
+	active    atomic.Pointer[engine]
 }
 type engine struct {
 	done    chan struct{}
@@ -44,12 +47,41 @@ func (s *Session) Active() bool {
 	}
 }
 func (s *Session) Start(appDir string, p Profile) error {
-	data, err := engineConfig(context.Background(), p)
+	ctx := context.Background()
+	cfg, err := configFor(ctx, p)
 	if err != nil {
 		return err
 	}
+	bridge, err := attachMirageBridge(ctx, p, cfg)
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		if bridge != nil {
+			_ = bridge.Close()
+		}
+		return err
+	}
 	defer clear(data)
-	return s.start(appDir, data)
+	if err := s.start(appDir, data); err != nil {
+		if bridge != nil {
+			_ = bridge.Close()
+		}
+		return err
+	}
+	if bridge != nil {
+		s.mu.Lock()
+		if s.child != nil {
+			s.mirageCli = bridge
+			bridge = nil
+		}
+		s.mu.Unlock()
+		if bridge != nil {
+			_ = bridge.Close()
+		}
+	}
+	return nil
 }
 
 type readyLog struct {
@@ -86,6 +118,10 @@ func (s *Session) startContext(ctx context.Context, appDir string, data []byte) 
 		case <-s.child.done:
 			windows.CloseHandle(s.child.job)
 			s.child = nil
+			if s.mirageCli != nil {
+				_ = s.mirageCli.Close()
+				s.mirageCli = nil
+			}
 		default:
 			return errors.New("VPN уже подключён")
 		}
@@ -174,6 +210,11 @@ func (c *engine) terminate() {
 func (s *Session) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	bridge := s.mirageCli
+	s.mirageCli = nil
+	if bridge != nil {
+		defer func() { _ = bridge.Close() }()
+	}
 	if s.child == nil {
 		return
 	}

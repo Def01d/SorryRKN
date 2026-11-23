@@ -40,6 +40,13 @@ func withProbe(ctx context.Context, appDir string, p Profile, check func(proxy.C
 	if err != nil {
 		return err
 	}
+	bridge, err := attachMirageBridge(ctx, p, cfg)
+	if err != nil {
+		return err
+	}
+	if bridge != nil {
+		defer func() { _ = bridge.Close() }()
+	}
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		return errors.New("не удалось зарезервировать локальный порт проверки")

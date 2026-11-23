@@ -6,6 +6,8 @@ import android.content.pm.ServiceInfo;
 import android.net.VpnService;
 import android.os.*;
 import android.service.quicksettings.TileService;
+import com.chaquo.python.Python;
+import com.chaquo.python.android.AndroidPlatform;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -13,7 +15,7 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import org.json.*;
 
-/** Device-wide Xray route via an authenticated, loopback-only SOCKS listener. */
+/** Device-wide Xray / Naive / Mirage route via an authenticated, loopback-only SOCKS listener. */
 public class RemoteVpnService extends VpnService {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private java.lang.Process engine;
@@ -23,6 +25,7 @@ public class RemoteVpnService extends VpnService {
     private File yaml;
     private boolean active;
     private NaiveEngine naive;
+    private MirageEngine mirage;
     static String status(Context c) { return Settings.prefs(c).getString("remote_state", "off"); }
     static boolean busy(Context c) { return java.util.Arrays.asList("starting", "on", "stopping").contains(status(c)); }
     static void state(Context c, String value, String error) {
@@ -32,7 +35,8 @@ public class RemoteVpnService extends VpnService {
     static boolean canStart(Context c) {
         try {
             if (Settings.prefs(c).getString("remote_mode", "server").equals("server")) {
-                return RemoteVault.read(c, "server").has("https");
+                JSONObject srv = RemoteVault.read(c, "server");
+                return !srv.optString("active_uri", "").isEmpty() || srv.has("https");
             }
             JSONObject book = RemoteSubscriptions.library(c);
             return book.getJSONArray("groups").length() > 0 && RemoteSubscriptions.selected(book) != null;
@@ -92,42 +96,70 @@ public class RemoteVpnService extends VpnService {
         return START_NOT_STICKY;
     }
     private void startEngine() throws Exception {
-        boolean self=Settings.prefs(this).getString("remote_mode","server").equals("server");
+        boolean self = Settings.prefs(this).getString("remote_mode", "server").equals("server");
         int port;
         try (ServerSocket reserve = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) { port = reserve.getLocalPort(); }
         String password = UUID.randomUUID().toString();
-        boolean fullRelay=false;
-        if(self) {
-            String profile=RemoteVault.read(this,"server").getString("https");
-            naive=new NaiveEngine();
-            engine=naive.start(this,profile,port,password);
-            awaitSocks(port,password);
-            naive.ready();
-            String relay=NaiveEngine.relay(profile);
-            if(relay!=null) {
-                fullRelay=true;
-                httpsEngine=engine;
-                int httpsPort=port;
-                try(ServerSocket reserve=new ServerSocket(0,1,InetAddress.getByName("127.0.0.1"))){port=reserve.getLocalPort();}
-                JSONObject user=new JSONObject().put("id",relay).put("encryption","none");
-                JSONObject peer=new JSONObject().put("address","relay.sorryrkn.invalid").put("port",443)
-                    .put("users",new JSONArray().put(user));
-                JSONObject outbound=new JSONObject().put("tag","remote").put("protocol","vless")
-                    .put("settings",new JSONObject().put("vnext",new JSONArray().put(peer)))
-                    .put("streamSettings",new JSONObject().put("network","tcp").put("security","none")
-                        .put("sockopt",new JSONObject().put("dialerProxy","https")));
-                JSONObject local=new JSONObject().put("address","127.0.0.1").put("port",httpsPort)
-                    .put("users",new JSONArray().put(new JSONObject().put("user","local").put("pass",password)));
-                JSONObject https=new JSONObject().put("tag","https").put("protocol","socks")
-                    .put("settings",new JSONObject().put("servers",new JSONArray().put(local)));
-                startXray(port,password,new JSONArray().put(outbound).put(https));
+
+        JSONObject outbound;
+        if (self) {
+            JSONObject srv = RemoteVault.read(this, "server");
+            String activeUri = srv.optString("active_uri", "");
+            if (activeUri.isEmpty()) {
+                activeUri = srv.getString("https");
             }
+            if (!Python.isStarted()) Python.start(new AndroidPlatform(getApplicationContext()));
+            String parsed = Python.getInstance().getModule("remote_nodes")
+                .callAttr("parse_subscription", activeUri).toString();
+            outbound = new JSONObject(parsed).getJSONArray("nodes").getJSONObject(0).getJSONObject("outbound");
         } else {
-            startXray(port,password,RemoteSubscriptions.outbound(this));
+            outbound = RemoteSubscriptions.outbound(this);
         }
+
+        String proto = outbound.optString("protocol", "");
+        if ("mirage".equals(proto)) {
+            String uri = outbound.getJSONObject("settings").getString("uri");
+            mirage = new MirageEngine();
+            engine = mirage.start(this, uri, port, password);
+            awaitSocks(port, password);
+            mirage.ready();
+            startTun(port, password, false, "SorryRKN · Мираж");
+            return;
+        }
+        if ("naive".equals(proto)) {
+            String profile = outbound.getJSONObject("settings").getString("uri");
+            naive = new NaiveEngine();
+            engine = naive.start(this, profile, port, password);
+            awaitSocks(port, password);
+            naive.ready();
+            String relay = NaiveEngine.relay(profile);
+            if (relay != null) {
+                httpsEngine = engine;
+                int httpsPort = port;
+                try (ServerSocket reserve = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) { port = reserve.getLocalPort(); }
+                JSONObject user = new JSONObject().put("id", relay).put("encryption", "none");
+                JSONObject peer = new JSONObject().put("address", "relay.sorryrkn.invalid").put("port", 443)
+                    .put("users", new JSONArray().put(user));
+                JSONObject vlessOut = new JSONObject().put("tag", "remote").put("protocol", "vless")
+                    .put("settings", new JSONObject().put("vnext", new JSONArray().put(peer)))
+                    .put("streamSettings", new JSONObject().put("network", "tcp").put("security", "none")
+                        .put("sockopt", new JSONObject().put("dialerProxy", "https")));
+                JSONObject local = new JSONObject().put("address", "127.0.0.1").put("port", httpsPort)
+                    .put("users", new JSONArray().put(new JSONObject().put("user", "local").put("pass", password)));
+                JSONObject https = new JSONObject().put("tag", "https").put("protocol", "socks")
+                    .put("settings", new JSONObject().put("servers", new JSONArray().put(local)));
+                startXray(port, password, new JSONArray().put(vlessOut).put(https));
+                awaitSocks(port, password);
+                startTun(port, password, false, "SorryRKN · HTTPS");
+            } else {
+                startTun(port, password, true, "SorryRKN · HTTPS");
+            }
+            return;
+        }
+
+        startXray(port, password, outbound);
         awaitSocks(port, password);
-        if(naive!=null)naive.ready();
-        startTun(port,password,self && !fullRelay);
+        startTun(port, password, false, "SorryRKN · Xray");
     }
     private void startXray(int port,String password, JSONObject outbound) throws Exception {
         startXray(port,password,new JSONArray().put(outbound));
@@ -143,16 +175,16 @@ public class RemoteVpnService extends VpnService {
         engine = new ProcessBuilder(exe.toString(),"run","-config","stdin:").redirectError(log).redirectOutput(log).start();
         try (OutputStream in = engine.getOutputStream()) { in.write(config.toString().getBytes(StandardCharsets.UTF_8)); }
     }
-    private void startTun(int port,String password,boolean self) throws Exception {
+    private void startTun(int port, String password, boolean mapDns, String sessionLabel) throws Exception {
         yaml = File.createTempFile("remote-", ".yml", getCacheDir());
         String text="tunnel:\n  mtu: 1400\n  ipv4: 198.18.0.1\n  ipv6: 'fd00:1::1'\n" +
             "socks5:\n  address: 127.0.0.1\n  port: "+port+"\n  username: local\n  password: '"+password+"'\n  udp: 'udp'\n"+
-            (self?"mapdns:\n  address: 198.18.0.2\n  port: 53\n  network: 100.64.0.0\n  netmask: 255.192.0.0\n  cache-size: 4096\n":"")+
+            (mapDns?"mapdns:\n  address: 198.18.0.2\n  port: 53\n  network: 100.64.0.0\n  netmask: 255.192.0.0\n  cache-size: 4096\n":"")+
             "misc:\n  task-stack-size: 86016\n  max-session-count: 512\n  log-level: error\n";
         try (OutputStream out = new FileOutputStream(yaml)) { out.write(text.getBytes(StandardCharsets.UTF_8)); }
-        Builder builder = new Builder().setSession(self?"SorryRKN · HTTPS":"SorryRKN · Xray").setMtu(1400)
+        Builder builder = new Builder().setSession(sessionLabel).setMtu(1400)
             .addAddress("198.18.0.1",32).addAddress("fd00:1::1",128).addRoute("0.0.0.0",0).addRoute("::",0)
-            .addDnsServer(self?"198.18.0.2":"1.1.1.1").addDisallowedApplication(getPackageName()).setBlocking(false);
+            .addDnsServer(mapDns?"198.18.0.2":"1.1.1.1").addDisallowedApplication(getPackageName()).setBlocking(false);
         if (Build.VERSION.SDK_INT >= 29) builder.setMetered(false);
         fd = builder.establish();
         if(fd == null) throw new IOException();
@@ -211,5 +243,6 @@ public class RemoteVpnService extends VpnService {
         if(fd!=null) { try { fd.close(); } catch(IOException ignored) { } fd=null; }
         if(yaml!=null) { yaml.delete(); yaml=null; }
         if(naive!=null){naive.close();naive=null;}
+        if(mirage!=null){mirage.close();mirage=null;}
     }
 }

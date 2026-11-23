@@ -38,3 +38,29 @@ class RemoteNodesTests(unittest.TestCase):
         self.assertEqual(vm["streamSettings"]["wsSettings"]["path"], "/ws")
         self.assertFalse(vm["streamSettings"]["tlsSettings"]["allowInsecure"])
 
+    def test_mirage_hysteria2_and_naive_links(self):
+        secret = base64.urlsafe_b64encode(b"S" * 32).decode().rstrip("=")
+        pin = "a" * 64
+        mirage_link = f"mirage://{secret}@edge.example.test:443?sni=edge.example.test&pin={pin}#MirageNode"
+        hy2_link = f"hy2://pw123@edge.example.test:8443?sni=edge.example.test&obfs=salamander&obfs-password=obf&pinSHA256={pin}#Hy2Node"
+        naive_link = "naive+https://user:pass@edge.example.test:443?sni=edge.example.test#HttpsNode"
+
+        res = json.loads(parse_subscription("\n".join([mirage_link, hy2_link, naive_link])))
+        self.assertEqual(res["skipped"], 0)
+        nodes = {n["name"]: n["outbound"] for n in res["nodes"]}
+        self.assertEqual(nodes["MirageNode"]["protocol"], "mirage")
+        self.assertEqual(nodes["MirageNode"]["settings"]["uri"], mirage_link)
+        self.assertEqual(nodes["HttpsNode"]["protocol"], "naive")
+
+        hy = nodes["Hy2Node"]
+        self.assertEqual(hy["protocol"], "hysteria")
+        self.assertEqual(hy["streamSettings"]["hysteriaSettings"]["auth"], "pw123")
+        self.assertEqual(hy["streamSettings"]["tlsSettings"]["pinnedPeerCertSha256"], pin)
+        self.assertFalse(hy["streamSettings"]["tlsSettings"]["allowInsecure"])
+        self.assertEqual(hy["streamSettings"]["finalmask"]["udp"][0]["settings"]["password"], "obf")
+
+        with self.assertRaises(ValueError):
+            parse_subscription(f"hy2://pw@example.test:8443?allowInsecure=1")
+        with self.assertRaises(ValueError):
+            parse_subscription(f"mirage://short@example.test:443?pin={pin}")
+

@@ -20,6 +20,10 @@ jobs:
         with: {persist-credentials: false}
       - uses: actions/setup-java@v4
         with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: windows/src/go.mod
+          cache-dependency-path: windows/src/go.sum
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
       - name: Install pinned Android tools
@@ -36,7 +40,7 @@ jobs:
           assert 0 < apk.stat().st_size <= 64 * 1024 * 1024
           with zipfile.ZipFile(apk) as package:
               for abi in ("arm64-v8a", "x86_64"):
-                  for engine in ("naive", "xray"):
+                  for engine in ("naive", "xray", "mirage"):
                       assert package.getinfo(f"lib/{abi}/lib{engine}.so").file_size > 0
               assert package.testzip() is None
           PY

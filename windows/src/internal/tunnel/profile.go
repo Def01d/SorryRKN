@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"sorryrkn/internal/mirage"
 )
 
 type object = map[string]any
@@ -146,7 +148,7 @@ func ImportWithReport(ctx context.Context, input string) (ImportResult, error) {
 		seen[line] = true
 	}
 	if len(result.Profiles) == 0 {
-		return result, errors.New("нет поддерживаемых узлов HTTPS CONNECT, VLESS, VMess, Trojan, Shadowsocks или Hysteria2")
+		return result, errors.New("нет поддерживаемых узлов Мираж, HTTPS CONNECT, VLESS, VMess, Trojan, Shadowsocks или Hysteria2")
 	}
 	return result, nil
 }
@@ -193,6 +195,9 @@ func parseNode(line string) (Profile, object, error) {
 	}
 	if scheme == "naive+https" {
 		return parseNaive(line)
+	}
+	if scheme == "mirage" {
+		return parseMirage(line)
 	}
 	if scheme != "vless" && scheme != "trojan" && scheme != "hy2" && scheme != "hysteria2" {
 		return empty, nil, errors.New("неподдерживаемый тип узла")
@@ -285,6 +290,14 @@ func applyTLS(out object, security string, q url.Values, host string) error {
 	}
 	if alpn := q.Get("alpn"); alpn != "" {
 		tls["alpn"] = strings.Split(alpn, ",")
+	}
+	if spki := strings.TrimSpace(q.Get("spki")); spki != "" {
+		spki = strings.TrimPrefix(spki, "sha256/")
+		raw, decErr := base64.StdEncoding.DecodeString(spki)
+		if decErr != nil || len(raw) != 32 {
+			return errors.New("неверный SPKI SHA-256 отпечаток сертификата")
+		}
+		tls["certificate_public_key_sha256"] = []string{spki}
 	}
 	if security == "reality" {
 		key, err := base64.RawURLEncoding.DecodeString(q.Get("pbk"))
@@ -430,4 +443,23 @@ func parseSS(line string) (Profile, object, error) {
 	out["method"] = method
 	out["password"] = password
 	return Profile{Name: label(u.Fragment, u.Hostname()), Protocol: "shadowsocks", Link: line}, out, nil
+}
+
+func parseMirage(line string) (Profile, object, error) {
+	cfg, err := mirage.ParseURI(line)
+	if err != nil {
+		return Profile{}, nil, err
+	}
+	out := object{
+		"type":        "socks",
+		"tag":         "vpn",
+		"server":      cfg.ServerHost,
+		"server_port": int(cfg.ServerPort),
+		"version":     "5",
+	}
+	return Profile{
+		Name:     label(cfg.Name, cfg.ServerHost),
+		Protocol: "mirage",
+		Link:     line,
+	}, out, nil
 }

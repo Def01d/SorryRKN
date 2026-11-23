@@ -9,8 +9,8 @@ android {
         buildConfigField 'String', 'UPDATE_APPLICATION_ID', '"io.github.def01d.sorryrkn"'
         minSdk 26
         targetSdk 35
-        versionCode providers.gradleProperty('androidVersionCode').map { it.toInteger() }.getOrElse(10100)
-        versionName '1.1.0'
+        versionCode providers.gradleProperty('androidVersionCode').map { it.toInteger() }.getOrElse(10200)
+        versionName '1.2.0'
         ndk { abiFilters 'arm64-v8a', 'x86_64' }
         testInstrumentationRunner 'dev.graybridge.DeviceChecks'
     }
@@ -21,11 +21,12 @@ android {
     }
     if (providers.gradleProperty('productionUpdateChecks').isPresent()) { testBuildType 'release' }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-    packaging { jniLibs { useLegacyPackaging true; keepDebugSymbols += ['**/libxray.so','**/libnaive.so'] } }
+    packaging { jniLibs { useLegacyPackaging true; keepDebugSymbols += ['**/libxray.so','**/libnaive.so','**/libmirage.so'] } }
     sourceSets.main.jniLibs.srcDir layout.buildDirectory.dir('generated/xray/jni')
     sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/xray/assets')
     sourceSets.main.jniLibs.srcDir layout.buildDirectory.dir('generated/naive/jni')
     sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/naive/assets')
+    sourceSets.main.jniLibs.srcDir layout.buildDirectory.dir('generated/mirage/jni')
 }
 
 // Exercise the real signed production feed and offer UI from an older, isolated test APK.
@@ -71,4 +72,17 @@ tasks.register('prepareNaive', Exec) {
     inputs.file rootProject.file('scripts/fetch-pinned.sh')
     outputs.dir layout.buildDirectory.dir('generated/naive')
 }
-tasks.named('preBuild').configure { dependsOn 'prepareNaive' }
+tasks.register('prepareMirage', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'bash', 'scripts/prepare-mirage.sh'
+    inputs.file rootProject.file('scripts/prepare-mirage.sh')
+    inputs.file rootProject.file('../../windows/src/go.mod')
+    inputs.file rootProject.file('../../windows/src/go.sum')
+    inputs.dir rootProject.file('../../windows/src/internal/mirage')
+    inputs.dir rootProject.file('../../windows/src/cmd/sorryrkn-mirage')
+    outputs.dir layout.buildDirectory.dir('generated/mirage')
+}
+tasks.named('preBuild').configure {
+    dependsOn 'prepareNaive'
+    dependsOn 'prepareMirage'
+}
