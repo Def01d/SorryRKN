@@ -147,3 +147,49 @@ func TestUserDPIDomainsAndInstagramSeparation(t *testing.T) {
 		t.Fatalf("missing user DPI hostlist in args: %s", joined)
 	}
 }
+
+func TestExcludedAppsNormalizationAndConfigRoundtrip(t *testing.T) {
+	apps, err := NormalizeExcludedApps([]string{
+		` "C:\Program Files (x86)\Steam\Steam.exe" `,
+		"discord",
+		"steam.exe",
+		"/opt/apps/Browser.EXE",
+		"   ",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"browser.exe", "discord.exe", "steam.exe"}
+	if !reflect.DeepEqual(apps, want) {
+		t.Fatalf("got %v want %v", apps, want)
+	}
+	for _, bad := range []string{".exe", `C:\dir\`, "bad|app.exe", "bad\napp.exe", "app.", strings.Repeat("a", 130)} {
+		if _, err := NormalizeAppName(bad); err == nil {
+			t.Fatalf("accepted invalid app name %q", bad)
+		}
+	}
+	var tooMany []string
+	for i := 0; i < MaxExcludedApps+1; i++ {
+		tooMany = append(tooMany, fmt.Sprintf("app%d.exe", i))
+	}
+	if _, err := NormalizeExcludedApps(tooMany); err == nil {
+		t.Fatal("accepted more than MaxExcludedApps")
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	c := DefaultConfig()
+	c.ProtectedSecret = "keep-secret"
+	c.ExcludedApps = apps
+	if err := SaveJSON(path, c); err != nil {
+		t.Fatal(err)
+	}
+	loaded := LoadConfig(path)
+	if !reflect.DeepEqual(loaded.ExcludedApps, want) || loaded.ProtectedSecret != "keep-secret" {
+		t.Fatalf("config roundtrip mismatch: %+v", loaded)
+	}
+	r, err := loaded.Rules()
+	if err != nil || !reflect.DeepEqual(r.ExcludedApps, want) {
+		t.Fatalf("rules mismatch: %+v %v", r, err)
+	}
+}

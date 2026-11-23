@@ -285,6 +285,7 @@ public class BridgeService extends VpnService {
                     .addAddress("198.18.0.1", 32)
                     .addRoute("0.0.0.0", 0).addDnsServer("198.18.0.2")
                     .addDisallowedApplication(getPackageName()).setBlocking(false);
+                AppExclusions.applyToBuilder(this, builder);
                 if (hasIpv6) {
                     builder.addAddress("fd00:1::1", 128).addRoute("::", 0).addDnsServer("fd00:1::2");
                 }

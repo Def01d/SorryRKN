@@ -1,4 +1,12 @@
-# Проверки Windows 1.8.0
+# Проверки Windows 1.9.0
+
+- **Юнит- и конфиг-тесты:** `TestExcludedAppsNormalizationAndConfigRoundtrip` (нормализация имён `.exe` и путей, лимиты, сохранение `config.json` без потери `protected_secret`), `TestUDPSourcePort` (разбор исходного порта UDP в IPv4/IPv6), `TestConfigForExcludedApps` и расширенный `TestPinnedEngineAcceptsSupportedProfiles` (валидация реальным `sing-box.exe check -c stdin` профилей как без исключений, так и с `process_name` / `direct` / `direct-dns`).
+- **Нативная UI-проверка в CI (`validate.ps1`):** открытие окна `SorryRKNApps` («Исключения приложений»), проверка непустого списка запущенных процессов ПК (`GetRunningApps` / `CreateToolhelp32Snapshot`), добавление `.exe`, снятие скриншота `windows-apps.png`, сохранение в `config.json` без изменения `protected_secret`.
+- **Ограничения локального режима:** сопоставление процессов SmartDNS использует `GetExtendedUdpTable` для UDP/53; пакетный движок `winws.exe` не фильтрует процессы по PID, поэтому исключение отдельных доменов от DPI по-прежнему настраивается в «Мои ресурсы → Напрямую».
+
+Предыдущие результаты Windows 1.8.0 сохранены ниже.
+
+## Версия 1.8.0
 
 В CI сборка пакета, создание туннеля и установка выполняются на изолированных машинах. Go-тесты с детектором гонок (`internal/mirage`, `internal/selfhost`, `internal/tunnel`) проверяют активную HTML-заглушку при неавторизованном зонде или повторе, отклонение неверного TLS pin, конкурентные TCP и UDP ASSOCIATE потоки, бесшовную ротацию несущего соединения, блокировку SSRF на приватные адреса и разбор ответов `SRKN1`.
 

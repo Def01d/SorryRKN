@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 )
 
-const Version = "1.8.0"
-const VersionCode = 10800
+const Version = "1.9.0"
+const VersionCode = 10900
 const UpdateURL = "https://raw.githubusercontent.com/Def01d/SorryRKN/main/windows-update.json"
 
 type Config struct {
@@ -28,6 +28,7 @@ type Config struct {
 	GeoDomains      []string          `json:"geo_domains,omitempty"`
 	DirectDomains   []string          `json:"direct_domains,omitempty"`
 	DPIDomains      []string          `json:"dpi_domains,omitempty"`
+	ExcludedApps    []string          `json:"excluded_apps,omitempty"`
 	DNSProfile      string            `json:"dns_profile,omitempty"`
 	DNSCheckStartup *bool             `json:"dns_check_startup,omitempty"`
 	ServiceDNS      map[string]string `json:"service_dns,omitempty"`

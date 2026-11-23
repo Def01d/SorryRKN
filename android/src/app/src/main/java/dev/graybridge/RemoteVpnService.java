@@ -50,6 +50,9 @@ public class RemoteVpnService extends VpnService {
         state(c, "stopping", "");
         c.startService(new Intent(c, RemoteVpnService.class).setAction("stop"));
     }
+    static void restart(Context c) {
+        c.startService(new Intent(c, RemoteVpnService.class).setAction("restart"));
+    }
     private void foreground(String text) {
         NotificationManager nm=getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel("remote", "VPN", NotificationManager.IMPORTANCE_LOW));
@@ -70,30 +73,42 @@ public class RemoteVpnService extends VpnService {
             worker.execute(() -> finish(id, ""));
             return START_NOT_STICKY;
         }
+        if ("restart".equals(intent.getAction())) {
+            foreground("Применяем исключения…");
+            state(this, "starting", "");
+            worker.execute(() -> {
+                close();
+                launchEngine(id);
+            });
+            return START_NOT_STICKY;
+        }
         foreground("Подключение…");
         worker.execute(() -> {
             if (active) return;
-            try {
-                startEngine();
-                active = true;
-                state(this, "on", "");
-                foreground("Защищённое подключение");
-                java.lang.Process child = engine;
-                new Thread(() -> {
-                    try { child.waitFor(); worker.execute(() -> {
-                        if (engine == child) finish(id, "Соединение завершилось.");
-                    }); } catch (InterruptedException | RejectedExecutionException ignored) { }
-                }, "xray-exit").start();
-                java.lang.Process httpsChild=httpsEngine;
-                if(httpsChild!=null)new Thread(()->{
-                    try {httpsChild.waitFor();worker.execute(()->{if(httpsEngine==httpsChild)finish(id,"HTTPS-соединение завершилось.");});}
-                    catch(InterruptedException | RejectedExecutionException ignored){}
-                },"https-exit").start();
-            } catch (Exception | LinkageError e) {
-                finish(id, "Не удалось открыть туннель. Проверьте разрешение VPN и параметры узла.");
-            }
+            launchEngine(id);
         });
         return START_NOT_STICKY;
+    }
+    private void launchEngine(int id) {
+        try {
+            startEngine();
+            active = true;
+            state(this, "on", "");
+            foreground("Защищённое подключение");
+            java.lang.Process child = engine;
+            new Thread(() -> {
+                try { child.waitFor(); worker.execute(() -> {
+                    if (engine == child) finish(id, "Соединение завершилось.");
+                }); } catch (InterruptedException | RejectedExecutionException ignored) { }
+            }, "xray-exit").start();
+            java.lang.Process httpsChild=httpsEngine;
+            if(httpsChild!=null)new Thread(()->{
+                try {httpsChild.waitFor();worker.execute(()->{if(httpsEngine==httpsChild)finish(id,"HTTPS-соединение завершилось.");});}
+                catch(InterruptedException | RejectedExecutionException ignored){}
+            },"https-exit").start();
+        } catch (Exception | LinkageError e) {
+            finish(id, "Не удалось открыть туннель. Проверьте разрешение VPN и параметры узла.");
+        }
     }
     private void startEngine() throws Exception {
         boolean self = Settings.prefs(this).getString("remote_mode", "server").equals("server");
@@ -185,6 +200,7 @@ public class RemoteVpnService extends VpnService {
         Builder builder = new Builder().setSession(sessionLabel).setMtu(1400)
             .addAddress("198.18.0.1",32).addAddress("fd00:1::1",128).addRoute("0.0.0.0",0).addRoute("::",0)
             .addDnsServer(mapDns?"198.18.0.2":"1.1.1.1").addDisallowedApplication(getPackageName()).setBlocking(false);
+        AppExclusions.applyToBuilder(this, builder);
         if (Build.VERSION.SDK_INT >= 29) builder.setMetered(false);
         fd = builder.establish();
         if(fd == null) throw new IOException();

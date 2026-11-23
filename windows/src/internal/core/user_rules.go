@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -16,6 +17,7 @@ import (
 
 const MaxDomainText = 32768
 const MaxDomains = 256
+const MaxExcludedApps = 256
 
 var domainLabel = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 var domainIDNA = idna.New(idna.MapForLookup(), idna.Transitional(true), idna.StrictDomainName(true), idna.ValidateLabels(true))
@@ -74,10 +76,68 @@ func ParseDomains(text string) ([]string, error) {
 	return result, nil
 }
 
+func NormalizeAppName(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	value = strings.Trim(value, "\"'")
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", errors.New("пустое имя приложения")
+	}
+	if strings.HasSuffix(value, "\\") || strings.HasSuffix(value, "/") {
+		return "", fmt.Errorf("неверное имя приложения: %.80s", raw)
+	}
+	if idx := strings.LastIndexAny(value, "\\/"); idx >= 0 {
+		value = value[idx+1:]
+	}
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" || len([]rune(value)) > 128 {
+		return "", fmt.Errorf("неверное имя приложения: %.80s", raw)
+	}
+	for _, r := range value {
+		if unicode.IsControl(r) || strings.ContainsRune("<>:\"|?*\\/", r) {
+			return "", fmt.Errorf("неверное имя приложения: %.80s", raw)
+		}
+	}
+	if strings.HasPrefix(value, ".") || strings.HasSuffix(value, ".") {
+		return "", fmt.Errorf("неверное имя приложения: %.80s", raw)
+	}
+	if !strings.HasSuffix(value, ".exe") {
+		value += ".exe"
+	}
+	if len(value) <= len(".exe") {
+		return "", fmt.Errorf("неверное имя приложения: %.80s", raw)
+	}
+	return value, nil
+}
+
+func NormalizeExcludedApps(apps []string) ([]string, error) {
+	result := []string{}
+	seen := map[string]bool{}
+	for _, item := range apps {
+		if strings.TrimSpace(item) == "" {
+			continue
+		}
+		name, err := NormalizeAppName(item)
+		if err != nil {
+			return nil, err
+		}
+		if !seen[name] {
+			seen[name] = true
+			result = append(result, name)
+		}
+		if len(result) > MaxExcludedApps {
+			return nil, errors.New("не больше 256 приложений в исключениях")
+		}
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
 type DomainRules struct {
 	Geo          []string
 	Direct       []string
 	DPI          []string
+	ExcludedApps []string
 	Builtin      bool
 	Secure       bool
 	DNSProfile   string
@@ -120,14 +180,19 @@ func (c Config) Rules() (DomainRules, error) {
 	if e != nil {
 		return DomainRules{}, e
 	}
+	excludedApps, e := NormalizeExcludedApps(c.ExcludedApps)
+	if e != nil {
+		return DomainRules{}, e
+	}
 	return DomainRules{
-		Geo:        geo,
-		Direct:     direct,
-		DPI:        dpi,
-		Builtin:    c.Extras,
-		Secure:     c.DPI || c.Telegram || c.Extras || c.InstagramEnabled() || len(dpi) > 0,
-		DNSProfile: c.DNSProfile,
-		ServiceDNS: c.ServiceDNS,
+		Geo:          geo,
+		Direct:       direct,
+		DPI:          dpi,
+		ExcludedApps: excludedApps,
+		Builtin:      c.Extras,
+		Secure:       c.DPI || c.Telegram || c.Extras || c.InstagramEnabled() || len(dpi) > 0,
+		DNSProfile:   c.DNSProfile,
+		ServiceDNS:   c.ServiceDNS,
 	}, nil
 }
 func WriteUserDPIList(data string, r DomainRules) (string, error) {

@@ -325,6 +325,14 @@ public class RemoteActivity extends Activity implements SharedPreferences.OnShar
         statusRow.addView(current, stLp);
         hero.addView(statusRow);
 
+        LinearLayout appsSlot = new LinearLayout(this);
+        appsSlot.setOrientation(LinearLayout.VERTICAL);
+        page.addView(appsSlot);
+        boolean canEditApps = !working && !Settings.busy(this) && !state.equals("starting") && !state.equals("stopping");
+        actionCard(appsSlot, "Исключения приложений  ›",
+            AppExclusions.summary(this) + " · напрямую без VPN",
+            this::openAppExclusions, canEditApps);
+
         try {
             if (serverTab) {
                 drawServerFleetTab(hero, state, busy, editable);
@@ -688,6 +696,24 @@ public class RemoteActivity extends Activity implements SharedPreferences.OnShar
     private static ProtoSpec findProto(String key) {
         for (ProtoSpec p : PROTOCOLS) if (p.key.equals(key)) return p;
         return null;
+    }
+
+    private void openAppExclusions() {
+        String st = RemoteVpnService.status(this);
+        if (st.equals("starting") || st.equals("stopping")) {
+            message = "Дождитесь завершения переключения VPN.";
+            draw();
+            return;
+        }
+        AppExclusions.show(this, () -> {
+            if (RemoteVpnService.status(this).equals("on")) {
+                RemoteVpnService.restart(this);
+                message = "Исключения применены, VPN переподключается…";
+            } else {
+                message = "Исключения приложений сохранены.";
+            }
+            draw();
+        });
     }
 
     private void primaryButton(LinearLayout parent, String title, Runnable click, boolean enabled, boolean active) {

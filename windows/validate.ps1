@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$AppDir,[string]$InstallerPath,[switch]$IsolatedTestMachine)
+﻿param([Parameter(Mandatory=$true)][string]$AppDir,[string]$InstallerPath,[switch]$IsolatedTestMachine)
 $ErrorActionPreference = 'Stop'
 if (-not $IsolatedTestMachine) {throw 'Native driver/installer validation requires an explicitly selected isolated test machine.'}
 $AppDir = (Resolve-Path $AppDir).Path
@@ -81,6 +81,27 @@ try {
     $saved=Get-Content $configPath -Raw|ConvertFrom-Json
     if ($saved.geo_domains.Count -ne 1 -or $saved.geo_domains[0] -ne 'geo.example.test' -or $saved.direct_domains.Count -ne 2) {throw 'Editor did not normalize and persist rules'}
     $results.user_rules_editor=$true
+    $secretBeforeApps=$saved.protected_secret
+    [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]212,[IntPtr]::Zero)|Out-Null
+    $apps=[NativeUI]::FindWindow('SorryRKNApps','Исключения приложений')
+    if ($apps -eq [IntPtr]::Zero) {throw 'App exclusions window did not open'}
+    $runningList=[NativeUI]::GetDlgItem($apps,9402)
+    if ($runningList -eq [IntPtr]::Zero -or [NativeUI]::SendMessage($runningList,0x18B,[IntPtr]::Zero,[IntPtr]::Zero).ToInt64() -lt 1) {throw 'Running PC processes list empty'}
+    [NativeUI]::SendText([NativeUI]::GetDlgItem($apps,9408),0xc,[IntPtr]::Zero,'notepad.exe')|Out-Null
+    [NativeUI]::SendMessage($apps,0x111,[IntPtr]9409,[IntPtr]::Zero)|Out-Null
+    if ([NativeUI]::SendMessage([NativeUI]::GetDlgItem($apps,9403),0x18B,[IntPtr]::Zero,[IntPtr]::Zero).ToInt64() -ne 1) {throw 'Excluded app was not added'}
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $bounds=New-Object NativeUI+Rect;[NativeUI]::GetWindowRect($apps,[ref]$bounds)|Out-Null
+        $img=New-Object System.Drawing.Bitmap ($bounds.right-$bounds.left),($bounds.bottom-$bounds.top)
+        $g=[System.Drawing.Graphics]::FromImage($img);$hdc=$g.GetHdc()
+        [NativeUI]::PrintWindow($apps,$hdc,2)|Out-Null;$g.ReleaseHdc($hdc)
+        $img.Save("$PWD/windows-apps.png");$g.Dispose();$img.Dispose()
+    } catch {$results.apps_screenshot_note=$_.Exception.Message}
+    [NativeUI]::SendMessage($apps,0x111,[IntPtr]9411,[IntPtr]::Zero)|Out-Null
+    $saved=Get-Content $configPath -Raw|ConvertFrom-Json
+    if ($saved.excluded_apps.Count -ne 1 -or $saved.excluded_apps[0] -ne 'notepad.exe' -or $saved.protected_secret -ne $secretBeforeApps) {throw 'App exclusions did not persist cleanly'}
+    $results.app_exclusions_ui=$true
     [NativeUI]::SendMessage($hwnd,0x111,[IntPtr]100,[IntPtr]::Zero) | Out-Null
     $opened=$false
     for ($i=0;$i -lt 100;$i++) {

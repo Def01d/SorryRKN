@@ -17,12 +17,13 @@ import (
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
+	"sorryrkn/internal/core"
 	"sorryrkn/internal/mirage"
 )
 
 // Resolve only the tunnel gateway before installing any routes. Normal DNS is sent
 // through the selected outbound. Preserve the original TLS/WS names when dialing an IP.
-func configFor(ctx context.Context, p Profile) (object, error) {
+func configFor(ctx context.Context, p Profile, excludedApps ...string) (object, error) {
 	dns := object{"type": "https", "server": "1.1.1.1", "tls": object{"server_name": "cloudflare-dns.com"}, "detour": "vpn", "tag": "remote"}
 	cfg := object{}
 	_, out, err := parseNode(p.Link)
@@ -72,7 +73,14 @@ func configFor(ctx context.Context, p Profile) (object, error) {
 		"224.0.0.0/4",
 	}
 	tun := object{"type": "tun", "interface_name": "SorryRKN-Tunnel", "address": []string{"172.31.254.1/30", "fd7a:7272:6b6e:1::1/126"}, "auto_route": true, "strict_route": true, "dns_mode": "hijack", "mtu": 1360, "route_exclude_address": excludes}
+	excluded, err := core.NormalizeExcludedApps(excludedApps)
+	if err != nil {
+		return nil, err
+	}
 	rules := []object{{"port": 53, "action": "hijack-dns"}}
+	if len(excluded) > 0 {
+		rules = append(rules, object{"process_name": excluded, "action": "route", "outbound": "direct"})
+	}
 	// Prevent HTTP/3 QUIC-over-TCP congestion collapse while keeping real UDP
 	// (WebRTC voice, STUN, gaming) intact on TCP-based tunnels.
 	if outboundType != "hysteria2" {
@@ -80,8 +88,25 @@ func configFor(ctx context.Context, p Profile) (object, error) {
 	}
 	cfg["log"] = object{"level": "info"}
 	cfg["inbounds"] = []object{tun}
-	cfg["dns"] = object{"servers": []object{dns}, "final": "remote"}
-	cfg["route"] = object{"auto_detect_interface": true, "final": "vpn", "rules": rules}
+	dnsBlock := object{"servers": []object{dns}, "final": "remote"}
+	routeBlock := object{"auto_detect_interface": true, "final": "vpn", "rules": rules}
+	if len(excluded) > 0 {
+		outs := cfg["outbounds"].([]object)
+		cfg["outbounds"] = append(outs, object{"type": "direct", "tag": "direct"})
+		dnsBlock = object{
+			"servers": []object{
+				dns,
+				object{"type": "local", "tag": "direct-dns"},
+			},
+			"rules": []object{
+				{"process_name": excluded, "action": "route", "server": "direct-dns"},
+			},
+			"final": "remote",
+		}
+		routeBlock["find_process"] = true
+	}
+	cfg["dns"] = dnsBlock
+	cfg["route"] = routeBlock
 	return cfg, nil
 }
 func resolveGateway(ctx context.Context, host string) (netip.Addr, error) {
@@ -152,8 +177,8 @@ func resolveGatewayDoH(ctx context.Context, host string) (netip.Addr, error) {
 	}
 	return netip.Addr{}, errors.New("DoH lookup failed")
 }
-func engineConfig(ctx context.Context, p Profile) ([]byte, error) {
-	cfg, err := configFor(ctx, p)
+func engineConfig(ctx context.Context, p Profile, excludedApps ...string) ([]byte, error) {
+	cfg, err := configFor(ctx, p, excludedApps...)
 	if err != nil {
 		return nil, err
 	}

@@ -37,7 +37,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
     private LinearLayout heroCard;
     private View statusDot;
     private TextView status, hint, error, profile, retestButton, telegramButton;
-    private TextView instagramSubtitle, extraSubtitle, telegramSubtitle, updateSummary;
+    private TextView instagramSubtitle, extraSubtitle, telegramSubtitle, appsSubtitle, updateSummary;
     private Switch dpiSwitch, instagramSwitch, telegramSwitch, extrasSwitch;
     private PowerView power;
     private boolean binding;
@@ -270,6 +270,25 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
             onServiceToggleChanged();
         });
 
+        // 4b. App Exclusions Card
+        LinearLayout appsCard = new LinearLayout(this);
+        appsCard.setOrientation(LinearLayout.VERTICAL);
+        appsCard.setPadding(dp(15), dp(12), dp(15), dp(12));
+        appsCard.setBackground(shape(PANEL, dp(16), BORDER));
+        LinearLayout.LayoutParams appsLp = new LinearLayout.LayoutParams(-1, -2);
+        appsLp.topMargin = dp(10);
+        page.addView(appsCard, appsLp);
+
+        TextView appsTitle = label("Исключения приложений  ›", 14, WHITE);
+        appsTitle.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        appsCard.addView(appsTitle);
+
+        appsSubtitle = label(AppExclusions.summary(this) + " · для VPN и обхода", 11, GRAY);
+        LinearLayout.LayoutParams appsSubLp = new LinearLayout.LayoutParams(-1, -2);
+        appsSubLp.topMargin = dp(3);
+        appsCard.addView(appsSubtitle, appsSubLp);
+        appsCard.setOnClickListener(v -> openAppExclusions());
+
         // 5. Bottom Tactical Action Bar: [ Telegram ↗ ] + [ Диагностика ]
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -470,6 +489,9 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
             telegramSubtitle.setText(active && dev.graybridge.Settings.telegram(this)
                 ? telegramStatus()
                 : "MTProto · " + relayTag);
+        }
+        if (appsSubtitle != null) {
+            appsSubtitle.setText(AppExclusions.summary(this) + " · для VPN и обхода");
         }
 
         status.setText(switch (state) {
@@ -745,6 +767,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
         popup.getMenu().add("Маршруты").setEnabled(!st.equals("starting") && !st.equals("stopping"));
         popup.getMenu().add("DNS и нейросети");
         popup.getMenu().add("Мои ресурсы");
+        popup.getMenu().add("Исключения приложений");
         popup.getMenu().add("Обновить приложение");
         popup.getMenu().add("Обновления списков");
         popup.getMenu().add("Работа в фоне");
@@ -754,6 +777,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
                 case "DNS и нейросети" -> DnsProfiles.show(this);
                 case "Маршруты" -> routeSettings();
                 case "Мои ресурсы" -> userRules();
+                case "Исключения приложений" -> openAppExclusions();
                 case "Обновить приложение" -> AppUpdates.show(this);
                 case "Работа в фоне" -> battery();
                 case "Обновления списков" -> updates();
@@ -824,6 +848,24 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
             refresh();
         }));
         dialog.show();
+    }
+
+    private void openAppExclusions() {
+        String st = dev.graybridge.Settings.state(this);
+        if (st.equals("starting") || st.equals("stopping")) {
+            toast("Дождитесь завершения переключения");
+            return;
+        }
+        AppExclusions.show(this, () -> {
+            String now = dev.graybridge.Settings.state(this);
+            if (now.equals("on") || now.equals("partial")) {
+                BridgeService.reload(this);
+                toast("Исключения сохранены и применены");
+            } else {
+                toast("Исключения сохранены");
+            }
+            refresh();
+        });
     }
 
     AlertDialog userRules() {
@@ -924,6 +966,7 @@ public class MainActivity extends Activity implements SharedPreferences.OnShared
                 .put("custom_dpi_count", UserRules.domains(this, "dpi_domains").length())
                 .put("custom_geo_count", UserRules.domains(this, "geo_domains").length())
                 .put("custom_direct_count", UserRules.domains(this, "direct_domains").length())
+                .put("excluded_apps_count", AppExclusions.count(this))
                 .put("android", Build.VERSION.RELEASE)
                 .put("sdk", Build.VERSION.SDK_INT)
                 .put("state", dev.graybridge.Settings.state(this))

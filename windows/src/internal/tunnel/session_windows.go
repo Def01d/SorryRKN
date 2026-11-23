@@ -46,9 +46,9 @@ func (s *Session) Active() bool {
 		return true
 	}
 }
-func (s *Session) Start(appDir string, p Profile) error {
+func (s *Session) Start(appDir string, p Profile, excludedApps ...string) error {
 	ctx := context.Background()
-	cfg, err := configFor(ctx, p)
+	cfg, err := configFor(ctx, p, excludedApps...)
 	if err != nil {
 		return err
 	}

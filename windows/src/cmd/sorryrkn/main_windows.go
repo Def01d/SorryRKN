@@ -75,6 +75,7 @@ const QuickRulesID = 109
 const QuickRetestID = 110
 const DnsRowID = 111
 const DiagBtnID = 112
+const QuickAppsID = 113
 
 const OpenID = 200
 const RetestID = 201
@@ -171,7 +172,7 @@ func message(title, text string) {
 		return
 	}
 	owner := hwnd
-	for _, modal := range []uintptr{serviceWindow, dnsWindow, rulesWindow, vpnWindow} {
+	for _, modal := range []uintptr{appsWindow, serviceWindow, dnsWindow, rulesWindow, vpnWindow} {
 		if modal != 0 {
 			owner = modal
 			break
@@ -338,6 +339,7 @@ func main() {
 	engine = core.NewEngine(root, data, platform.Runner{}, dns, func() { call(user, "PostMessageW", hwnd, REFRESH, 0, 0) })
 
 	// Tactical Remote Controls
+	createButton(QuickAppsID, "Приложения", 202, 16, 104, 34)
 	createButton(QuickRulesID, "Правила", 312, 16, 74, 34)
 	createButton(MenuID, "Настройки", 392, 16, 38, 34)
 	createButton(PowerID, "Включить соединение", 36, 124, 68, 68)
@@ -376,6 +378,9 @@ func main() {
 	}
 	var m msg
 	for call(user, "GetMessageW", uintptr(unsafe.Pointer(&m)), 0, 0, 0) != 0 {
+		if appsWindow != 0 && call(user, "IsDialogMessageW", appsWindow, uintptr(unsafe.Pointer(&m))) != 0 {
+			continue
+		}
 		if serviceWindow != 0 && call(user, "IsDialogMessageW", serviceWindow, uintptr(unsafe.Pointer(&m))) != 0 {
 			continue
 		}
@@ -585,6 +590,8 @@ func command(id int) {
 		showDNSProfiles()
 	case RulesID, QuickRulesID, InstaRowID:
 		editRules()
+	case AppsID, QuickAppsID, vpnAppsID:
+		editExcludedApps()
 	case PowerID:
 		toggle(false)
 	case QuickRetestID:
@@ -718,10 +725,12 @@ func menu(tray bool) {
 		addItem(m, RetestID, "Подобрать заново", false, false)
 		addItem(m, ExtendedID, "Расширенный подбор", false, false)
 		addItem(m, RulesID, "Мои ресурсы", false, false)
+		addItem(m, AppsID, "Исключения приложений", false, false)
 		addItem(m, DNSProfilesID, "DNS и нейросети", false, false)
 	} else {
 		addItem(m, vpnServerID, "Свой сервер", false, false)
 		addItem(m, vpnSourcesID, "Подписки и узлы", false, false)
+		addItem(m, AppsID, "Исключения приложений", false, false)
 	}
 	addItem(m, vpnModeID, "Режим работы…", false, false)
 	call(user, "AppendMenuW", m, 0x800, 0, 0)
@@ -913,9 +922,10 @@ func diagnostics() {
 		"dns":                dns.Counters(),
 		"instagram":          c.InstagramEnabled(),
 		"custom_dpi_count":   len(c.DPIDomains),
-		"custom_geo_count":   len(c.GeoDomains),
+		"custom_geo_count":    len(c.GeoDomains),
 		"custom_direct_count": len(c.DirectDomains),
-		"auto_start":         platform.IsAutoStartEnabled(),
+		"excluded_apps_count": len(c.ExcludedApps),
+		"auto_start":          platform.IsAutoStartEnabled(),
 	}
 	var telegram any
 	b, _ := os.ReadFile(filepath.Join(data, "telegram.log"))

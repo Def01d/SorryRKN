@@ -242,6 +242,18 @@ func drawButton(d *drawitem) {
 		fill(dc, d.Rect, PANEL)
 		rounded(dc, logicalRect(0, 0, width, height), PANEL_ELEV, BORDER_STRONG, 11)
 		text(dc, "↻", 0, 5, width, height-6, 18, WHITE, 600, true)
+	case QuickAppsID:
+		fill(dc, d.Rect, BG)
+		label := "Приложения"
+		stroke := BORDER
+		fg := WHITE
+		if n := len(c.ExcludedApps); n > 0 {
+			label = fmt.Sprintf("Прилож. (%d)", n)
+			stroke = GREEN
+			fg = GREEN
+		}
+		rounded(dc, logicalRect(0, 0, width, height), PANEL, stroke, 10)
+		text(dc, label, 0, 7, width, height-8, 12, fg, 600, true)
 	case QuickRulesID:
 		fill(dc, d.Rect, BG)
 		rounded(dc, logicalRect(0, 0, width, height), PANEL, BORDER, 10)

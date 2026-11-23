@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"golang.org/x/sys/windows"
 	"path/filepath"
 	"sorryrkn/internal/core"
@@ -23,6 +24,7 @@ const (
 )
 const modeServerTabID = 1106
 const modeSubsTabID = 1107
+const vpnAppsID = 1108
 const vpnDoneMessage = WM_APP + 44
 const vpnTimer = 1105
 
@@ -75,6 +77,7 @@ func createModeControls() {
 	createButton(modeSubsTabID, "Подписки", 294, 64, 132, 30)
 	createButton(vpnServerID, "Свой сервер", 38, 224, 376, 70)
 	createButton(vpnSourcesID, "Подписки и узлы", 38, 306, 376, 70)
+	createButton(vpnAppsID, "Исключения приложений", 38, 388, 376, 70)
 	loadLibrary()
 	applyMode()
 }
@@ -94,7 +97,7 @@ func applyMode() {
 	for _, id := range []int{DpiID, InstagramID, TelegramID, ExtrasID, ProfileID, InstaRowID, DnsRowID, LinkID, DiagBtnID} {
 		showControl(id, !v)
 	}
-	for _, id := range []int{vpnServerID, vpnSourcesID} {
+	for _, id := range []int{vpnServerID, vpnSourcesID, vpnAppsID} {
 		showControl(id, v)
 	}
 	refresh()
@@ -185,8 +188,9 @@ func paintVPN(dc uintptr) {
 	text(dc, title, 132, 132, 270, 26, 18, WHITE, 600, false)
 	text(dc, detail, 118, 160, 290, 22, 12, GRAY, 400, false)
 
-	rounded(dc, logicalRect(22, 218, 408, 164), PANEL, BORDER, 18)
+	rounded(dc, logicalRect(22, 218, 408, 246), PANEL, BORDER, 18)
 	line(dc, 38, 300, 414, 300, BORDER)
+	line(dc, 38, 382, 414, 382, BORDER)
 	text(dc, "Закрытие окна сворачивает пульт в системный трей", 22, 533, 408, 20, 11, DIM, 400, true)
 }
 func drawVPNButton(d *drawitem, w, h int) bool {
@@ -215,11 +219,19 @@ func drawVPNButton(d *drawitem, w, h int) bool {
 			weight = 600
 		}
 		text(dc, label, 0, 6, w, h-8, 12, fg, weight, true)
-	case vpnServerID, vpnSourcesID:
+	case vpnServerID, vpnSourcesID, vpnAppsID:
 		fill(dc, d.Rect, PANEL)
 		label, note := "Свой сервер", "Мираж, VLESS, HTTPS, Hy2, SS2022 и SOCKS5"
-		if d.ID == vpnSourcesID {
+		switch d.ID {
+		case vpnSourcesID:
 			label, note = "Подписки и узлы", "Импорт ссылок, проверка и выбор узла"
+		case vpnAppsID:
+			label = "Исключения приложений"
+			if n := len(c.ExcludedApps); n > 0 {
+				note = fmt.Sprintf("Исключено: %d · напрямую без VPN и Geo-DNS", n)
+			} else {
+				note = "Выбрать из запущенных на ПК программ"
+			}
 		}
 		text(dc, label, 0, 10, w-30, 24, 15, WHITE, 600, false)
 		text(dc, note, 0, 38, w-30, 20, 11, GRAY, 400, false)
@@ -311,8 +323,30 @@ func toggleVPN() {
 		if tunnelClosing || ctx.Err() != nil {
 			return nil, errors.New("Подключение отменено")
 		}
-		if err := vpnSession.Start(filepath.Dir(root), p); err != nil {
+		if err := vpnSession.Start(filepath.Dir(root), p, currentConfig().ExcludedApps...); err != nil {
 			return nil, err
+		}
+		return func() { wasActive = true; call(user, "SetTimer", hwnd, vpnTimer, 1000, 0) }, nil
+	})
+}
+func restartVPNIfActive() {
+	if !currentConfig().VPNMode || !vpnSession.Active() || cancelWork != nil {
+		return
+	}
+	p, ok := selectedNode()
+	if !ok {
+		return
+	}
+	excluded := append([]string(nil), currentConfig().ExcludedApps...)
+	startWork("Применяем исключения…", 45*time.Second, func(ctx context.Context) (func(), error) {
+		linkMu.Lock()
+		defer linkMu.Unlock()
+		vpnSession.Stop()
+		if tunnelClosing || ctx.Err() != nil {
+			return func() { wasActive = false; call(user, "KillTimer", hwnd, vpnTimer) }, errors.New("Переподключение отменено")
+		}
+		if err := vpnSession.Start(filepath.Dir(root), p, excluded...); err != nil {
+			return func() { wasActive = false; call(user, "KillTimer", hwnd, vpnTimer) }, err
 		}
 		return func() { wasActive = true; call(user, "SetTimer", hwnd, vpnTimer, 1000, 0) }, nil
 	})

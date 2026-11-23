@@ -68,6 +68,11 @@ func (d *DNS) Start(ctx context.Context, bin string, rules core.DomainRules) (fu
 	}
 	windows.NewLazySystemDLL("dnsapi.dll").NewProc("DnsFlushResolverCache").Call()
 	resolver := core.NewSmartDNS(rules)
+	excludedSet := map[string]bool{}
+	for _, app := range rules.ExcludedApps {
+		excludedSet[app] = true
+	}
+	owners := newUDPOwnerResolver()
 	d.mu.Lock()
 	d.handle = windows.Handle(handle)
 	d.resolver = resolver
@@ -136,6 +141,15 @@ func (d *DNS) Start(ctx context.Context, bin string, rules core.DomainRules) (fu
 				forward(raw, address[:])
 				dnsPacketPool.Put(bufPtr)
 				continue
+			}
+			if len(excludedSet) > 0 {
+				if srcPort, isV6, ok := udpSourcePort(raw); ok {
+					if exe := owners.Owner(srcPort, isV6); exe != "" && excludedSet[exe] {
+						forward(raw, address[:])
+						dnsPacketPool.Put(bufPtr)
+						continue
+					}
+				}
 			}
 			select {
 			case slots <- struct{}{}:

@@ -57,6 +57,17 @@ func TestPinnedEngineAcceptsSupportedProfiles(t *testing.T) {
 				t.Fatalf("check: %s", out)
 			}
 		})
+		t.Run(p.Protocol+"_excluded", func(t *testing.T) {
+			cfg, err := engineConfig(context.Background(), p, "steam.exe", "discord.exe")
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(filepath.Join(root, "runtime", "tunnel", "sing-box.exe"), "check", "-c", "stdin")
+			cmd.Stdin = bytes.NewReader(cfg)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("check with exclusions: %s", out)
+			}
+		})
 	}
 }
 

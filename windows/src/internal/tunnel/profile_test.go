@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -57,4 +58,45 @@ func TestMixedSubscription(t *testing.T) {
 		}
 	}
 	_ = sha256.Size
+}
+
+func TestConfigForExcludedApps(t *testing.T) {
+	p, _, err := parseNode("vless://" + fakeUUID + "@127.0.0.1:12345?encryption=none#Test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := configFor(context.Background(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routeBase := base["route"].(object)
+	if _, hasFind := routeBase["find_process"]; hasFind {
+		t.Fatalf("expected no find_process when excluded apps list is empty")
+	}
+
+	withApps, err := configFor(context.Background(), p, `"C:\Games\Steam\Steam.exe"`, "discord", "steam.exe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	route := withApps["route"].(object)
+	if route["find_process"] != true {
+		t.Fatalf("expected find_process=true, got %v", route["find_process"])
+	}
+	rules := route["rules"].([]object)
+	if len(rules) < 3 || rules[0]["action"] != "hijack-dns" || rules[1]["outbound"] != "direct" {
+		t.Fatalf("unexpected route rule order: %+v", rules)
+	}
+	gotProcs, _ := rules[1]["process_name"].([]string)
+	if !reflect.DeepEqual(gotProcs, []string{"discord.exe", "steam.exe"}) {
+		t.Fatalf("unexpected process_name: %v", gotProcs)
+	}
+	dnsCfg := withApps["dns"].(object)
+	dnsRules := dnsCfg["rules"].([]object)
+	if len(dnsRules) != 1 || dnsRules[0]["server"] != "direct-dns" {
+		t.Fatalf("unexpected dns rules: %+v", dnsRules)
+	}
+	outs := withApps["outbounds"].([]object)
+	if outs[len(outs)-1]["tag"] != "direct" {
+		t.Fatalf("missing direct outbound: %+v", outs)
+	}
 }
