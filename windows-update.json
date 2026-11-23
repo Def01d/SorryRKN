@@ -1,14 +1,14 @@
 {
   "platform": "windows-x64",
-  "versionCode": 10800,
-  "versionName": "1.8.0",
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.8.0/windows/SorryRKN-Windows-1.8.0-Setup.exe",
-  "notes": "Менеджер нескольких VPS («Мои серверы · Флот»), запуск приватного (SSH) и публичного (10808) SOCKS5 с кнопкой Telegram, современный набор протоколов (SRKN-Mirage v1 «Мираж», VLESS REALITY, HTTPS, Hysteria2, gRPC, SS2022) и полная очистка VPS.",
-  "size": 43895353,
-  "sha256": "9f1712246dd09f0f6aaeaec3565d2f318741bf06857465f92533509d7817f128",
-  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEwODAwLCJ2ZXJzaW9uTmFtZSI6IjEuOC4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RlZjAxZC9Tb3JyeVJLTi93aW5kb3dzLXYxLjguMC93aW5kb3dzL1NvcnJ5UktOLVdpbmRvd3MtMS44LjAtU2V0dXAuZXhlIiwibm90ZXMiOiLQnNC10L3QtdC00LbQtdGAINC90LXRgdC60L7Qu9GM0LrQuNGFIFZQUyAowqvQnNC+0Lgg0YHQtdGA0LLQtdGA0Ysgwrcg0KTQu9C+0YLCuyksINC30LDQv9GD0YHQuiDQv9GA0LjQstCw0YLQvdC+0LPQviAoU1NIKSDQuCDQv9GD0LHQu9C40YfQvdC+0LPQviAoMTA4MDgpIFNPQ0tTNSDRgSDQutC90L7Qv9C60L7QuSBUZWxlZ3JhbSwg0YHQvtCy0YDQtdC80LXQvdC90YvQuSDQvdCw0LHQvtGAINC/0YDQvtGC0L7QutC+0LvQvtCyIChTUktOLU1pcmFnZSB2MSDCq9Cc0LjRgNCw0LbCuywgVkxFU1MgUkVBTElUWSwgSFRUUFMsIEh5c3RlcmlhMiwgZ1JQQywgU1MyMDIyKSDQuCDQv9C+0LvQvdCw0Y8g0L7Rh9C40YHRgtC60LAgVlBTLiIsInNpemUiOjQzODk1MzUzLCJzaGEyNTYiOiI5ZjE3MTIyNDZkZDA5ZjBmNmFhZWFlYzM1NjVkMmYzMTg3NDFiZjA2ODU3NDY1ZjkyNTMzNTA5ZDc4MTdmMTI4In0=",
+  "versionCode": 10900,
+  "versionName": "1.9.0",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.9.0/windows/SorryRKN-Windows-1.9.0-Setup.exe",
+  "notes": "Исключения приложений: выбор запущенных сейчас на ПК процессов или ввод .exe. В режиме VPN исключённые программы полностью (TCP/UDP/DNS) идут напрямую; в локальном режиме SmartDNS пропускает их DNS мимо Гео-DNS.",
+  "size": 43915120,
+  "sha256": "ff49d675e05b78a1bb07baa887929d132f81bd035cf2471d0557cb86b7731321",
+  "signed": "eyJwbGF0Zm9ybSI6IndpbmRvd3MteDY0IiwidmVyc2lvbkNvZGUiOjEwOTAwLCJ2ZXJzaW9uTmFtZSI6IjEuOS4wIiwidXJsIjoiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0RlZjAxZC9Tb3JyeVJLTi93aW5kb3dzLXYxLjkuMC93aW5kb3dzL1NvcnJ5UktOLVdpbmRvd3MtMS45LjAtU2V0dXAuZXhlIiwibm90ZXMiOiLQmNGB0LrQu9GO0YfQtdC90LjRjyDQv9GA0LjQu9C+0LbQtdC90LjQuTog0LLRi9Cx0L7RgCDQt9Cw0L/Rg9GJ0LXQvdC90YvRhSDRgdC10LnRh9Cw0YEg0L3QsCDQn9CaINC/0YDQvtGG0LXRgdGB0L7QsiDQuNC70Lgg0LLQstC+0LQgLmV4ZS4g0JIg0YDQtdC20LjQvNC1IFZQTiDQuNGB0LrQu9GO0YfRkdC90L3Ri9C1INC/0YDQvtCz0YDQsNC80LzRiyDQv9C+0LvQvdC+0YHRgtGM0Y4gKFRDUC9VRFAvRE5TKSDQuNC00YPRgiDQvdCw0L/RgNGP0LzRg9GOOyDQsiDQu9C+0LrQsNC70YzQvdC+0Lwg0YDQtdC20LjQvNC1IFNtYXJ0RE5TINC/0YDQvtC/0YPRgdC60LDQtdGCINC40YUgRE5TINC80LjQvNC+INCT0LXQvi1ETlMuIiwic2l6ZSI6NDM5MTUxMjAsInNoYTI1NiI6ImZmNDlkNjc1ZTA1Yjc4YTFiYjA3YmFhODg3OTI5ZDEzMmY4MWJkMDM1Y2YyNDcxZDA1NTdjYjg2Yjc3MzEzMjEifQ==",
   "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
-  "signedAt": 1795417706,
-  "expires": 1810969706,
-  "signature": "MEUCIQCUwmtAN/HkYMT4YIp/Gh4zPIwGgn3j5xvIpPB1Hv2j7QIgbwUyY14gk4cVBYfT6Es4RJDEWFq7Szavy1kggB0No7M="
+  "signedAt": 1795421770,
+  "expires": 1810973770,
+  "signature": "MEQCIEoI1Ym1DlLMIL4w7QJ0kUSeDXJMVaRoQ/Ua2+jeXC9OAiBRLJysYh/h3auwq0gUTl24pvyKq8ThtPVoz7yili9G6g=="
 }
