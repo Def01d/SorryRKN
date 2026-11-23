@@ -133,23 +133,24 @@ func RunningApps() ([]RunningApp, error) {
 
 	byExe := map[string]RunningApp{}
 	for {
-		exe := strings.ToLower(strings.TrimSpace(windows.UTF16ToString(entry.ExeFile[:])))
-		if strings.HasSuffix(exe, ".exe") && !internalSorryRKNExes[exe] {
+		rawExe := strings.TrimSpace(windows.UTF16ToString(entry.ExeFile[:]))
+		key := strings.ToLower(rawExe)
+		if strings.HasSuffix(key, ".exe") && !internalSorryRKNExes[key] {
 			winTitle := titles[entry.ProcessID]
-			cur, exists := byExe[exe]
+			cur, exists := byExe[key]
 			if !exists {
 				cur = RunningApp{
-					Exe:       exe,
+					Exe:       rawExe,
 					Title:     winTitle,
 					HasWindow: winTitle != "",
-					System:    backgroundSystemExes[exe] && winTitle == "",
+					System:    backgroundSystemExes[key] && winTitle == "",
 				}
 			} else if winTitle != "" && !cur.HasWindow {
 				cur.Title = winTitle
 				cur.HasWindow = true
 				cur.System = false
 			}
-			byExe[exe] = cur
+			byExe[key] = cur
 		}
 		if err := windows.Process32Next(snap, &entry); err != nil {
 			break
@@ -174,7 +175,7 @@ func RunningApps() ([]RunningApp, error) {
 		if ri != rj {
 			return ri < rj
 		}
-		return out[i].Exe < out[j].Exe
+		return strings.ToLower(out[i].Exe) < strings.ToLower(out[j].Exe)
 	})
 	return out, nil
 }

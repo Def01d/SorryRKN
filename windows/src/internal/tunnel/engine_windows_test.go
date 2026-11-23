@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -58,7 +59,10 @@ func TestPinnedEngineAcceptsSupportedProfiles(t *testing.T) {
 			}
 		})
 		t.Run(p.Protocol+"_excluded", func(t *testing.T) {
-			cfg, err := engineConfig(context.Background(), p, "steam.exe", "discord.exe")
+			cfg, err := engineConfigOptions(context.Background(), p, Options{
+				ExcludedApps:  []string{"eXpress.exe", "steam.exe"},
+				DirectDomains: []string{"corp.example.ru"},
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -240,4 +244,106 @@ func testRelay(t *testing.T, protocol string, useTUN bool, badPeer string) {
 	if client.Active() {
 		t.Fatal("VPN still active after stop")
 	}
+}
+
+func scrambleCase(name string) string {
+	var b strings.Builder
+	upper := true
+	for _, r := range name {
+		s := string(r)
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			if upper {
+				s = strings.ToUpper(s)
+			} else {
+				s = strings.ToLower(s)
+			}
+			upper = !upper
+		}
+		b.WriteString(s)
+	}
+	return b.String()
+}
+
+func TestIsolatedTUNProcessExclusion(t *testing.T) {
+	if os.Getenv("SORRYRKN_ISOLATED_TUN_TEST") != "1" || os.Getenv("GITHUB_ACTIONS") != "true" {
+		t.Skip("requires isolated hosted runner")
+	}
+	root := runtimeDir(t)
+	var hits atomic.Int64
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		fmt.Fprint(w, "relay fixture reached")
+	}))
+	defer origin.Close()
+
+	port := freePort(t)
+	var remote Session
+	inbound := object{"type": "vless", "listen": "127.0.0.1", "listen_port": port, "users": []object{{"uuid": fakeUUID}}}
+	link := fmt.Sprintf("vless://%s@127.0.0.1:%d?encryption=none", fakeUUID, port)
+	startFixture(t, &remote, root, object{
+		"log":       object{"level": "info"},
+		"inbounds":  []object{inbound},
+		"outbounds": []object{{"type": "direct", "tag": "exit"}},
+		"route":     object{"rules": []object{{"ip_cidr": "198.18.78.2/32", "action": "route", "outbound": "exit", "override_address": "127.0.0.1"}, {"action": "reject"}}},
+	})
+	p, _, err := parseNode(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := strings.Replace(origin.URL, "127.0.0.1", "198.18.78.2", 1)
+
+	// Phase 1: without process exclusions, current test executable traverses VPN relay.
+	cfgBase, err := configForOptions(context.Background(), p, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c1 Session
+	startFixture(t, &c1, root, cfgBase)
+	hc1 := http.Client{Transport: &http.Transport{DisableKeepAlives: true}, Timeout: 6 * time.Second}
+	resp, err := hc1.Get(target)
+	if err != nil {
+		deadline := time.Now().Add(15 * time.Second)
+		for err != nil && time.Now().Before(deadline) {
+			time.Sleep(150 * time.Millisecond)
+			resp, err = hc1.Get(target)
+		}
+	}
+	if err != nil {
+		t.Fatalf("baseline TUN request failed: %v", err)
+	}
+	resp.Body.Close()
+	if hits.Load() != 1 {
+		t.Fatalf("expected 1 baseline hit through VPN relay, got %d", hits.Load())
+	}
+	c1.Stop()
+
+	// Phase 2: with scrambled-case exclusion matching current test binary (like eXpress.exe vs express.exe),
+	// traffic must bypass the VPN outbound directly instead of reaching 198.18.78.2 relay.
+	exePath, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	scrambled := scrambleCase(filepath.Base(exePath))
+	cfgExcl, err := configForOptions(context.Background(), p, Options{ExcludedApps: []string{scrambled}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c2 Session
+	startFixture(t, &c2, root, cfgExcl)
+	iface, err := net.InterfaceByName("SorryRKN-Tunnel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var index uint32
+	if err := windows.GetBestInterfaceEx(&windows.SockaddrInet4{Addr: [4]byte{8, 8, 4, 4}}, &index); err != nil || int(index) != iface.Index {
+		t.Fatalf("public route did not use tunnel: interface=%d expected=%d err=%v", index, iface.Index, err)
+	}
+	hc2 := http.Client{Transport: &http.Transport{DisableKeepAlives: true}, Timeout: 2 * time.Second}
+	if r2, err2 := hc2.Get(target); err2 == nil {
+		r2.Body.Close()
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("excluded process (%s) still routed through VPN relay! hits=%d", scrambled, hits.Load())
+	}
+	c2.Stop()
 }

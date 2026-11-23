@@ -317,27 +317,33 @@ func toggleVPN() {
 		openVPNPage(vpnSourcesID)
 		return
 	}
+	cfg := currentConfig()
+	opts := tunnel.Options{ExcludedApps: cfg.ExcludedApps, DirectDomains: cfg.DirectDomains}
 	startWork("Подключение…", 45*time.Second, func(ctx context.Context) (func(), error) {
 		linkMu.Lock()
 		defer linkMu.Unlock()
 		if tunnelClosing || ctx.Err() != nil {
 			return nil, errors.New("Подключение отменено")
 		}
-		if err := vpnSession.Start(filepath.Dir(root), p, currentConfig().ExcludedApps...); err != nil {
+		if err := vpnSession.StartWithOptions(filepath.Dir(root), p, opts); err != nil {
 			return nil, err
 		}
 		return func() { wasActive = true; call(user, "SetTimer", hwnd, vpnTimer, 1000, 0) }, nil
 	})
 }
 func restartVPNIfActive() {
-	if !currentConfig().VPNMode || !vpnSession.Active() || cancelWork != nil {
+	cfg := currentConfig()
+	if !cfg.VPNMode || !vpnSession.Active() || cancelWork != nil {
 		return
 	}
 	p, ok := selectedNode()
 	if !ok {
 		return
 	}
-	excluded := append([]string(nil), currentConfig().ExcludedApps...)
+	opts := tunnel.Options{
+		ExcludedApps:  append([]string(nil), cfg.ExcludedApps...),
+		DirectDomains: append([]string(nil), cfg.DirectDomains...),
+	}
 	startWork("Применяем исключения…", 45*time.Second, func(ctx context.Context) (func(), error) {
 		linkMu.Lock()
 		defer linkMu.Unlock()
@@ -345,7 +351,7 @@ func restartVPNIfActive() {
 		if tunnelClosing || ctx.Err() != nil {
 			return func() { wasActive = false; call(user, "KillTimer", hwnd, vpnTimer) }, errors.New("Переподключение отменено")
 		}
-		if err := vpnSession.Start(filepath.Dir(root), p, excluded...); err != nil {
+		if err := vpnSession.StartWithOptions(filepath.Dir(root), p, opts); err != nil {
 			return func() { wasActive = false; call(user, "KillTimer", hwnd, vpnTimer) }, err
 		}
 		return func() { wasActive = true; call(user, "SetTimer", hwnd, vpnTimer, 1000, 0) }, nil

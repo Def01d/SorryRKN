@@ -1,4 +1,11 @@
-# Проверки Windows 1.9.0
+# Проверки Windows 1.9.1
+
+- **Регистронезависимые исключения и корпоративный DNS:** `TestConfigForExcludedApps` проверяет `process_path_regex` (`(?i)`), перенос TUN на `198.19.254.1/30`, исключение `172.16.0.0/12`, правила `direct_domains` (с `sniff`) и цепочку fallback при `NXDOMAIN`; `TestPinnedEngineAcceptsSupportedProfiles` проверяет итоговые профили через `sing-box.exe check -c stdin` во всех протоколах.
+- **Живая WinTUN-проверка (`TestIsolatedTUNProcessExclusion`):** на изолированном Windows-раннере CI проверяется, что без исключения трафик тестового бинарника идёт через `SorryRKN-Tunnel` к контрольному узлу, а после добавления в исключения со смешанным регистром имени `.exe` — уходит напрямую мимо VPN-туннеля.
+
+Предыдущие результаты Windows 1.9.0 и 1.8.0 сохранены ниже.
+
+## Версия 1.9.0
 
 - **Юнит- и конфиг-тесты:** `TestExcludedAppsNormalizationAndConfigRoundtrip` (нормализация имён `.exe` и путей, лимиты, сохранение `config.json` без потери `protected_secret`), `TestUDPSourcePort` (разбор исходного порта UDP в IPv4/IPv6), `TestConfigForExcludedApps` и расширенный `TestPinnedEngineAcceptsSupportedProfiles` (валидация реальным `sing-box.exe check -c stdin` профилей как без исключений, так и с `process_name` / `direct` / `direct-dns`).
 - **Нативная UI-проверка в CI (`validate.ps1`):** открытие окна `SorryRKNApps` («Исключения приложений»), проверка непустого списка запущенных процессов ПК (`GetRunningApps` / `CreateToolhelp32Snapshot`), добавление `.exe`, снятие скриншота `windows-apps.png`, сохранение в `config.json` без изменения `protected_secret`.

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -73,8 +74,29 @@ func TestConfigForExcludedApps(t *testing.T) {
 	if _, hasFind := routeBase["find_process"]; hasFind {
 		t.Fatalf("expected no find_process when excluded apps list is empty")
 	}
+	if routeBase["default_domain_resolver"] != "direct-dns" {
+		t.Fatalf("expected base default_domain_resolver=direct-dns, got %v", routeBase["default_domain_resolver"])
+	}
+	tunBase := base["inbounds"].([]object)[0]
+	tunAddr := tunBase["address"].([]string)
+	if tunAddr[0] != "198.19.254.1/30" {
+		t.Fatalf("expected non-overlapping TUN IPv4 198.19.254.1/30, got %v", tunAddr)
+	}
+	tunExcludes := tunBase["route_exclude_address"].([]string)
+	hasCorp172 := false
+	for _, cidr := range tunExcludes {
+		if cidr == "172.16.0.0/12" {
+			hasCorp172 = true
+		}
+	}
+	if !hasCorp172 {
+		t.Fatalf("missing 172.16.0.0/12 in route_exclude_address: %v", tunExcludes)
+	}
 
-	withApps, err := configFor(context.Background(), p, `"C:\Games\Steam\Steam.exe"`, "discord", "steam.exe")
+	withApps, err := configForOptions(context.Background(), p, Options{
+		ExcludedApps:  []string{`"C:\Users\alice\AppData\Local\Programs\eXpress\eXpress.exe"`, "discord", "express.exe"},
+		DirectDomains: []string{"corp.example.ru", "EXPRESS.COMPANY"},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,17 +105,34 @@ func TestConfigForExcludedApps(t *testing.T) {
 		t.Fatalf("expected find_process=true and default_domain_resolver=direct-dns, got %v / %v", route["find_process"], route["default_domain_resolver"])
 	}
 	rules := route["rules"].([]object)
-	if len(rules) < 3 || rules[0]["action"] != "hijack-dns" || rules[1]["outbound"] != "direct" {
+	if len(rules) < 6 || rules[0]["action"] != "hijack-dns" || rules[1]["outbound"] != "direct" || rules[2]["outbound"] != "direct" || rules[3]["action"] != "sniff" || rules[4]["outbound"] != "direct" {
 		t.Fatalf("unexpected route rule order: %+v", rules)
 	}
-	gotProcs, _ := rules[1]["process_name"].([]string)
-	if !reflect.DeepEqual(gotProcs, []string{"discord.exe", "steam.exe"}) {
-		t.Fatalf("unexpected process_name: %v", gotProcs)
+	gotRegexes, _ := rules[2]["process_path_regex"].([]string)
+	if len(gotRegexes) != 2 {
+		t.Fatalf("expected 2 deduplicated process_path_regex entries, got %v", gotRegexes)
 	}
+	rxExpress := regexp.MustCompile(gotRegexes[1]) // sorted: discord.exe, express.exe
+	if !rxExpress.MatchString(`C:\Users\alice\AppData\Local\Programs\eXpress\eXpress.exe`) ||
+		!rxExpress.MatchString(`EXPRESS.EXE`) ||
+		!rxExpress.MatchString(`express.exe`) ||
+		rxExpress.MatchString(`C:\Tools\myexpress.exe`) {
+		t.Fatalf("unexpected process_path_regex matching for %q", gotRegexes[1])
+	}
+	if !reflect.DeepEqual(rules[4]["domain_suffix"], []string{"corp.example.ru", "express.company"}) {
+		t.Fatalf("unexpected direct domain_suffix: %v", rules[4]["domain_suffix"])
+	}
+
 	dnsCfg := withApps["dns"].(object)
 	dnsRules := dnsCfg["rules"].([]object)
-	if len(dnsRules) != 1 || dnsRules[0]["server"] != "direct-dns" {
-		t.Fatalf("unexpected dns rules: %+v", dnsRules)
+	if len(dnsRules) != 7 {
+		t.Fatalf("expected 7 dns rules (process, corp suffixes, short hostname, direct domains, evaluate, nxdomain, respond), got %d: %+v", len(dnsRules), dnsRules)
+	}
+	if _, ok := dnsRules[0]["process_path_regex"]; !ok || dnsRules[0]["server"] != "direct-dns" {
+		t.Fatalf("unexpected first dns rule: %+v", dnsRules[0])
+	}
+	if dnsRules[4]["action"] != "evaluate" || dnsRules[5]["response_rcode"] != "NXDOMAIN" || dnsRules[6]["action"] != "respond" {
+		t.Fatalf("unexpected split-horizon NXDOMAIN fallback chain: %+v", dnsRules[4:])
 	}
 	outs := withApps["outbounds"].([]object)
 	if outs[len(outs)-1]["tag"] != "direct" {

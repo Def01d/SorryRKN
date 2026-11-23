@@ -47,8 +47,12 @@ func (s *Session) Active() bool {
 	}
 }
 func (s *Session) Start(appDir string, p Profile, excludedApps ...string) error {
+	return s.StartWithOptions(appDir, p, Options{ExcludedApps: excludedApps})
+}
+
+func (s *Session) StartWithOptions(appDir string, p Profile, opts Options) error {
 	ctx := context.Background()
-	cfg, err := configFor(ctx, p, excludedApps...)
+	cfg, err := configForOptions(ctx, p, opts)
 	if err != nil {
 		return err
 	}

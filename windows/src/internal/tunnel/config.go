@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,9 +22,22 @@ import (
 	"sorryrkn/internal/mirage"
 )
 
+type Options struct {
+	ExcludedApps  []string
+	DirectDomains []string
+}
+
+func processPathRegex(exe string) string {
+	return `(?i)(?:^|[\\/])` + regexp.QuoteMeta(exe) + `$`
+}
+
 // Resolve only the tunnel gateway before installing any routes. Normal DNS is sent
 // through the selected outbound. Preserve the original TLS/WS names when dialing an IP.
 func configFor(ctx context.Context, p Profile, excludedApps ...string) (object, error) {
+	return configForOptions(ctx, p, Options{ExcludedApps: excludedApps})
+}
+
+func configForOptions(ctx context.Context, p Profile, opts Options) (object, error) {
 	dns := object{"type": "https", "server": "1.1.1.1", "tls": object{"server_name": "cloudflare-dns.com"}, "detour": "vpn", "tag": "remote"}
 	cfg := object{}
 	_, out, err := parseNode(p.Link)
@@ -68,46 +82,82 @@ func configFor(ctx context.Context, p Profile, excludedApps ...string) (object, 
 	excludes := []string{
 		netip.PrefixFrom(ip, ip.BitLen()).String(),
 		"10.0.0.0/8",
+		"172.16.0.0/12",
 		"192.168.0.0/16",
 		"169.254.0.0/16",
 		"224.0.0.0/4",
+		"fe80::/10",
 	}
-	tun := object{"type": "tun", "interface_name": "SorryRKN-Tunnel", "address": []string{"172.31.254.1/30", "fd7a:7272:6b6e:1::1/126"}, "auto_route": true, "strict_route": true, "dns_mode": "hijack", "mtu": 1360, "route_exclude_address": excludes}
-	excluded, err := core.NormalizeExcludedApps(excludedApps)
+	tun := object{"type": "tun", "interface_name": "SorryRKN-Tunnel", "address": []string{"198.19.254.1/30", "fd7a:7272:6b6e:1::1/126"}, "auto_route": true, "strict_route": true, "dns_mode": "hijack", "mtu": 1360, "route_exclude_address": excludes}
+	excluded, err := core.NormalizeExcludedApps(opts.ExcludedApps)
 	if err != nil {
 		return nil, err
 	}
-	rules := []object{{"port": 53, "action": "hijack-dns"}}
-	if len(excluded) > 0 {
-		rules = append(rules, object{"process_name": excluded, "action": "route", "outbound": "direct"})
+	directDomains, err := core.ParseDomains(strings.Join(opts.DirectDomains, "\n"))
+	if err != nil {
+		return nil, err
+	}
+	var excludedRegexes []string
+	for _, exe := range excluded {
+		excludedRegexes = append(excludedRegexes, processPathRegex(exe))
+	}
+
+	rules := []object{
+		{"port": 53, "action": "hijack-dns"},
+		{"ip_cidr": []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "fe80::/10"}, "action": "route", "outbound": "direct"},
+	}
+	if len(excludedRegexes) > 0 {
+		rules = append(rules, object{"process_path_regex": excludedRegexes, "action": "route", "outbound": "direct"})
+	}
+	if len(directDomains) > 0 {
+		rules = append(rules,
+			object{"action": "sniff"},
+			object{"domain_suffix": directDomains, "action": "route", "outbound": "direct"},
+		)
 	}
 	// Prevent HTTP/3 QUIC-over-TCP congestion collapse while keeping real UDP
 	// (WebRTC voice, STUN, gaming) intact on TCP-based tunnels.
 	if outboundType != "hysteria2" {
 		rules = append(rules, object{"network": "udp", "port": 443, "action": "reject"})
 	}
+
+	dnsRules := []object{}
+	if len(excludedRegexes) > 0 {
+		dnsRules = append(dnsRules, object{"process_path_regex": excludedRegexes, "action": "route", "server": "direct-dns"})
+	}
+	dnsRules = append(dnsRules,
+		object{"domain_suffix": []string{"local", "corp", "internal", "intranet", "lan", "home", "arpa", "localdomain"}, "action": "route", "server": "direct-dns"},
+		object{"domain_regex": []string{"^[^.]+$"}, "action": "route", "server": "direct-dns"},
+	)
+	if len(directDomains) > 0 {
+		dnsRules = append(dnsRules, object{"domain_suffix": directDomains, "action": "route", "server": "direct-dns"})
+	}
+	dnsRules = append(dnsRules,
+		object{"action": "evaluate", "server": "remote"},
+		object{"match_response": true, "response_rcode": "NXDOMAIN", "action": "route", "server": "direct-dns"},
+		object{"match_response": true, "action": "respond"},
+	)
+
 	cfg["log"] = object{"level": "info"}
 	cfg["inbounds"] = []object{tun}
-	dnsBlock := object{"servers": []object{dns}, "final": "remote"}
-	routeBlock := object{"auto_detect_interface": true, "final": "vpn", "rules": rules}
-	if len(excluded) > 0 {
-		outs := cfg["outbounds"].([]object)
-		cfg["outbounds"] = append(outs, object{"type": "direct", "tag": "direct"})
-		dnsBlock = object{
-			"servers": []object{
-				dns,
-				object{"type": "local", "tag": "direct-dns"},
-			},
-			"rules": []object{
-				{"process_name": excluded, "action": "route", "server": "direct-dns"},
-			},
-			"final": "remote",
-		}
-		cfg["dns"] = dnsBlock
+	outs := cfg["outbounds"].([]object)
+	cfg["outbounds"] = append(outs, object{"type": "direct", "tag": "direct"})
+	cfg["dns"] = object{
+		"servers": []object{
+			dns,
+			object{"type": "local", "tag": "direct-dns"},
+		},
+		"rules": dnsRules,
+		"final": "remote",
+	}
+	routeBlock := object{
+		"auto_detect_interface":   true,
+		"default_domain_resolver": "direct-dns",
+		"final":                   "vpn",
+		"rules":                   rules,
+	}
+	if len(excludedRegexes) > 0 {
 		routeBlock["find_process"] = true
-		routeBlock["default_domain_resolver"] = "direct-dns"
-	} else {
-		cfg["dns"] = dnsBlock
 	}
 	cfg["route"] = routeBlock
 	return cfg, nil
@@ -181,7 +231,11 @@ func resolveGatewayDoH(ctx context.Context, host string) (netip.Addr, error) {
 	return netip.Addr{}, errors.New("DoH lookup failed")
 }
 func engineConfig(ctx context.Context, p Profile, excludedApps ...string) ([]byte, error) {
-	cfg, err := configFor(ctx, p, excludedApps...)
+	return engineConfigOptions(ctx, p, Options{ExcludedApps: excludedApps})
+}
+
+func engineConfigOptions(ctx context.Context, p Profile, opts Options) ([]byte, error) {
+	cfg, err := configForOptions(ctx, p, opts)
 	if err != nil {
 		return nil, err
 	}

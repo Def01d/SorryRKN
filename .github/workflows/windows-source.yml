@@ -81,7 +81,7 @@ jobs:
           Start-Transcript -Path dist/ci-logs/build.log
           try {
             & ./scripts/build.ps1
-            foreach ($artifact in @('dist/SorryRKN-Windows-1.9.0.zip', 'dist/SorryRKN-Windows-1.9.0-Setup.exe')) {
+            foreach ($artifact in @('dist/SorryRKN-Windows-1.9.1.zip', 'dist/SorryRKN-Windows-1.9.1-Setup.exe')) {
               if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) { throw "Missing Windows package: $artifact" }
             }
           } finally {
@@ -100,7 +100,7 @@ jobs:
         env:
           SORRYRKN_ISOLATED_TUN_TEST: '1'
         run: |
-          go test -count=1 -v -run '^TestIsolated(TUNRelay|HTTPSDatagrams)$' ./internal/tunnel 2>&1 | Tee-Object -FilePath dist/ci-logs/tunnel-native.log
+          go test -count=1 -v -run '^TestIsolated(TUNRelay|TUNProcessExclusion|HTTPSDatagrams)$' ./internal/tunnel 2>&1 | Tee-Object -FilePath dist/ci-logs/tunnel-native.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Authenticate production JSON metadata offline
@@ -125,8 +125,8 @@ jobs:
         with:
           name: windows-source-packages
           path: |
-            windows/src/dist/SorryRKN-Windows-1.9.0.zip
-            windows/src/dist/SorryRKN-Windows-1.9.0-Setup.exe
+            windows/src/dist/SorryRKN-Windows-1.9.1.zip
+            windows/src/dist/SorryRKN-Windows-1.9.1-Setup.exe
           if-no-files-found: error
           compression-level: 0
 

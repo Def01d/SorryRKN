@@ -155,14 +155,15 @@ func renderRunningAppsList() {
 		if app.System && !showSys {
 			continue
 		}
+		lowerExe := strings.ToLower(app.Exe)
 		if query != "" {
-			if !strings.Contains(app.Exe, query) && !strings.Contains(strings.ToLower(app.Title), query) {
+			if !strings.Contains(lowerExe, query) && !strings.Contains(strings.ToLower(app.Title), query) {
 				continue
 			}
 		}
 		appsVisibleRunning = append(appsVisibleRunning, app)
 		prefix := ""
-		if excluded[app.Exe] {
+		if excluded[lowerExe] {
 			prefix = "[✓] "
 		} else if app.HasWindow {
 			prefix = "● "
@@ -231,8 +232,8 @@ func paintAppsWindow(window, dc uintptr) {
 	call(user, "GetClientRect", window, uintptr(unsafe.Pointer(&bounds)))
 	fill(dc, bounds, BG)
 	text(dc, "Исключения приложений", 20, 14, 720, 32, 22, WHITE, 600, false)
-	text(dc, "В режиме VPN исключённые программы полностью (TCP/UDP/DNS) идут напрямую без туннеля.", 20, 50, 720, 18, 11, GRAY, 400, false)
-	text(dc, "В локальном режиме отключается Гео-DNS / SmartDNS; для отдельных доменов без DPI используйте «Мои ресурсы → Напрямую».", 20, 68, 720, 18, 11, GRAY, 400, false)
+	text(dc, "В режиме VPN исключённые программы и локальные сети (10/8, 172.16/12, 192.168/16) идут напрямую; внутренний DNS работает с авто-резервом.", 20, 50, 720, 18, 11, GRAY, 400, false)
+	text(dc, "Для публичных доменов корпоративных сервисов или отключения локального DPI используйте «Правила → Напрямую».", 20, 68, 720, 18, 11, GRAY, 400, false)
 	rounded(dc, logicalRect(20, 98, 346, 386), PANEL, BORDER, 14)
 	rounded(dc, logicalRect(384, 98, 356, 386), PANEL, BORDER, 14)
 	text(dc, "Выберите запущенное приложение или введите имя .exe", 20, 510, 456, 20, 11, GRAY, 400, false)

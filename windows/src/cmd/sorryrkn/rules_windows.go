@@ -121,7 +121,11 @@ func rulesProc(window uintptr, id uint32, w, l uintptr) uintptr {
 			})
 			call(user, "DestroyWindow", window)
 			refresh()
-			reloadEngineIfActive()
+			if currentConfig().VPNMode {
+				restartVPNIfActive()
+			} else {
+				reloadEngineIfActive()
+			}
 			return 0
 		case CancelRulesID, 2:
 			call(user, "DestroyWindow", window)
