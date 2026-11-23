@@ -1,6 +1,6 @@
-# SorryRKN для Windows 1.7.0
+# SorryRKN для Windows 1.8.0
 
-Переключайте режимы **«Локальный»**, **«Свой сервер»** и **«Подписки»** на верхней панели пульта. Переключатели сервисов, стратегии DPI, DNS-профили и «Мои ресурсы» применяются на лету без ручного отключения. При каждом запуске программа проверяет обновления. [Настройка VPN, SSH и SOCKS5](https://github.com/Def01d/SorryRKN/blob/main/docs/VPN.md).
+Переключайте режимы **«Локальный»**, **«Свой сервер»** и **«Подписки»** на верхней панели пульта. В режиме **«Свой сервер»** доступен менеджер нескольких VPS (пароли опционально защищаются Windows DPAPI), развёртывание и удаление **SRKN-Mirage v1 («Мираж»)**, **VLESS + REALITY Vision**, **HTTPS / NaïveProxy**, **Hysteria2 + Salamander**, **VLESS gRPC**, **Shadowsocks 2022**, приватного и публичного (`TCP 10808`) **SOCKS5**, а также полная очистка VPS (`purge-all`). [Настройка VPN, SSH и SOCKS5](https://github.com/Def01d/SorryRKN/blob/main/docs/VPN.md).
 
 Windows 10/11 x64. Установщик и переносной ZIP содержат zapret/winws, WinDivert и встроенный Telegram runtime; установка Python не нужна.
 

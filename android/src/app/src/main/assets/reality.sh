@@ -13,7 +13,7 @@ die() { printf 'SRKN_ERROR: %s\n' "$1" >&2; exit 1; }
 action=$1; id=$2
 case "$id" in ''|*[!0-9a-f]*) die "Invalid device ID.";; esac
 [ "${#id}" -eq 32 ] || die "Invalid device ID."
-case "$action" in reality-on|reality-off|reality-profile|reality-status) :;; *) die "Invalid REALITY action.";; esac
+case "$action" in reality-on|reality-off|reality-profile|reality-status|reality-purge) :;; *) die "Invalid REALITY action.";; esac
 exec 9>/run/lock/sorryrkn-reality.lock
 flock -w 90 9 || die "Another SorryRKN REALITY operation is in progress."
 
@@ -76,6 +76,17 @@ case "$action" in
     reality-status) status; exit;;
     reality-off) if [ -f "$unitfile" ]; then systemctl disable --now "$unit" >&2; fi; status; exit;;
     reality-profile) profile; exit;;
+    reality-purge)
+        systemctl disable --now "$unit" >/dev/null 2>&1 || true
+        for fw in iptables ip6tables; do
+            command -v "$fw" >/dev/null || continue
+            "$fw" -w 10 -D INPUT -p tcp --dport 8443 -m comment --comment sorryrkn-reality -j ACCEPT 2>/dev/null || true
+        done
+        rm -f "$unitfile"
+        rm -rf -- "$state" "$lib"
+        systemctl daemon-reload
+        status
+        exit;;
 esac
 
 [ -f /etc/os-release ] && grep -Eq '^ID="?((debian)|(ubuntu))"?$' /etc/os-release ||

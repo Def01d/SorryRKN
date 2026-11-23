@@ -95,8 +95,10 @@ func (Runner) Start(program string, args []string, dir string, input []byte, log
 	go func() { defer close(c.done); cmd.Wait(); f.Close(); c.alive.Store(false) }()
 	return c, nil
 }
-func ProtectSecret(secret string) (string, error) {
-	data := []byte(secret)
+func protectBytes(data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", nil
+	}
 	blob := windows.DataBlob{Size: uint32(len(data)), Data: &data[0]}
 	var out windows.DataBlob
 	if e := windows.CryptProtectData(&blob, nil, nil, 0, nil, windows.CRYPTPROTECT_UI_FORBIDDEN, &out); e != nil {
@@ -105,18 +107,43 @@ func ProtectSecret(secret string) (string, error) {
 	defer windows.LocalFree(windows.Handle(unsafe.Pointer(out.Data)))
 	return base64.StdEncoding.EncodeToString(unsafe.Slice(out.Data, out.Size)), nil
 }
-func UnprotectSecret(value string) (string, error) {
+func unprotectBytes(value string) ([]byte, error) {
+	if value == "" {
+		return nil, nil
+	}
 	data, e := base64.StdEncoding.DecodeString(value)
 	if e != nil || len(data) == 0 {
-		return "", errors.New("invalid stored secret")
+		return nil, errors.New("invalid stored secret")
 	}
 	blob := windows.DataBlob{Size: uint32(len(data)), Data: &data[0]}
 	var out windows.DataBlob
 	if e = windows.CryptUnprotectData(&blob, nil, nil, 0, nil, windows.CRYPTPROTECT_UI_FORBIDDEN, &out); e != nil {
-		return "", e
+		return nil, e
 	}
 	defer windows.LocalFree(windows.Handle(unsafe.Pointer(out.Data)))
-	secret := string(unsafe.Slice(out.Data, out.Size))
+	plain := make([]byte, out.Size)
+	copy(plain, unsafe.Slice(out.Data, out.Size))
+	return plain, nil
+}
+func ProtectText(plain string) (string, error) { return protectBytes([]byte(plain)) }
+func UnprotectText(value string) (string, error) {
+	b, err := unprotectBytes(value)
+	if err != nil {
+		return "", err
+	}
+	defer clear(b)
+	return string(b), nil
+}
+func ProtectSecret(secret string) (string, error) {
+	return protectBytes([]byte(secret))
+}
+func UnprotectSecret(value string) (string, error) {
+	b, err := unprotectBytes(value)
+	if err != nil {
+		return "", err
+	}
+	defer clear(b)
+	secret := string(b)
 	if !core.ValidSecret(secret) {
 		return "", errors.New("invalid proxy secret")
 	}

@@ -217,7 +217,7 @@ func drawVPNButton(d *drawitem, w, h int) bool {
 		text(dc, label, 0, 6, w, h-8, 12, fg, weight, true)
 	case vpnServerID, vpnSourcesID:
 		fill(dc, d.Rect, PANEL)
-		label, note := "Свой сервер", "HTTPS, VLESS / REALITY и SOCKS5 по SSH"
+		label, note := "Свой сервер", "Мираж, VLESS, HTTPS, Hy2, SS2022 и SOCKS5"
 		if d.ID == vpnSourcesID {
 			label, note = "Подписки и узлы", "Импорт ссылок, проверка и выбор узла"
 		}
@@ -366,14 +366,16 @@ func openVPNPage(id int) {
 	}
 	vpnPage = id
 	title := "Свой сервер"
-	height := 575
+	width := 920
+	height := 650
 	if id == vpnSourcesID {
 		title = "Подписки и узлы"
+		width = 626
 		height = 505
 	}
 	fields = map[int]uintptr{}
 	vpnBrush = call(gdi, "CreateSolidBrush", PANEL)
-	vpnWindow = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u("SorryRKNVPN"))), uintptr(unsafe.Pointer(u(title))), 0x80c80000, 0x80000000, 0x80000000, uintptr(dp(626)), uintptr(dp(height)), hwnd, 0, instance, 0)
+	vpnWindow = call(user, "CreateWindowExW", 0, uintptr(unsafe.Pointer(u("SorryRKNVPN"))), uintptr(unsafe.Pointer(u(title))), 0x80c80000, 0x80000000, 0x80000000, uintptr(dp(width)), uintptr(dp(height)), hwnd, 0, instance, 0)
 	if vpnWindow == 0 {
 		call(gdi, "DeleteObject", vpnBrush)
 		errorMessage("Не удалось открыть окно VPN")
@@ -407,11 +409,15 @@ func paintVPNPage(window, dc uintptr) {
 	var bounds rect
 	call(user, "GetClientRect", window, uintptr(unsafe.Pointer(&bounds)))
 	fill(dc, bounds, BG)
-	title := "Свой сервер"
 	if vpnPage == vpnSourcesID {
-		title = "Подписки и узлы"
+		text(dc, "Подписки и узлы", 20, 12, 560, 40, 24, WHITE, 600, false)
+		return
 	}
-	text(dc, title, 20, 12, 560, 40, 24, WHITE, 600, false)
+	text(dc, "Мои серверы · Флот и протоколы", 20, 12, 860, 38, 22, WHITE, 600, false)
+	rounded(dc, logicalRect(16, 60, 292, 536), PANEL, BORDER, 14)
+	rounded(dc, logicalRect(322, 60, 566, 90), PANEL, BORDER, 14)
+	rounded(dc, logicalRect(322, 162, 566, 180), PANEL, BORDER, 14)
+	rounded(dc, logicalRect(322, 354, 566, 124), PANEL, BORDER, 14)
 }
 func vpnProc(window uintptr, id uint32, w, l uintptr) uintptr {
 	switch id {
@@ -424,7 +430,7 @@ func vpnProc(window uintptr, id uint32, w, l uintptr) uintptr {
 	case 0x0318: // WM_PRINTCLIENT
 		paintVPNPage(window, w)
 		return 0
-	case 0x0133, 0x0138:
+	case 0x0133, 0x0134, 0x0138:
 		call(gdi, "SetTextColor", w, WHITE)
 		call(gdi, "SetBkColor", w, PANEL)
 		return vpnBrush
@@ -436,7 +442,7 @@ func vpnProc(window uintptr, id uint32, w, l uintptr) uintptr {
 		if n == 2 {
 			call(user, "DestroyWindow", window)
 		} else if vpnPage == vpnServerID {
-			serverCommand(n)
+			serverCommand(n, int(w>>16))
 		} else {
 			sourceCommand(n, int(w>>16))
 		}

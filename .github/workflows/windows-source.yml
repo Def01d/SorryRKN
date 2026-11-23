@@ -36,6 +36,15 @@ jobs:
       - name: Exercise server provisioning and authenticated SOCKS5 on disposable VM
         run: sudo bash windows/src/internal/selfhost/integration-linux.sh --isolated-vm
 
+  selfhost-mirage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify Mirage, multi-protocol suite, public SOCKS5 and purge-all on disposable VM
+        run: sudo bash windows/src/internal/selfhost/integration-mirage.sh --isolated-vm
+
   windows-source:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -72,7 +81,7 @@ jobs:
           Start-Transcript -Path dist/ci-logs/build.log
           try {
             & ./scripts/build.ps1
-            foreach ($artifact in @('dist/SorryRKN-Windows-1.7.0.zip', 'dist/SorryRKN-Windows-1.7.0-Setup.exe')) {
+            foreach ($artifact in @('dist/SorryRKN-Windows-1.8.0.zip', 'dist/SorryRKN-Windows-1.8.0-Setup.exe')) {
               if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) { throw "Missing Windows package: $artifact" }
             }
           } finally {
@@ -116,8 +125,8 @@ jobs:
         with:
           name: windows-source-packages
           path: |
-            windows/src/dist/SorryRKN-Windows-1.7.0.zip
-            windows/src/dist/SorryRKN-Windows-1.7.0-Setup.exe
+            windows/src/dist/SorryRKN-Windows-1.8.0.zip
+            windows/src/dist/SorryRKN-Windows-1.8.0-Setup.exe
           if-no-files-found: error
           compression-level: 0
 

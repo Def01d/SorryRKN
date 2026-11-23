@@ -124,6 +124,47 @@ func TestOnlyValidHTTPSProfiles(t *testing.T) {
 		}
 	}
 }
+
+func TestExtendedProtocolsAndFleetParsing(t *testing.T) {
+	mir := "SRKN1\tMIRAGE\tmirage://" + strings.Repeat("Q", 43) + "@sorryrkn.invalid:2096?sni=edge-telemetry.local&pin=" + strings.Repeat("a", 64) + "#Mirage"
+	r, err := parseResult("203.0.113.5", InstallMirage, mir)
+	if err != nil || !strings.Contains(r.NodeURL, "@203.0.113.5:2096?") {
+		t.Fatalf("mirage parse: %+v %v", r, err)
+	}
+
+	hy := "SRKN1\tHY2\thy2://pass@sorryrkn.invalid:8443?sni=edge.cloudflare.com&spki=AAAA#Hy2"
+	r, err = parseResult("203.0.113.5", InstallHy2, hy)
+	if err != nil || !strings.Contains(r.NodeURL, "@203.0.113.5:8443?") {
+		t.Fatalf("hy2 parse: %+v %v", r, err)
+	}
+
+	gr := "SRKN1\tGRPC\tvless://137001ca-1c37-4f48-a2d3-3d72253b051c@sorryrkn.invalid:2053?type=grpc&security=reality&pbk=pub&sni=www.microsoft.com#gRPC"
+	r, err = parseResult("203.0.113.5", InstallGRPC, gr)
+	if err != nil || !strings.Contains(r.NodeURL, "@203.0.113.5:2053?") {
+		t.Fatalf("grpc parse: %+v %v", r, err)
+	}
+
+	sp := "SRKN1\tSOCKS-PUB\t10808\tsrkn_abcd\tsecret-pw-123"
+	r, err = parseResult("203.0.113.5", InstallPublicSOCKS, sp)
+	if err != nil || r.SOCKSPort != 10808 || !strings.Contains(r.TelegramURL, "tg://socks?") || !strings.Contains(r.PublicSOCKSURL, "@203.0.113.5:10808") {
+		t.Fatalf("socks-pub parse: %+v %v", r, err)
+	}
+
+	fl := "SRKN1\tFLEET\thttps:running\tmirage:running\treality:stopped\thy2:missing\tgrpc:missing\tss2022:missing\tsocks_ssh:missing\tsocks_pub:running"
+	r, err = parseResult("203.0.113.5", FleetStatus, fl)
+	if err != nil || r.Fleet["mirage"] != "running" || r.Fleet["socks_pub"] != "running" {
+		t.Fatalf("fleet parse: %+v %v", r, err)
+	}
+
+	pr, err := parseResult("203.0.113.5", PurgeAll, "SRKN1\tPURGED\tall")
+	if err != nil || pr.Status == "" {
+		t.Fatalf("purge parse: %+v %v", pr, err)
+	}
+
+	if _, err := parseResult("203.0.113.5", InstallMirage, strings.Replace(mir, "sorryrkn.invalid", "evil.example", 1)); err == nil {
+		t.Fatal("accepted injected host in mirage profile")
+	}
+}
 func TestCancellationInterruptsHandshake(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

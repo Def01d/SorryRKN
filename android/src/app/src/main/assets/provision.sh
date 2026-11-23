@@ -451,6 +451,38 @@ PY
     printf 'SRKN1\tSOCKS\t%s\t11080\tsorryrkn\t%s\n' "$head" "$(cat "$dir/socks.credential")"
 }
 
+clear_fw_comment() {
+    for fw in iptables ip6tables; do
+        command -v "$fw" >/dev/null || continue
+        "$fw" -w 10 -D INPUT -p tcp --dport 443 -m comment --comment sorryrkn-https -j ACCEPT 2>/dev/null || true
+    done
+}
+
+purge_https() {
+    systemctl disable --now "$vpn" >/dev/null 2>&1 || true
+    systemctl disable --now "$relay" >/dev/null 2>&1 || true
+    clear_fw_comment
+    rm -f "$units/$vpn" "$units/$relay"
+    rm -rf "$dir/Caddyfile" "$dir/caddy" "$dir/clients" "$dir/relay.json" "$dir/relay.credential" \
+           /var/lib/sorryrkn-https /var/lib/private/sorryrkn-https /run/sorryrkn-https \
+           "$runtime/caddy" "$runtime/caddy.sha256" "$runtime/sing-box-1.14.4" "$runtime/relay-engine.sha256" "$runtime/relay-LICENSE" "$runtime/LICENSE" "$runtime/site"
+    if [ ! -f "$units/$socks" ]; then
+        rm -rf -- "$dir" "$runtime"
+    fi
+    systemctl daemon-reload
+    report
+}
+
+purge_socks() {
+    systemctl disable --now "$socks" >/dev/null 2>&1 || true
+    rm -f "$units/$socks" "$dir/socks.credential" "$runtime/socks.py"
+    if [ ! -f "$units/$vpn" ]; then
+        rm -rf -- "$dir" "$runtime"
+    fi
+    systemctl daemon-reload
+    report
+}
+
 main(){
     [ "$(id -u)" = 0 ] && [ -d /run/systemd/system ] || die "Root or passwordless sudo on systemd Linux is required."
     action=$1; id=$2; host=$3
@@ -478,8 +510,10 @@ main(){
         https-start) [ -f "$units/$vpn" ] || die "Install HTTPS first."; systemctl enable --now "$vpn" >&2; report;;
         https-off) if [ -f "$units/$vpn" ]; then systemctl disable --now "$vpn" >&2; fi
                    if [ -f "$units/$relay" ]; then systemctl disable --now "$relay" >&2; fi; report;;
+        https-purge) purge_https;;
         install-socks) deps; install_socks;;
         stop-socks) if [ -f "$units/$socks" ]; then systemctl disable --now "$socks" >&2; fi; report;;
+        socks-purge) purge_socks;;
         status|https-status) report;;
         *) die "Unknown server operation.";;
     esac

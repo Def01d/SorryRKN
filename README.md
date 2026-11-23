@@ -15,21 +15,19 @@
   <a href="https://github.com/Def01d/SorryRKN/releases">Релизы</a>
 </p>
 
-## Android 1.1.0 и Windows 1.7.0
+## Android 1.2.0 и Windows 1.8.0
 
-Новый интерфейс **«Тактический пульт»** объединяет верхнюю панель режимов (**«Локальный»** · **«Свой сервер»** · **«Подписки»**), компактную карточку состояния с кнопкой быстрого переподбора `↻` и четыре независимых переключателя сервисов (`YouTube, Discord и сайты`, `Instagram и Meta`, `Telegram MTProto`, `Нейросети · Гео-DNS`), которые применяются **на лету** без ручного отключения. [Как настроить VPN и подписки](docs/VPN.md) · [DNS и нейросети](docs/DNS-PROFILES.md).
+Крупное обновление **«Моих серверов»**: менеджер сразу нескольких Linux VPS с зашифрованным хранением параметров (DPAPI / AndroidKeyStore), запуск приватного (SSH) и публичного (`TCP 10808`) аутентифицированного **SOCKS5** с кнопкой подключения к Telegram, полная очистка VPS одной кнопкой (`purge-all`), линейка современных протоколов (**SRKN-Mirage v1**, **VLESS + REALITY**, **HTTPS / NaïveProxy**, **Hysteria2 + Salamander**, **VLESS gRPC**, **Shadowsocks 2022**) и собственный анти-DPI протокол **SRKN-Mirage v1 («Мираж»)**. [Как настроить VPN и подписки](docs/VPN.md) · [DNS и нейросети](docs/DNS-PROFILES.md).
 
-В «Моих ресурсах» добавлен третий список **«Обход DPI · свой IP»** для сайтов, которым нужен локальный обход блокировок без смены IP-адреса. В Windows `1.7.0` добавлен тихий автозапуск с системой в трей (`··· → Запускать вместе с Windows`). [Проверки и ограничения HTTPS](docs/VALIDATION-HTTPS-1.6.0.md).
-
-Android `1.1.0` — обновление приложения с постоянной производственной подписью и пакетом `io.github.def01d.sorryrkn`. На установленных версиях `1.0.x` обновление появится автоматически при открытии. [Подпись, канал и выпуск Android](docs/ANDROID-RELEASE.md).
+В режиме подписок и серверов Android (`Xray-core` + `libnaive.so` + `libmirage.so`) и Windows (`sing-box 1.14.4` + встроенный `Mirage`) поддерживают импорт и подключение по ссылкам `mirage://`, `hy2://`, `naive+https://`, `vless://`, `vmess://`, `trojan://` и `ss://`. [Подпись, канал и выпуск Android](docs/ANDROID-RELEASE.md).
 
 ## Скачивание
 
 | Платформа | Версия | Скачать | Требования |
 | --- | --- | --- | --- |
-| **Android** | **1.1.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.1.0/android/SorryRKN-Android-1.1.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
-| **Windows** | **1.7.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.7.0/windows/SorryRKN-Windows-1.7.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
-| **Windows Portable** | **1.7.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.7.0/windows/SorryRKN-Windows-1.7.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
+| **Android** | **1.2.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.2.0/android/SorryRKN-Android-1.2.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
+| **Windows** | **1.8.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.8.0/windows/SorryRKN-Windows-1.8.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
+| **Windows Portable** | **1.8.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.8.0/windows/SorryRKN-Windows-1.8.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 
 [Что изменилось](CHANGELOG.md) · [Контрольные суммы Android](android/SHA256SUMS.txt) · [Контрольные суммы Windows](windows/SHA256SUMS.txt)
 
