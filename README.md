@@ -15,9 +15,12 @@
   <a href="https://github.com/Def01d/SorryRKN/releases">Релизы</a>
 </p>
 
-## Android 1.2.0 и Windows 1.8.0
+## Android 1.3.0 и Windows 1.9.0
 
-Крупное обновление **«Моих серверов»**: менеджер сразу нескольких Linux VPS с зашифрованным хранением параметров (DPAPI / AndroidKeyStore), запуск приватного (SSH) и публичного (`TCP 10808`) аутентифицированного **SOCKS5** с кнопкой подключения к Telegram, полная очистка VPS одной кнопкой (`purge-all`), линейка современных протоколов (**SRKN-Mirage v1**, **VLESS + REALITY**, **HTTPS / NaïveProxy**, **Hysteria2 + Salamander**, **VLESS gRPC**, **Shadowsocks 2022**) и собственный анти-DPI протокол **SRKN-Mirage v1 («Мираж»)**. [Как настроить VPN и подписки](docs/VPN.md) · [DNS и нейросети](docs/DNS-PROFILES.md).
+- **Исключения приложений (Android и Windows):** выбирайте установленные приложения на телефоне или запущенные сейчас на ПК программы (а также ввод `.exe` вручную), чтобы пускать их трафик напрямую мимо VPN и локальных обходов:
+  - **Android (`1.3.0`):** `VpnService.Builder.addDisallowedApplication` для обоих режимов (локальный обход DPI/Гео-DNS и VPN «Свой сервер / Подписки») с поиском, фильтром системных приложений и применением без переподключения вручную.
+  - **Windows (`1.9.0`):** окно **«Исключения приложений»** со списком запущенных процессов ПК (`Приложения` в заголовке пульта, меню `···` / трее и на экране VPN). В режиме VPN (`sing-box 1.14.4`) исключённые процессы полностью (TCP/UDP/DNS) идут в `direct`; в локальном режиме `SmartDNS` пропускает их UDP/53 мимо Гео-DNS (для отдельных доменов без DPI `winws.exe` используйте «Мои ресурсы → Напрямую»).
+- **Флот своих серверов, SOCKS5 и SRKN-Mirage v1 (Android 1.2.0+ / Windows 1.8.0+):** менеджер нескольких Linux VPS с зашифрованным хранением параметров (DPAPI / AndroidKeyStore), запуск приватного (SSH) и публичного (`TCP 10808`) аутентифицированного **SOCKS5** с кнопкой подключения к Telegram, полная очистка VPS (`purge-all`), линейка современных протоколов (**SRKN-Mirage v1**, **VLESS + REALITY**, **HTTPS / NaïveProxy**, **Hysteria2 + Salamander**, **VLESS gRPC**, **Shadowsocks 2022**). [Как настроить VPN и подписки](docs/VPN.md) · [DNS и нейросети](docs/DNS-PROFILES.md).
 
 В режиме подписок и серверов Android (`Xray-core` + `libnaive.so` + `libmirage.so`) и Windows (`sing-box 1.14.4` + встроенный `Mirage`) поддерживают импорт и подключение по ссылкам `mirage://`, `hy2://`, `naive+https://`, `vless://`, `vmess://`, `trojan://` и `ss://`. [Подпись, канал и выпуск Android](docs/ANDROID-RELEASE.md).
 
@@ -25,9 +28,9 @@
 
 | Платформа | Версия | Скачать | Требования |
 | --- | --- | --- | --- |
-| **Android** | **1.2.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.2.0/android/SorryRKN-Android-1.2.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
-| **Windows** | **1.8.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.8.0/windows/SorryRKN-Windows-1.8.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
-| **Windows Portable** | **1.8.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.8.0/windows/SorryRKN-Windows-1.8.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
+| **Android** | **1.3.0** | [**Скачать APK**](https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.3.0/android/SorryRKN-Android-1.3.0.apk) | Android 8.0+, ARM64 или x86_64; root не нужен |
+| **Windows** | **1.9.0** | [**Скачать установщик**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.9.0/windows/SorryRKN-Windows-1.9.0-Setup.exe) | Windows 10/11 x64, Intel/AMD; запуск с правами администратора |
+| **Windows Portable** | **1.9.0** | [**Скачать ZIP**](https://raw.githubusercontent.com/Def01d/SorryRKN/windows-v1.9.0/windows/SorryRKN-Windows-1.9.0.zip) | Распакуйте весь архив и запустите `SorryRKN.exe` |
 
 [Что изменилось](CHANGELOG.md) · [Контрольные суммы Android](android/SHA256SUMS.txt) · [Контрольные суммы Windows](windows/SHA256SUMS.txt)
 
