@@ -1,17 +1,17 @@
 {
   "platform": "android",
   "applicationId": "io.github.def01d.sorryrkn",
-  "versionCode": 10100,
-  "versionName": "1.1.0",
+  "versionCode": 10200,
+  "versionName": "1.2.0",
   "minSdk": 26,
-  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.1.0/android/SorryRKN-Android-1.1.0.apk",
-  "size": 54551797,
-  "sha256": "ff75ac5182445ba9188c7dfb8182f91f0658f7affcb77c0fbbbdb37a32fa1251",
+  "url": "https://raw.githubusercontent.com/Def01d/SorryRKN/android-v1.2.0/android/SorryRKN-Android-1.2.0.apk",
+  "size": 60503553,
+  "sha256": "1a0841da4588157333fb520726ea814a2f884d9bc4d758d2821390b8beb4c138",
   "certificateSha256": "62d06753eab97aa19304d8adcdcdcf6bf5fe4e72e58336dd7085de4236880f1f",
-  "notes": "Новый интерфейс «Тактический пульт», переключение сервисов и DNS на лету без сброса VPN, правило «Обход DPI · свой IP» и повышение стабильности туннеля и DoH. Настройки и Telegram-прокси сохраняются.",
-  "signed": "eyJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJhcHBsaWNhdGlvbklkIjoiaW8uZ2l0aHViLmRlZjAxZC5zb3JyeXJrbiIsInZlcnNpb25Db2RlIjoxMDEwMCwidmVyc2lvbk5hbWUiOiIxLjEuMCIsIm1pblNkayI6MjYsInVybCI6Imh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9EZWYwMWQvU29ycnlSS04vYW5kcm9pZC12MS4xLjAvYW5kcm9pZC9Tb3JyeVJLTi1BbmRyb2lkLTEuMS4wLmFwayIsInNpemUiOjU0NTUxNzk3LCJzaGEyNTYiOiJmZjc1YWM1MTgyNDQ1YmE5MTg4YzdkZmI4MTgyZjkxZjA2NThmN2FmZmNiNzdjMGZiYmJkYjM3YTMyZmExMjUxIiwiY2VydGlmaWNhdGVTaGEyNTYiOiI2MmQwNjc1M2VhYjk3YWExOTMwNGQ4YWRjZGNkY2Y2YmY1ZmU0ZTcyZTU4MzM2ZGQ3MDg1ZGU0MjM2ODgwZjFmIiwibm90ZXMiOiLQndC+0LLRi9C5INC40L3RgtC10YDRhNC10LnRgSDCq9Ci0LDQutGC0LjRh9C10YHQutC40Lkg0L/Rg9C70YzRgsK7LCDQv9C10YDQtdC60LvRjtGH0LXQvdC40LUg0YHQtdGA0LLQuNGB0L7QsiDQuCBETlMg0L3QsCDQu9C10YLRgyDQsdC10Lcg0YHQsdGA0L7RgdCwIFZQTiwg0L/RgNCw0LLQuNC70L4gwqvQntCx0YXQvtC0IERQSSDCtyDRgdCy0L7QuSBJUMK7INC4INC/0L7QstGL0YjQtdC90LjQtSDRgdGC0LDQsdC40LvRjNC90L7RgdGC0Lgg0YLRg9C90L3QtdC70Y8g0LggRG9ILiDQndCw0YHRgtGA0L7QudC60Lgg0LggVGVsZWdyYW0t0L/RgNC+0LrRgdC4INGB0L7RhdGA0LDQvdGP0Y7RgtGB0Y8uIn0=",
+  "notes": "Менеджер нескольких VPS («Мои серверы»), запуск приватного (SSH) и публичного (10808) SOCKS5 с открытием в Telegram, уникальный анти-DPI протокол SRKN-Mirage v1 («Мираж»), VLESS REALITY, Hysteria2, gRPC, SS2022 и полная очистка сервера. Настройки и Telegram-прокси сохраняются.",
+  "signed": "eyJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJhcHBsaWNhdGlvbklkIjoiaW8uZ2l0aHViLmRlZjAxZC5zb3JyeXJrbiIsInZlcnNpb25Db2RlIjoxMDIwMCwidmVyc2lvbk5hbWUiOiIxLjIuMCIsIm1pblNkayI6MjYsInVybCI6Imh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9EZWYwMWQvU29ycnlSS04vYW5kcm9pZC12MS4yLjAvYW5kcm9pZC9Tb3JyeVJLTi1BbmRyb2lkLTEuMi4wLmFwayIsInNpemUiOjYwNTAzNTUzLCJzaGEyNTYiOiIxYTA4NDFkYTQ1ODgxNTczMzNmYjUyMDcyNmVhODE0YTJmODg0ZDliYzRkNzU4ZDI4MjEzOTBiOGJlYjRjMTM4IiwiY2VydGlmaWNhdGVTaGEyNTYiOiI2MmQwNjc1M2VhYjk3YWExOTMwNGQ4YWRjZGNkY2Y2YmY1ZmU0ZTcyZTU4MzM2ZGQ3MDg1ZGU0MjM2ODgwZjFmIiwibm90ZXMiOiLQnNC10L3QtdC00LbQtdGAINC90LXRgdC60L7Qu9GM0LrQuNGFIFZQUyAowqvQnNC+0Lgg0YHQtdGA0LLQtdGA0YvCuyksINC30LDQv9GD0YHQuiDQv9GA0LjQstCw0YLQvdC+0LPQviAoU1NIKSDQuCDQv9GD0LHQu9C40YfQvdC+0LPQviAoMTA4MDgpIFNPQ0tTNSDRgSDQvtGC0LrRgNGL0YLQuNC10Lwg0LIgVGVsZWdyYW0sINGD0L3QuNC60LDQu9GM0L3Ri9C5INCw0L3RgtC4LURQSSDQv9GA0L7RgtC+0LrQvtC7IFNSS04tTWlyYWdlIHYxICjCq9Cc0LjRgNCw0LbCuyksIFZMRVNTIFJFQUxJVFksIEh5c3RlcmlhMiwgZ1JQQywgU1MyMDIyINC4INC/0L7Qu9C90LDRjyDQvtGH0LjRgdGC0LrQsCDRgdC10YDQstC10YDQsC4g0J3QsNGB0YLRgNC+0LnQutC4INC4IFRlbGVncmFtLdC/0YDQvtC60YHQuCDRgdC+0YXRgNCw0L3Rj9GO0YLRgdGPLiJ9",
   "keyId": "f3f23cac9a5a73ef38b20d1241d58593",
-  "signedAt": 1795387332,
-  "expires": 1810939332,
-  "signature": "MEQCICOLGJH4f9zrlOn1ez51eJPMe1vdSLv8GmEQRir8h1KOAiBJX/TaaliM2p4Q/riDH3rs+2HI8FGH0H0IPFWPAwTHwA=="
+  "signedAt": 1795417706,
+  "expires": 1810969706,
+  "signature": "MEUCIQDqfEdNi03n/Vqgs53MCWNNOFeSpjs64FaK4Fprf5JurAIgCbEpinr/Nin0JtWUcNeSOGHhclNVvSJlYXzliw20GUg="
 }
