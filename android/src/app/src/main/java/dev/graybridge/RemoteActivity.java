@@ -235,7 +235,7 @@ public class RemoteActivity extends Activity implements SharedPreferences.OnShar
                 return uri;
             }
         }
-        try { srv.remove("active_proto"); } catch (JSONException ignored) {}
+        srv.remove("active_proto");
         return "";
     }
 

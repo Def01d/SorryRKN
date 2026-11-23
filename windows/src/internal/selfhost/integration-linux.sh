@@ -47,7 +47,9 @@ mkdir -p /etc/sorryrkn-https /usr/local/lib/sorryrkn-https
 printf '1\n' > /etc/sorryrkn-https/managed-v1
 printf '1\n' > /usr/local/lib/sorryrkn-https/managed-v1
 chmod 700 /etc/sorryrkn-https; chmod 755 /usr/local/lib/sorryrkn-https
-curl -fsSL --proto '=https' --proto-redir '=https' --retry 2 --max-time 120 -H 'Accept: application/octet-stream' https://api.github.com/repos/klzgrad/forwardproxy/releases/assets/666580211 -o "$work/caddy.xz"
+if ! curl -fsSL --proto '=https' --proto-redir '=https' --retry 2 --max-time 120 https://github.com/klzgrad/forwardproxy/releases/download/v2.11.7-naive2/caddy-forwardproxy-naive.tar.xz -o "$work/caddy.xz"; then
+    curl -fsSL --proto '=https' --proto-redir '=https' --retry 2 --max-time 120 -H 'Accept: application/octet-stream' https://api.github.com/repos/klzgrad/forwardproxy/releases/assets/666580211 -o "$work/caddy.xz"
+fi
 printf '%s  %s\n' c273dc07dd79c5919f97639cbdcb559d40ce90475dbd8aac80641b0a8c8065ff "$work/caddy.xz" | sha256sum -c --status
 tar xJOf "$work/caddy.xz" caddy-forwardproxy-naive/caddy > /usr/local/lib/sorryrkn-https/caddy
 chmod 755 /usr/local/lib/sorryrkn-https/caddy

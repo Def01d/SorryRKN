@@ -591,8 +591,7 @@ func serverCommand(n, notify int) {
 		return
 	}
 
-	switch n {
-	case sshServerList:
+	if n == sshServerList {
 		if notify != 1 { // LBN_SELCHANGE
 			return
 		}
@@ -604,7 +603,12 @@ func serverCommand(n, notify int) {
 			syncServerForm()
 		}
 		return
+	}
+	if notify != 0 {
+		return
+	}
 
+	switch n {
 	case sshNewServer:
 		editingNewServer = true
 		call(user, "SendMessageW", fields[sshServerList], 0x0186, ^uintptr(0), 0)
@@ -718,9 +722,16 @@ func serverCommand(n, notify int) {
 		openURL(target)
 		setLabel(fields[sshOutput], "Открываем настройки прокси в Telegram…")
 		return
+
+	default:
+		switch n {
+		case sshForget, sshFleetCheck, sshPurgeAll, sshRun, sshProtoStop, sshProtoPurge, sshSocksSSH, sshSocksPub, sshSocksPurge:
+		default:
+			return
+		}
 	}
 
-	// Operations below require valid server form data + pinned SSH execution.
+	// Operations below require a valid action button + valid server form data + pinned SSH execution.
 	var cur *savedServer
 	if !editingNewServer {
 		if idx := activeServerIndex(); idx >= 0 {
@@ -757,6 +768,13 @@ func serverCommand(n, notify int) {
 
 	var action selfhost.Action
 	var confirmMsg string
+	if n == sshActions && notify == 1 {
+		return
+	}
+	if notify != 0 {
+		return
+	}
+
 	switch n {
 	case sshFleetCheck:
 		action = selfhost.FleetStatus
